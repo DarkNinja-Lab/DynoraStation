@@ -66,7 +66,7 @@ Die Anwendung kombiniert:
 
 - **Node.js** 18+ (empfohlen)
 - npm (oder pnpm/yarn)
-- Lokales Netzwerk für ESP-Module
+- WebServer und die ESP´s sollten im gleichen Netzwerk sein
 
 ---
 
