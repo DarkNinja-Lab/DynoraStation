@@ -2,3 +2,5 @@ node_modules/
 npm-debug.log*
 .DS_Store
 .env.local
+data/hardware.json
+data/layout.json
