@@ -9,17 +9,16 @@ import { layoutLaden, layoutNormalisieren } from "./layout/layout.js";
 import { rulesLaden } from "./rules/rules.js";
 import { builderRender, trackRender, renderSidebarEspStatus, renderCs3Tiles } from "./ui/render.js";
 import { statusLaden } from "./status/status.js";
+import { renderCanvas, inspectorLeer } from "./builder/render.js";
 
 export async function startApp() {
   console.log("=== START APP ===");
   
-  // WICHTIG: Events ZUERST registrieren!
   console.log("1. Registriere Events...");
   eventsRegistrieren();
   
   console.log("2. Canvas initialisieren...");
   ensureCanvasGeometry();
-  setupBuilderButtons();
 
   console.log("3. Katalog laden...");
   await katalogLaden();
@@ -38,14 +37,19 @@ export async function startApp() {
   console.log("7. UI rendern...");
   builderRender();
   trackRender();
+  renderCanvas();
+  inspectorLeer();
   renderTrackLightButtons();
   renderSidebarEspStatus();
   renderCs3Tiles();
 
-  console.log("8. Status laden...");
+  console.log("8. Builder Setup...");
+  setupBuilderButtons();
+
+  console.log("9. Status laden...");
   await statusLaden({ ruhig: false });
 
-  console.log("9. Status-Timer starten...");
+  console.log("10. Status-Timer starten...");
   if (state.statusTimer) clearInterval(state.statusTimer);
   state.statusTimer = setInterval(() => statusLaden({ ruhig: true }), 1500);
   
