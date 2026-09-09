@@ -4,6 +4,7 @@ const express = require("express");
 const { wrap, apiError } = require("../utils/errors");
 const { cleanText, validRelay, validLedChannel, validBrightness } = require("../utils/sanitize");
 const { parseState, toInt } = require("../utils/parse");
+const { executeRulesForTrigger } = require("../domain/rules/executeRulesForTrigger");
 
 function createControlRoutes({
   runtimeState,
@@ -15,7 +16,8 @@ function createControlRoutes({
   upsertRelay,
   upsertLed,
   updateElementsPowerByRelay,
-  syncAllElementStatesFromRelaysAndLeds
+  syncAllElementStatesFromRelaysAndLeds,
+  queueWriteRules
 }) {
   const router = express.Router();
 
@@ -119,7 +121,25 @@ function createControlRoutes({
     const cmd = commandQueueApi.createCommand("RELAY_PULSE", { channel, duration: 220, state, elementId: element.id }, moduleId);
     addEvent("WEICHE", `${moduleId}:${element.id}`, `${element.name || element.id} auf ${state}`);
 
-    res.json({ ok: true, state, befehl: cmd, module: moduleId });
+    const automations = executeRulesForTrigger({
+      runtimeState,
+      moduleRegistry,
+      commandQueueApi,
+      addEvent,
+      upsertRelay,
+      upsertLed,
+      updateElementsPowerByRelay,
+      queueWriteHardware,
+      queueWriteLayout,
+      queueWriteRules,
+      trigger: {
+        kind: "switch",
+        elementId: element.id,
+        state
+      }
+    });
+
+    res.json({ ok: true, state, befehl: cmd, module: moduleId, automations });
   }));
 
   router.post("/api/signal/control", wrap(async (req, res) => {
@@ -139,7 +159,25 @@ function createControlRoutes({
     const cmd = commandQueueApi.createCommand("RELAY_PULSE", { channel, duration: 220, state, elementId: element.id }, moduleId);
     addEvent("SIGNAL", `${moduleId}:${element.id}`, `${element.name || element.id} auf ${state.toUpperCase()}`);
 
-    res.json({ ok: true, state, befehl: cmd, module: moduleId });
+    const automations = executeRulesForTrigger({
+      runtimeState,
+      moduleRegistry,
+      commandQueueApi,
+      addEvent,
+      upsertRelay,
+      upsertLed,
+      updateElementsPowerByRelay,
+      queueWriteHardware,
+      queueWriteLayout,
+      queueWriteRules,
+      trigger: {
+        kind: "switch",
+        elementId: element.id,
+        state
+      }
+    });
+
+    res.json({ ok: true, state, befehl: cmd, module: moduleId, automations });
   }));
 
   router.post("/api/track/control", wrap(async (req, res) => {
