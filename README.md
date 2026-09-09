@@ -62,36 +62,6 @@ Die Anwendung kombiniert:
 
 ---
 
-## Projektstruktur (typisch)
-
-```text
-.
-├─ server.cjs
-├─ public/
-│  ├─ index.html            # (oder dashboard.html, je nach Setup)
-│  ├─ style.css             # (oder style-guide.css)
-│  ├─ app.js                # (oder layout-manager.js)
-│  └─ assets/
-│     └─ track/
-│        ├─ 5106.jpg
-│        ├─ 5107.jpg
-│        ├─ 5108.jpg
-│        ├─ 5109.jpg
-│        ├─ 5110.jpg
-│        ├─ 5129.jpg
-│        ├─ 5100.jpg
-│        ├─ 5101.jpg
-│        ├─ 5120.jpg
-│        ├─ 5202.jpg
-│        ├─ 5203.jpg
-│        └─ fallback.jpg
-└─ data/
-   ├─ layout.json
-   └─ hardware.json
-```
-
----
-
 ## Voraussetzungen
 
 - **Node.js** 18+ (empfohlen)
@@ -99,21 +69,6 @@ Die Anwendung kombiniert:
 - Lokales Netzwerk für ESP-Module
 
 ---
-
-## Starten
-
-### Konfiguration
-
-In `server.cjs`:
-
-- `SERVER_IP`
-- `SERVER_PORT`
-- `MODULE_TIMEOUT`
-- Queue-Limits:
-  - `MAX_COMMANDS`
-  - `MAX_EVENTS`
-  - `COMMAND_MAX_AGE_MS`
-  - `COMMAND_MAX_ATTEMPTS`
 
 
 ## 1) Abhängigkeiten installieren
@@ -123,48 +78,5 @@ npm install express
 
 ## 2) Server starten
 ```bash
-node server.cjs
+npm start
 ```
-
-Der Server läuft standardmäßig auf:
-
-- `http://192.168.1.115:8181`
-- Bind auf `0.0.0.0`
-
----
-
-## Bekannte Stolperfallen
-
-1. **Dateinamen stimmen nicht**
-   - Server lädt standardmäßig `public/index.html` und referenziert `/style.css`, `/app.js`.
-   - Bei anderen Namen musst du Datei/Referenzen angleichen.
-
-2. **Dropdown/Bilder werden nicht korrekt angezeigt**
-   - Browser-Cache leeren (Hard Reload: `Strg+F5`)
-   - Prüfen, ob Bilder wirklich unter `/public/assets/track/` liegen.
-
-3. **ESP erscheint offline**
-   - Heartbeat nicht gesendet oder `module`-ID abweichend.
-   - `MODULE_TIMEOUT` prüfen.
-
-4. **Schaltbefehl kommt nicht am ESP an**
-   - `/api/module/next-command` polling prüfen.
-   - ACK (`/api/module/ack`) korrekt senden.
-
----
-
-## Entwicklungstipps
-
-- Bei UI-Änderungen zuerst nur Frontend testen (`/api/status` mocked oder live).
-- Bei Hardware-Problemen `/api/debug/commands` und `/api/debug/hardware` verwenden.
-- Layout häufig speichern, da beim Status-Sync ggf. Serverlayout übernommen wird.
-
----
-
-## Roadmap
-
-- Fahrstraßen (Route-Makros)
-- Gleisbesetzt-Logik mit Sensor-Ketten
-- Benutzer/Passwort für Web-UI
-- WebSocket statt Polling für Live-Status
-- Import/Export von Layout-Profilen
