@@ -1,38 +1,38 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Fehler Meldung
+about: Erstelle Fehler Meldungen
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**Beschreibe das Fehlerbild**
+Eine Klare Beschreibung wie du den Fehler gefunden hast und was der Fehler ist.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Zum rekonstituieren**
+Was habe ich genau gemacht:
+1. habe  '...'
+2. dann bin ich auf '....'
+3. sensor XY hat '....'
+4. Dann kam der Fehler.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**Deine Erwartung**
+Was sollte eigentlich deiner Meinung nach passieren?
 
 **Screenshots**
-If applicable, add screenshots to help explain your problem.
+Wenn du Screenshots hast füge sie gerne mit ein.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
+**Computer :**
+ - OS: [e.g. Windows, Linux, MacOS]
+ - Browser [e.g. chrome, safari, edge, firefox...]
+ - Webserver [e.g. Ubuntu, Windows ..]
+
+**Smartphone :**
+ - Gerät: [e.g. iPhone13]
+ - OS: [e.g. iOS26]
  - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
+ - Webserver [e.g. Ubuntu, Windows ..]
 
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+**Zusätzlicher Kontext**
+Wenn du weitere sachen zum Fehler hast einfach hier mit einfügen.
