@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121212">
+  <title>H0-Bahn-Zentrale • Dark Control</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="left-rail" id="sidebar">
+      <div class="brand-bar">
+        <div class="brand-icon">⚙</div>
+        <div class="brand-text">
+          <strong>System</strong>
+          <small>H0 Bahnsteuerung</small>
+        </div>
+      </div>
+
+      <nav class="main-nav" aria-label="Hauptnavigation">
+        <button class="nav-button active" data-page="dashboard" type="button"><span>⌂</span><b>Übersicht</b></button>
+        <button class="nav-button" data-page="builder" type="button"><span>⌘</span><b>Gleisbild-Editor</b></button>
+        <button class="nav-button" data-page="track" type="button"><span>⌁</span><b>Gleisbild</b></button>
+        <button class="nav-button" data-page="settings" type="button"><span>⚙</span><b>Einstellungen</b></button>
+        <button class="nav-button" data-page="rules" type="button"><span>⇄</span><b>Regeln</b></button>
+        <button class="nav-button" data-page="events" type="button"><span>≡</span><b>Ereignisse</b></button>
+      </nav>
+
+      <div class="sidebar-status-box">
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+          <strong id="sidebarServerStatus">WebServer wird geladen</strong>
+          <small>API / Backend</small>
+        </div>
+      </div>
+
+      <div class="sidebar-esp-box">
+        <div class="sidebar-esp-title">ESP-Module</div>
+        <div id="sidebarEspList" class="sidebar-esp-list">
+          <div class="sidebar-esp-empty">Noch kein ESP verbunden.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobileMenuButton" class="icon-button mobile-menu-btn" type="button" aria-label="Menü öffnen">☰</button>
+          <div>
+            <div class="eyebrow">MÄRKLIN H0</div>
+            <h1 id="pageTitle">Übersicht</h1>
+            <p id="pageSubtitle">Status, Betrieb und Gleisbild</p>
+          </div>
+        </div>
+
+        <div class="topbar-actions">
+          <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
+          <button id="emergencyButton" class="danger-button" type="button">NOT-AUS</button>
+        </div>
+      </header>
+
+      <section id="page-dashboard" class="page active">
+        <section class="hero-panel">
+          <div>
+            <div class="eyebrow">STEUERZENTRALE</div>
+            <h2>Anlage überwachen und steuern</h2>
+            <p>Direkter Zugriff auf Editor, Gleisbild und Hardware.</p>
+            <div class="hero-actions">
+              <button class="primary-button" data-page-link="builder" type="button">Editor öffnen</button>
+              <button class="secondary-button" data-page-link="track" type="button">Gleisbild öffnen</button>
+            </div>
+          </div>
+          <div class="hero-mark">CS3</div>
+        </section>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>WebServer</span>
+            <strong id="serverCardStatus">OFFLINE</strong>
+            <small>API-Verbindung</small>
+          </article>
+          <article class="stat-card">
+            <span>Module</span>
+            <strong id="moduleCardStatus">0 / 0</strong>
+            <small>Online / Gesamt</small>
+          </article>
+          <article class="stat-card">
+            <span>Relais aktiv</span>
+            <strong id="relayCardStatus">0 / 0</strong>
+            <small>Geschaltete Ausgänge</small>
+          </article>
+          <article class="stat-card">
+            <span>Elemente</span>
+            <strong id="elementCardStatus">0</strong>
+            <small>Im Gleisbild</small>
+          </article>
+        </div>
+
+        <div class="dashboard-columns">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">RÜCKMELDUNG</div>
+                <h2>Letzte Sensormeldung</h2>
+                <p>Status aus dem Rückmeldesystem.</p>
+              </div>
+            </div>
+            <div class="last-event-box">
+              <div class="last-event-icon">🚂</div>
+              <div>
+                <strong id="lastSensorName">Noch kein Sensor ausgelöst</strong>
+                <span id="lastSensorTime">-</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">SCHNELLSTART</div>
+                <h2>Funktionen</h2>
+                <p>Häufige Aktionen in einem Klick.</p>
+              </div>
+            </div>
+            <div class="help-list">
+              <button data-page-link="builder" type="button"><b>Gleisbild-Editor</b><span>Elemente setzen und verbinden</span></button>
+              <button data-page-link="track" type="button"><b>Gleisbild</b><span>Weichen, Signale, Abschnitte schalten</span></button>
+              <button data-page-link="rules" type="button"><b>Regeln</b><span>Wenn-Dann Automationen erstellen</span></button>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="page-builder" class="page">
+        <section class="builder-shell">
+          <div class="builder-header">
+            <div>
+              <div class="eyebrow">EDITOR</div>
+              <h2>Gleisbild-Editor</h2>
+              <p>Elemente hinzufügen, verbinden, ausrichten.</p>
+            </div>
+            <div class="builder-header-actions">
+              <span id="layoutMessage" class="builder-message" aria-live="polite"></span>
+              <button id="saveLayoutButton" class="primary-button" type="button">Speichern</button>
+              <button id="undoButton" class="tool-button" type="button">↶</button>
+              <button id="redoButton" class="tool-button" type="button">↷</button>
+            </div>
+          </div>
+
+          <div class="builder-layout">
+            <aside class="builder-sidebar">
+              <div class="palette-title">Werkzeuge</div>
+              <button id="selectToolButton" class="palette-button active" type="button">↖ Auswahl</button>
+              <button id="connectToolButton" class="palette-button" type="button">⛓ Verbinden</button>
+
+              <div class="palette-divider"></div>
+
+              <div class="palette-title">Märklin M Gleise</div>
+
+              <div class="catalog-group">
+                <label>Gerade</label>
+                <div id="trackTypeSelectHost"></div>
+                <button class="palette-button add-element-button" data-add="track" type="button">━ Gerades Gleis hinzufügen</button>
+              </div>
+
+              <div class="catalog-group">
+                <label>Kreuzungsweiche</label>
+                <div id="xTrackTypeSelectHost"></div>
+                <button class="palette-button add-element-button" data-add="crossing" type="button">╳ Kreuzungsweiche 5128 hinzufügen</button>
+              </div>
+
+              <div class="catalog-group">
+                <label>Kurve</label>
+                <div id="curveTypeSelectHost"></div>
+                <button class="palette-button add-element-button" data-add="curve" type="button">⌒ Kurve hinzufügen</button>
+              </div>
+
+              <div class="catalog-group">
+                <label>Weiche</label>
+                <div id="switchTypeSelectHost"></div>
+                <button class="palette-button add-element-button" data-add="switch" type="button">⑂ Weiche hinzufügen</button>
+              </div>
+
+              <div class="palette-divider"></div>
+
+              <div class="palette-title">Weitere</div>
+              <button class="palette-button add-element-button" data-add="signal" type="button">🚦 Hauptsignal 7039 hinzufügen</button>
+              <button class="palette-button add-element-button" data-add="espSignal" type="button">💡 ESP-Signalmast hinzufügen</button>
+              <button class="palette-button add-element-button" data-add="transformer" type="button">⚡ Trafo hinzufügen</button>
+
+              <div class="palette-divider"></div>
+
+              <div class="palette-title">Bearbeiten</div>
+              <button id="duplicateButton" class="palette-button" type="button">⧉ Duplizieren</button>
+              <button id="rotateLeftButton" class="palette-button" type="button">↺ Links drehen</button>
+              <button id="rotateRightButton" class="palette-button" type="button">↻ Rechts drehen</button>
+              <button id="deleteButton" class="palette-button delete-button" type="button">⌫ Löschen</button>
+
+              <div class="palette-divider"></div>
+
+              <div class="palette-title">Ansicht</div>
+              <label class="check-option"><input id="gridCheckbox" type="checkbox" checked> Raster anzeigen</label>
+              <label class="check-option"><input id="snapCheckbox" type="checkbox" checked> Am Raster einrasten</label>
+              <label class="check-option"><input id="labelsCheckbox" type="checkbox" checked> Beschriftungen anzeigen</label>
+
+              <button id="clearLayoutButton" class="palette-button" type="button">⌧ Plan leeren</button>
+            </aside>
+
+            <section class="builder-canvas-area">
+              <div class="canvas-toolbar">
+                <div class="toolbar-group">
+                  <button id="zoomOutButton" class="icon-button" type="button">−</button>
+                  <strong id="zoomLabel">100 %</strong>
+                  <button id="zoomInButton" class="icon-button" type="button">＋</button>
+                  <button id="zoomResetButton" class="icon-button" type="button">1:1</button>
+                  <button id="centerLayoutButton" class="icon-button" type="button">Zentrieren</button>
+                </div>
+
+                <div id="builderHint" class="builder-hint">
+                  Auswahl aktiv: Klicken wählt aus, ziehen verschiebt. Mit mittlerer Maustaste oder Leertaste + Ziehen Karte verschieben.
+                </div>
+
+                <div class="toolbar-counts">
+                  <span>Elemente: <b id="elementCount">0</b></span>
+                  <span>Verbindungen: <b id="connectionCount">0</b></span>
+                </div>
+              </div>
+
+              <div id="builderViewport" class="canvas-viewport">
+                <svg id="builderSvg" viewBox="0 0 1600 900" tabindex="0" role="application">
+                  <defs>
+                    <pattern id="builderGrid" width="25" height="25" patternUnits="userSpaceOnUse">
+                      <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#2d2d2d" stroke-width="1"></path>
+                    </pattern>
+                    <filter id="builderGlow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="3.5" result="blur"></feGaussianBlur>
+                      <feMerge>
+                        <feMergeNode in="blur"></feMergeNode>
+                        <feMergeNode in="SourceGraphic"></feMergeNode>
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  <rect id="builderBackground" x="0" y="0" width="1600" height="900" fill="url(#builderGrid)"></rect>
+                  <g id="builderConnectionLayer"></g>
+                  <g id="builderElementLayer"></g>
+
+                  <text id="builderEmptyHint" x="800" y="430" text-anchor="middle">
+                    Noch kein Gleisbild vorhanden
+                  </text>
+                </svg>
+              </div>
+            </section>
+
+            <aside id="inspector" class="inspector" aria-label="Eigenschaften">
+              <div class="inspector-empty">
+                <div class="inspector-empty-icon">◇</div>
+                <strong>Kein Element ausgewählt</strong>
+                <span>Klicke ein Gleis, eine Kreuzungsweiche, eine Kurve, Weiche, Hauptsignal 7039, ESP-Signalmast oder Trafo an.</span>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-track" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">BETRIEB</div>
+              <h2>Gleisbild</h2>
+              <p>Element antippen schaltet im zugewiesenen Modul.</p>
+            </div>
+          </div>
+
+          <div class="track-light-panel">
+            <div class="track-light-grid" id="trackLightGrid">
+              <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>
+              <button class="light-toggle-btn" data-light-index="1" type="button">Licht 2</button>
+              <button class="light-toggle-btn" data-light-index="2" type="button">Licht 3</button>
+              <button class="light-toggle-btn" data-light-index="3" type="button">Licht 4</button>
+            </div>
+          </div>
+
+          <div class="cs3-tile-panel">
+            <div class="cs3-tile-header">
+              <strong>Schaltfelder</strong>
+              <span>Weichen & Signale</span>
+            </div>
+            <div id="cs3TileGrid" class="cs3-tile-grid"></div>
+          </div>
+
+          <div class="track-plan-wrapper">
+            <svg id="trackSvg" viewBox="0 0 1600 900" role="img">
+              <g id="trackConnectionLayer"></g>
+              <g id="trackElementLayer"></g>
+              <text id="trackEmptyHint" x="800" y="430" text-anchor="middle">
+                Im Editor wurden noch keine Elemente erstellt.
+              </text>
+            </svg>
+          </div>
+
+          <div id="trackMessage" class="builder-message" aria-live="polite"></div>
+        </section>
+      </section>
+
+      <section id="page-settings" class="page">
+        <section class="panel settings-panel compact">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">SCHRITT 1</div>
+              <h2>Licht-Buttons (1–4)</h2>
+              <p>Buttonname, Modul und Relay festlegen.</p>
+            </div>
+          </div>
+          <div id="lightConfigGrid" class="light-config-grid"></div>
+        </section>
+
+        <section class="panel settings-panel compact">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">SCHRITT 2</div>
+              <h2>Standardzustände (Weichen, Signale, Kreuzungsweiche)</h2>
+              <p>Definiert die Grundstellung der Anlage.</p>
+            </div>
+            <div class="topbar-actions">
+              <button id="applyDefaultsButton" class="secondary-button" type="button">Jetzt anwenden</button>
+            </div>
+          </div>
+          <div id="defaultStateGrid" class="default-state-grid"></div>
+        </section>
+
+        <div class="control-columns compact-cols">
+          <section class="panel compact">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">SCHRITT 3</div>
+                <h2>Relais</h2>
+                <p>Schalten + Name/Rolle vergeben.</p>
+              </div>
+            </div>
+            <div id="relayGrid" class="relay-grid"></div>
+          </section>
+
+          <section class="panel compact">
+            <div class="panel-header">
+              <div>
+                <div class="eyebrow">SCHRITT 4</div>
+                <h2>Sensoren</h2>
+                <p>Status prüfen + Namen setzen.</p>
+              </div>
+            </div>
+            <div id="sensorGrid" class="sensor-grid"></div>
+          </section>
+        </div>
+
+        <section class="panel settings-panel compact">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">SCHRITT 5</div>
+              <h2>ESP-Signalmast</h2>
+              <p>Ein Bereich für Status, EIN/AUS und Konfiguration.</p>
+            </div>
+          </div>
+          <div id="ledConfigGrid" class="light-config-grid"></div>
+        </section>
+      </section>
+
+      <section id="page-rules" class="page">
+        <section class="panel settings-panel compact">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">AUTOMATISIERUNG</div>
+              <h2>Wenn-Dann Regeln</h2>
+              <p>Eigene Automationen: z. B. Sensor → Weiche/Hauptsignal/Relay/ESP-Signalmast/Kreuzungsweiche.</p>
+            </div>
+          </div>
+          <div id="rulesGrid" class="rules-grid"></div>
+        </section>
+      </section>
+
+      <section id="page-events" class="page">
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">SYSTEM</div>
+              <h2>Ereignisprotokoll</h2>
+              <p>Sensor-, Relais- und Systemmeldungen.</p>
+            </div>
+          </div>
+          <div id="eventList" class="event-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
