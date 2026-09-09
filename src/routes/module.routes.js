@@ -5,12 +5,16 @@ const { wrap, apiError } = require("../utils/errors");
 const { ipFromReq } = require("../utils/network");
 const { cleanText, validLedChannel, validBrightness } = require("../utils/sanitize");
 const { parseState } = require("../utils/parse");
+const { executeRulesForTrigger } = require("../domain/rules/executeRulesForTrigger");
 
 function createModuleRoutes({
   runtimeState,
   moduleRegistry,
   queueWriteHardware,
+  queueWriteLayout,
+  queueWriteRules,
   commandQueueApi,
+  addEvent,
   upsertRelay,
   upsertLed,
   upsertSensor,
@@ -101,7 +105,26 @@ function createModuleRoutes({
     runtimeState.hardware.updatedAt = Date.now();
     queueWriteHardware();
 
-    res.json({ ok: true });
+    const automations = executeRulesForTrigger({
+      runtimeState,
+      moduleRegistry,
+      commandQueueApi,
+      addEvent,
+      upsertRelay,
+      upsertLed,
+      updateElementsPowerByRelay,
+      queueWriteHardware,
+      queueWriteLayout,
+      queueWriteRules,
+      trigger: {
+        kind: "sensor",
+        module: moduleId,
+        sensorId,
+        triggered
+      }
+    });
+
+    res.json({ ok: true, automations });
   }));
 
   router.get("/api/module/next-command", (req, res) => {
