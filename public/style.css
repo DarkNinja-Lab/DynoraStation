@@ -909,3 +909,193 @@ button.busy {
     width: auto;
   }
 }
+
+:root {
+  --bg-card: #1a1d22;
+  --bg-soft: #232831;
+  --line: #343a46;
+  --txt: #e9edf3;
+  --txt-dim: #aab3c2;
+  --accent: #58a6ff;
+  --ok: #2fbf71;
+  --warn: #ffb020;
+  --danger: #ff5d5d;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+
+/* Generic card wrappers */
+.rules-head,
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.rules-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Rule cards grid */
+.rules-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.rule-card {
+  background: linear-gradient(180deg, #1d222a, #171b21);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.rule-title {
+  font-weight: 700;
+  color: var(--txt);
+  margin-bottom: 2px;
+}
+
+.rule-card label {
+  font-size: 12px;
+  color: var(--txt-dim);
+}
+
+.rule-card select,
+.rule-card input {
+  width: 100%;
+  background: var(--bg-soft);
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  outline: none;
+}
+
+.rule-card select:focus,
+.rule-card input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.16);
+}
+
+/* Settings blocks */
+.light-config-grid,
+.default-state-grid,
+.relay-grid,
+.sensor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.light-config-card,
+.relay-item,
+.sensor-item {
+  background: linear-gradient(180deg, #1d222a, #171b21);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.light-config-card h4 {
+  margin: 0 0 8px 0;
+  color: var(--txt);
+}
+
+.light-config-card label {
+  display: block;
+  font-size: 12px;
+  color: var(--txt-dim);
+  margin-bottom: 5px;
+}
+
+.light-config-card input,
+.light-config-card select {
+  width: 100%;
+  margin-bottom: 9px;
+  background: var(--bg-soft);
+  color: var(--txt);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+}
+
+.light-config-card input:focus,
+.light-config-card select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.16);
+}
+
+.relay-item,
+.sensor-item {
+  display: grid;
+  gap: 8px;
+}
+
+/* Status badges */
+.badge-on,
+.badge-off {
+  display: inline-block;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-on {
+  color: #052b17;
+  background: rgba(47, 191, 113, 0.95);
+}
+
+.badge-off {
+  color: #3a0d0d;
+  background: rgba(255, 93, 93, 0.9);
+}
+
+/* Buttons tune */
+.primary-button,
+.secondary-button {
+  border-radius: 10px;
+}
+
+.secondary-button {
+  border: 1px solid var(--line);
+  background: #2a303a;
+  color: var(--txt);
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.secondary-button:hover {
+  border-color: #4a5568;
+  background: #323a46;
+}
+
+/* Mobile tweaks */
+@media (max-width: 900px) {
+  .rules-head,
+  .settings-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rules-actions {
+    width: 100%;
+  }
+
+  .rules-actions .primary-button,
+  .rules-actions .secondary-button {
+    flex: 1;
+  }
+}
+

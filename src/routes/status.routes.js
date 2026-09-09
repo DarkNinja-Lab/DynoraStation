@@ -1,59 +1,67 @@
 "use strict";
 
 const express = require("express");
-const { defaultLightButtons } = require("../domain/defaults");
+const { wrap } = require("../utils/errors");
 
-function createStatusRoutes({
-  runtimeState,
-  moduleRegistry,
-  commandQueueApi,
-  syncAllElementStatesFromRelaysAndLeds
-}) {
+function createStatusRoutes({ runtimeState, moduleRegistry }) {
   const router = express.Router();
 
-  router.get("/api/status", (req, res) => {
-    Object.values(runtimeState.modules).forEach((m) => {
-      m.online = moduleRegistry.moduleIsOnline(m);
-    });
+  router.get("/api/status", wrap(async (req, res) => {
+    const modules = moduleRegistry.listModulesStatus();
 
-    syncAllElementStatesFromRelaysAndLeds(runtimeState.layout, runtimeState.hardware);
-    commandQueueApi.cleanupCommandQueue();
-
-    const moduleMap = {};
-    Object.values(runtimeState.modules).forEach((m) => {
-      moduleMap[m.id] = {
+    // Für Frontend-Kompatibilität zusätzlich als Objekt nach ID bereitstellen
+    const modulesById = {};
+    for (const m of modules) {
+      modulesById[m.id] = {
         id: m.id,
         name: m.name,
-        online: m.online,
+        type: m.type,
         ip: m.ip,
-        lastHeartbeat: m.lastHeartbeat,
-        relayCount: m.relays.length,
-        sensorCount: m.sensors.length,
-        ledCount: m.leds.length
+        online: m.online,
+        lastHeartbeat: Number(m.lastHeartbeat || 0),
+        relays: Array.isArray(m.relays) ? m.relays : [],
+        sensors: Array.isArray(m.sensors) ? m.sensors : [],
+        leds: Array.isArray(m.leds) ? m.leds : []
       };
-    });
-
-    runtimeState.hardware.module = moduleMap;
-    if (!Array.isArray(runtimeState.hardware.lightButtons)) {
-      runtimeState.hardware.lightButtons = defaultLightButtons();
     }
 
-    res.json({
-      server: { online: true, ip: process.env.SERVER_IP || "127.0.0.1", port: Number(process.env.SERVER_PORT || 8181) },
-      layout: runtimeState.layout,
-      hardware: runtimeState.hardware,
-      lightButtons: runtimeState.hardware.lightButtons,
-      module: moduleRegistry.listModulesStatus(),
-      moduleMap,
-      rules: runtimeState.rulesData.rules,
-      ereignisse: runtimeState.events,
-      events: runtimeState.events
-    });
-  });
+    // In runtimeState spiegeln (wichtig für persistente/andere Routen)
+    if (!runtimeState.hardware || typeof runtimeState.hardware !== "object") {
+      runtimeState.hardware = {};
+    }
+    runtimeState.hardware.modules = modulesById;
+    runtimeState.hardware.updatedAt = Date.now();
 
-  router.get("/api/events", (req, res) => {
-    res.json({ ereignisse: runtimeState.events, events: runtimeState.events });
-  });
+    const relayCount = modules.reduce((sum, m) => sum + (Array.isArray(m.relays) ? m.relays.length : 0), 0);
+    const relayActive = modules.reduce(
+      (sum, m) => sum + (Array.isArray(m.relays) ? m.relays.filter(Boolean).length : 0),
+      0
+    );
+
+    res.json({
+      ok: true,
+      serverTime: Date.now(),
+      moduleTimeoutMs: Number(process.env.MODULE_TIMEOUT || 10000),
+
+      // beide Formen zurückgeben (Array + Objekt), damit alte/neue Frontendteile funktionieren
+      modules,
+      hardware: {
+        ...(runtimeState.hardware || {}),
+        modules: modulesById
+      },
+
+      summary: {
+        modulesTotal: modules.length,
+        modulesOnline: modules.filter((m) => m.online).length,
+        relaysTotal: relayCount,
+        relaysActive: relayActive
+      },
+
+      // optionale Frontend-Felder, falls vorhanden
+      rules: runtimeState.rulesData?.rules || [],
+      events: Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, 100) : []
+    });
+  }));
 
   return router;
 }

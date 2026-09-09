@@ -2,44 +2,33 @@
 
 export const state = {
   statusTimer: null,
-  layout: { 
-    version: 30,
-    metadaten: { name: "Meine Modellbahn", massstab: "H0", raster: 25 },
-    stromkreise: [],
-    elemente: [],
-    verbindungen: []
-  },
-  hardware: { 
-    version: 4,
-    module: {},
-    relays: [], 
-    sensors: [], 
-    leds: [], 
-    lightButtons: [], 
-    modules: {} 
-  },
-  rules: [],
-  events: [],
-  catalog: { 
-    tracks: [], 
-    curves: [], 
-    switches: [], 
-    crossings: [], 
-    signals: [], 
-    transformers: [], 
-    espSignals: [] 
-  },
-  selectedElement: null,
-  undoStack: [],
-  redoStack: [],
-  cs3Tiles: [],
-  lightButtons: [],
-  selectedTool: "select",
-  zoom: 1,
-  panX: 0,
-  panY: 0
-};
 
-export function setState(updates) {
-  Object.assign(state, updates);
-}
+  // Backend-Status/HW
+  hardware: {
+    modules: {}
+  },
+
+  // Regeln
+  rules: [],
+
+  // Layout/Builder relevante Dinge
+  layout: {
+    elements: [],
+    connections: []
+  },
+
+  // Dashboard/Track
+  cs3Tiles: [],
+  lightButtons: [
+    { name: "Licht 1", moduleId: "", relayIndex: 0, active: false },
+    { name: "Licht 2", moduleId: "", relayIndex: 1, active: false },
+    { name: "Licht 3", moduleId: "", relayIndex: 2, active: false },
+    { name: "Licht 4", moduleId: "", relayIndex: 3, active: false }
+  ],
+
+  // Settings
+  defaults: [], // { targetType, targetId, action }
+  relayConfig: {}, // key: moduleId:idx -> { name, role }
+  sensorConfig: {}, // key: moduleId:idx -> { name }
+  ledConfig: {} // key: moduleId -> { enabled, onValue, offValue }
+};

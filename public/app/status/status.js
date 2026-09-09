@@ -1,108 +1,77 @@
 "use strict";
 
-import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
+import { state } from "../core/state.js";
+import { renderSidebarEspStatus, renderCs3Tiles } from "../ui/render.js";
 
-export async function statusLaden(options = {}) {
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function setServerOnline(online) {
+  const badge = document.getElementById("serverStatus");
+  const sidebar = document.getElementById("sidebarServerStatus");
+  const card = document.getElementById("serverCardStatus");
+
+  if (badge) {
+    badge.textContent = online ? "WEBSERVER ONLINE" : "WEBSERVER OFFLINE";
+    badge.classList.toggle("offline", !online);
+  }
+  if (sidebar) sidebar.textContent = online ? "WebServer online" : "WebServer offline";
+  if (card) card.textContent = online ? "ONLINE" : "OFFLINE";
+}
+
+function normalizeModules(rawModules) {
+  if (Array.isArray(rawModules)) {
+    const out = {};
+    for (const m of rawModules) {
+      const id = m?.id || m?.name || crypto.randomUUID();
+      out[id] = { ...m, id };
+    }
+    return out;
+  }
+  if (rawModules && typeof rawModules === "object") {
+    return rawModules;
+  }
+  return {};
+}
+
+export async function statusLaden({ ruhig = true } = {}) {
   try {
     const data = await apiCall("/status");
-    
-    // Update state
-    if (data.layout) state.layout = data.layout;
-    if (data.hardware) state.hardware = data.hardware;
-    if (data.rules) state.rules = data.rules;
-    if (data.events || data.ereignisse) state.events = data.events || data.ereignisse;
-    
-    // WICHTIG: Module aus moduleMap nehmen
-    if (data.moduleMap) {
-      state.hardware.modules = data.moduleMap;
-    }
-    
-    // Update UI
-    const serverOnline = data.server?.online === true;
-    updateServerStatus(serverOnline);
-    updateModuleStatus(data.moduleMap || {});
-    updateEventList(state.events);
-    
-    if (!options.ruhig) {
-      console.log("✅ Status geladen:", data);
-    }
-  } catch (error) {
-    console.error("❌ Status laden fehlgeschlagen:", error);
-    updateServerStatus(false);
-  }
-}
 
-function updateServerStatus(online) {
-  console.log(`🌐 Server Status: ${online ? "ONLINE" : "OFFLINE"}`);
-  
-  const statusPill = document.getElementById("serverStatus");
-  const serverCard = document.getElementById("serverCardStatus");
-  const sidebarStatus = document.getElementById("sidebarServerStatus");
-  
-  if (statusPill) {
-    statusPill.classList.remove("online", "offline");
-    statusPill.classList.add(online ? "online" : "offline");
-    statusPill.textContent = online ? "✅ WEBSERVER ONLINE" : "⚠️ WEBSERVER OFFLINE";
-  }
-  
-  if (serverCard) {
-    serverCard.textContent = online ? "ONLINE" : "OFFLINE";
-    serverCard.style.color = online ? "#4caf50" : "#f44336";
-  }
-  
-  if (sidebarStatus) {
-    sidebarStatus.textContent = online ? "WebServer aktiv" : "WebServer offline";
-    sidebarStatus.style.color = online ? "#4caf50" : "#f44336";
-  }
-}
+    setServerOnline(true);
 
-function updateModuleStatus(modules) {
-  console.log(`📡 Module: ${JSON.stringify(modules)}`);
-  
-  const onlineCount = Object.values(modules).filter(m => m.online).length;
-  const totalCount = Object.keys(modules).length;
-  
-  const moduleCard = document.getElementById("moduleCardStatus");
-  if (moduleCard) {
-    moduleCard.textContent = `${onlineCount} / ${totalCount}`;
-    moduleCard.style.color = onlineCount > 0 ? "#4caf50" : "#f44336";
-  }
-  
-  // Update Sidebar ESP List
-  const espList = document.getElementById("sidebarEspList");
-  if (espList) {
-    if (totalCount === 0) {
-      espList.innerHTML = '<div class="sidebar-esp-empty">Noch kein ESP verbunden.</div>';
-    } else {
-      espList.innerHTML = Object.values(modules).map(m => `
-        <div class="sidebar-esp-item ${m.online ? "online" : "offline"}">
-          <div class="esp-status-dot" style="background: ${m.online ? '#4caf50' : '#f44336'}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px;"></div>
-          <div>
-            <strong>${m.name || m.id}</strong>
-            <small>${m.ip || "Unbekannt"} • ${m.relayCount} Relais • ${m.sensorCount} Sensoren</small>
-          </div>
-        </div>
-      `).join("");
+    const modules = normalizeModules(data?.hardware?.modules ?? data?.modules);
+    state.hardware.modules = modules;
+
+    const allModules = Object.values(modules);
+    const onlineModules = allModules.filter(m => !!m.online).length;
+
+    setText("moduleCardStatus", `${onlineModules} / ${allModules.length}`);
+
+    let relayTotal = 0;
+    let relayActive = 0;
+    for (const m of allModules) {
+      const relays = Array.isArray(m.relays) ? m.relays : [];
+      relayTotal += relays.length;
+      relayActive += relays.filter(r => !!(r?.active ?? r?.state)).length;
+    }
+    setText("relayCardStatus", `${relayActive} / ${relayTotal}`);
+
+    const elementCount = Array.isArray(state?.layout?.elements) ? state.layout.elements.length : 0;
+    setText("elementCardStatus", String(elementCount));
+
+    if (Array.isArray(data?.cs3Tiles)) state.cs3Tiles = data.cs3Tiles;
+    if (Array.isArray(data?.lightButtons)) state.lightButtons = data.lightButtons;
+
+    renderSidebarEspStatus();
+    renderCs3Tiles();
+  } catch (err) {
+    setServerOnline(false);
+    if (!ruhig) {
+      console.warn("Status laden fehlgeschlagen:", err?.message || err);
     }
   }
-}
-
-function updateEventList(events) {
-  const eventList = document.getElementById("eventList");
-  if (!eventList) return;
-
-  if (!events || events.length === 0) {
-    eventList.innerHTML = '<div class="empty-state">Noch keine Ereignisse</div>';
-    return;
-  }
-
-  const html = events.slice(-20).reverse().map(e => `
-    <div class="event-item" style="padding: 8px; border-bottom: 1px solid #333; font-size: 12px;">
-      <div class="event-time" style="color: #999; font-size: 11px;">${new Date(e.timestamp).toLocaleTimeString()}</div>
-      <div class="event-message" style="color: #fff; margin-top: 4px;">${e.text || e.type || e.message}</div>
-    </div>
-  `).join("");
-
-  eventList.innerHTML = html;
 }

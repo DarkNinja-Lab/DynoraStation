@@ -1,26 +1,44 @@
 "use strict";
 
-const API_BASE = "/api";
-
-export async function apiCall(endpoint, options = {}) {
+async function parseJsonSafe(res) {
+  const text = await res.text();
+  if (!text) return null;
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      method: options.method || "GET",
-      headers: { "Content-Type": "application/json", ...options.headers },
-      body: options.body ? JSON.stringify(options.body) : undefined
-    });
-    
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error(`API Call Failed (${endpoint}):`, error);
-    throw error;
+    return JSON.parse(text);
+  } catch {
+    return null;
   }
 }
 
-export function getApiUrl(endpoint) {
-  return `${API_BASE}${endpoint}`;
+export async function apiCall(path, options = {}) {
+  const url = path.startsWith("/api/") ? path : `/api${path.startsWith("/") ? path : `/${path}`}`;
+
+  const method = options.method || "GET";
+  const headers = {
+    "Accept": "application/json",
+    ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
+    ...(options.headers || {})
+  };
+
+  const fetchOptions = {
+    method,
+    headers
+  };
+
+  if (options.body !== undefined) {
+    fetchOptions.body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
+  }
+
+  const res = await fetch(url, fetchOptions);
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    const msg = data?.message || `${res.status} ${res.statusText}`;
+    const err = new Error(msg);
+    err.status = res.status;
+    err.payload = data;
+    throw err;
+  }
+
+  return data;
 }
