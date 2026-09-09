@@ -1,38 +1,20 @@
 "use strict";
 
-import { API, CONST, state } from "../core/state.js";
-import { api } from "../core/api.js";
-import { gueltigesRelais } from "../core/utils.js";
-
-function createDefaultTrackLightConfig() {
-  return Array.from({ length: CONST.TRACK_LIGHT_COUNT }, (_, i) => ({
-    id: i + 1,
-    name: `Licht ${i + 1}`,
-    module: "GLEIS_01",
-    relay: 0
-  }));
-}
-
-function normalizeTrackLightConfig(raw) {
-  const base = createDefaultTrackLightConfig();
-  if (!Array.isArray(raw)) return base;
-  return base.map((entry, i) => {
-    const src = raw[i] || {};
-    return {
-      id: i + 1,
-      name: String(src.name || entry.name),
-      module: String(src.module || entry.module),
-      relay: gueltigesRelais(src.relay || 0)
-    };
-  });
-}
+import { state } from "../core/state.js";
+import { apiCall } from "../core/api.js";
 
 export async function lightButtonsLaden() {
   try {
-    const out = await api(API.LIGHT_BUTTONS_URL, { method: "GET", cache: "no-store" });
-    state.trackLightConfig = normalizeTrackLightConfig(out.lightButtons);
-  } catch {
-    state.trackLightConfig = createDefaultTrackLightConfig();
+    const data = await apiCall("/status");
+    if (data.lightButtons) {
+      state.lightButtons = data.lightButtons;
+    } else {
+      state.lightButtons = createDefaultLightButtons();
+    }
+    console.log("Light Buttons geladen:", state.lightButtons);
+  } catch (error) {
+    console.warn("Light Buttons konnte nicht geladen werden");
+    state.lightButtons = createDefaultLightButtons();
   }
 }
 
@@ -40,11 +22,40 @@ export function renderTrackLightButtons() {
   const grid = document.getElementById("trackLightGrid");
   if (!grid) return;
 
-  const buttons = grid.querySelectorAll(".light-toggle-btn");
-  buttons.forEach((btn) => {
-    const idx = Number(btn.dataset.lightIndex || -1);
-    const cfg = state.trackLightConfig[idx];
-    if (!cfg) return;
-    btn.textContent = cfg.name || `Licht ${idx + 1}`;
+  const buttons = (state.lightButtons || []).map((btn, idx) => `
+    <button class="light-toggle-btn" data-light-index="${idx}" type="button">
+      ${btn.name || `Licht ${idx + 1}`}
+    </button>
+  `).join("");
+
+  grid.innerHTML = buttons || `
+    <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>
+    <button class="light-toggle-btn" data-light-index="1" type="button">Licht 2</button>
+    <button class="light-toggle-btn" data-light-index="2" type="button">Licht 3</button>
+    <button class="light-toggle-btn" data-light-index="3" type="button">Licht 4</button>
+  `;
+
+  // Add event listeners
+  grid.querySelectorAll(".light-toggle-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const idx = parseInt(btn.dataset.lightIndex);
+      try {
+        await apiCall("/control/light", {
+          method: "POST",
+          body: { index: idx, toggle: true }
+        });
+      } catch (error) {
+        console.error("Light control error:", error);
+      }
+    });
   });
+}
+
+function createDefaultLightButtons() {
+  return [
+    { id: "light-1", name: "Licht 1", index: 0, module: null, relay: null },
+    { id: "light-2", name: "Licht 2", index: 1, module: null, relay: null },
+    { id: "light-3", name: "Licht 3", index: 2, module: null, relay: null },
+    { id: "light-4", name: "Licht 4", index: 3, module: null, relay: null }
+  ];
 }

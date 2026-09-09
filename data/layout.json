@@ -1,0 +1,11 @@
+{
+  "version": 30,
+  "metadaten": {
+    "name": "Meine Modellbahn",
+    "massstab": "H0",
+    "raster": 25
+  },
+  "stromkreise": [],
+  "elemente": [],
+  "verbindungen": []
+}
