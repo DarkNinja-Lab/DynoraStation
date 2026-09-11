@@ -4,3 +4,6 @@ npm-debug.log*
 .env.local
 data/hardware.json
 data/layout.json
+data/rules.json
+package-lock.json
+yarn.lock
