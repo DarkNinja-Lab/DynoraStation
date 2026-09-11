@@ -1,3 +1,8 @@
+# ACHTUNG! NOCH IM AUFBAU ALSO NICHT TESTEN!
+
+
+
+
 # H0-Bahn-Zentrale
 
 Webbasierte Steuerzentrale für eine H0-Modellbahn mit mehreren ESP-Modulen.  
