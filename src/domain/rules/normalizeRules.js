@@ -6,14 +6,18 @@ const { defaultRules } = require("../defaults");
 
 function normalizeRuleCondition(input) {
   const c = input && typeof input === "object" ? input : {};
-  const kind = c.kind === "switch" ? "switch" : "sensor";
+  let kind = String(c.kind || "sensor").trim().toLowerCase();
+  if (kind === "crossing") kind = "xtrack";
+  if (kind === "espsignal") kind = "ledsignal";
+  if (!["sensor", "switch", "signal", "xtrack", "ledsignal", "relay", "led"].includes(kind)) kind = "sensor";
 
   return {
     kind,
-    module: cleanText(c.module || "GLEIS_01", 48) || "GLEIS_01",
+    module: cleanText(c.module || "", 48),
     sensorId: cleanText(c.sensorId || "", 48),
+    channel: kind === "led" ? validLedChannel(c.channel) : validRelay(c.channel),
     elementId: cleanText(c.elementId || "", 80),
-    state: c.state === "abzweig" || c.state === "gerade" || c.state === "fahrt" || c.state === "halt" ? c.state : "triggered",
+    state: cleanText(c.state || (kind === "sensor" ? "triggered" : ""), 24).toLowerCase(),
     triggered: c.triggered !== false
   };
 }
@@ -23,7 +27,8 @@ function normalizeRuleAction(input) {
 
   let kind = String(a.kind || "switch").trim().toLowerCase();
   if (kind === "crossing") kind = "xtrack";
-  if (!["switch", "signal", "relay", "led", "xtrack"].includes(kind)) kind = "switch";
+  if (kind === "espsignal") kind = "ledsignal";
+  if (!["switch", "signal", "relay", "led", "xtrack", "ledsignal"].includes(kind)) kind = "switch";
 
   return {
     kind,

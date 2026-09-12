@@ -7,3 +7,4 @@ data/layout.json
 data/rules.json
 package-lock.json
 yarn.lock
+.env

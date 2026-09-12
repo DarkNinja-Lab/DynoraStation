@@ -28,7 +28,7 @@ const char* MODULE_ID = "LEDMOD_01";
 
 // Taktung
 const unsigned long HEARTBEAT_INTERVAL_MS    = 2000;
-const unsigned long COMMAND_POLL_INTERVAL_MS = 200;
+const unsigned long COMMAND_POLL_INTERVAL_MS = 100;
 const unsigned long WIFI_RECONNECT_COOLDOWN_MS = 5000;
 
 const uint16_t HTTP_TIMEOUT_MS = 2500;
@@ -362,13 +362,6 @@ void ensureWifi() {
     WiFi.reconnect();
   }
 
-  // Kurzer, begrenzter Wait (nicht 8s blockieren)
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && !elapsedSince(millis(), start, 1200)) {
-    delay(50);
-    yield();
-  }
-
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("[WiFi] verbunden, IP=%s\n", WiFi.localIP().toString().c_str());
   }
@@ -394,6 +387,7 @@ void setup() {
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);
   WiFi.persistent(false);
+  WiFi.hostname(MODULE_ID);
 
   ensureWifi();
   sendHeartbeat();

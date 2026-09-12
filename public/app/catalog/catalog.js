@@ -6,7 +6,6 @@ import { apiCall } from "../core/api.js";
 export async function katalogLaden() {
   try {
     const data = await apiCall("/api/track-catalog");
-    
     state.catalog = {
       tracks: data.tracks || [],
       curves: data.curves || [],
@@ -16,135 +15,103 @@ export async function katalogLaden() {
       transformers: data.transformers || [],
       espSignals: data.espSignals || []
     };
-    
-    console.log("✅ Katalog geladen:", state.catalog);
   } catch (error) {
-    console.warn("⚠️ Katalog konnte nicht geladen werden");
-    state.catalog = {
-      tracks: [],
-      curves: [],
-      switches: [],
-      crossings: [],
-      signals: [],
-      transformers: [],
-      espSignals: []
-    };
+    console.warn("Katalog konnte nicht geladen werden", error);
+    state.catalog = { tracks: [], curves: [], switches: [], crossings: [], signals: [], transformers: [], espSignals: [] };
   }
+}
+
+function itemCode(item) {
+  return String(item?.code || item?.label || "").match(/\d{4}/)?.[0] || String(item?.code || item?.label || "");
+}
+
+function itemImage(item) {
+  const article = itemCode(item);
+  return article ? `/assets/track/${article}.jpg` : "";
+}
+
+function itemMeta(item, kind) {
+  if (kind === "track") return `${item.length || "?"} mm`;
+  if (kind === "curve") return `R ${item.radius || "?"} mm · ${item.angleDeg || "?"}°${item.arcLength ? ` · ${item.arcLength} mm Bogen` : ""}`;
+  if (kind === "switch") return item.handed === "right" ? "rechts" : item.handed === "left" ? "links" : "Weiche";
+  if (kind === "crossing") return "Kreuzung";
+  return "";
+}
+
+function renderCatalogSelect(hostId, selectId, items, kind) {
+  const host = document.getElementById(hostId);
+  if (!host || !Array.isArray(items) || !items.length) return;
+
+  const first = items[0];
+  host.innerHTML = `
+    <div class="custom-select" data-catalog-select="${selectId}">
+      <button class="custom-select-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
+        <span class="custom-select-value">
+          <img class="custom-select-thumb" src="${itemImage(first)}" alt="" onerror="this.style.visibility='hidden'">
+          <span>
+            <span class="custom-select-title">${first.label}</span>
+            <small class="custom-select-meta">${itemMeta(first, kind)}</small>
+          </span>
+        </span>
+        <span class="custom-select-caret">▾</span>
+      </button>
+      <div class="custom-select-list hidden" role="listbox">
+        ${items.map((item, index) => `
+          <button class="custom-select-item ${index === 0 ? "active" : ""}" type="button" role="option"
+                  data-value="${itemCode(item)}" data-meta="${itemMeta(item, kind)}" data-image="${itemImage(item)}">
+            <span class="custom-select-item-text">
+              <b>${item.label}</b>
+              <small>${itemMeta(item, kind)}</small>
+            </span>
+            <img src="${itemImage(item)}" alt="${item.label}" onerror="this.style.visibility='hidden'">
+          </button>
+        `).join("")}
+      </div>
+      <input type="hidden" id="${selectId}" value="${itemCode(first)}">
+    </div>`;
+
+  const root = host.querySelector(".custom-select");
+  const button = root.querySelector(".custom-select-btn");
+  const list = root.querySelector(".custom-select-list");
+  const hidden = root.querySelector(`#${selectId}`);
+  const title = root.querySelector(".custom-select-title");
+  const meta = root.querySelector(".custom-select-meta");
+  const thumb = root.querySelector(".custom-select-thumb");
+
+  button.addEventListener("click", () => {
+    const open = list.classList.toggle("hidden") === false;
+    root.classList.toggle("open", open);
+    button.setAttribute("aria-expanded", String(open));
+  });
+
+  list.addEventListener("click", (event) => {
+    const option = event.target.closest(".custom-select-item");
+    if (!option) return;
+    hidden.value = option.dataset.value;
+    title.textContent = option.querySelector("b")?.textContent || option.dataset.value;
+    meta.textContent = option.dataset.meta || "";
+    thumb.src = option.dataset.image || "";
+    thumb.style.visibility = "visible";
+    list.querySelectorAll(".custom-select-item").forEach((x) => x.classList.toggle("active", x === option));
+    list.classList.add("hidden");
+    root.classList.remove("open");
+    button.setAttribute("aria-expanded", "false");
+    hidden.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 }
 
 export function katalogUIInit() {
-  console.log("🎨 Initialisiere Katalog UI mit Bildern...");
-  
-  // Track Types
-  const trackTypeHost = document.getElementById("trackTypeSelectHost");
-  if (trackTypeHost && state.catalog.tracks?.length > 0) {
-    trackTypeHost.innerHTML = `
-      <select id="trackTypeSelect" style="width: 100%; padding: 6px;">
-        ${state.catalog.tracks.map(t => `
-          <option value="${t.label}" data-image="/assets/track/${t.label}.jpg">
-            ${t.label} (${t.length || "?"}mm)
-          </option>
-        `).join("")}
-      </select>
-    `;
-    addImagePreview("trackTypeSelect");
-  }
+  renderCatalogSelect("trackTypeSelectHost", "trackTypeSelect", state.catalog.tracks, "track");
+  renderCatalogSelect("curveTypeSelectHost", "curveTypeSelect", state.catalog.curves, "curve");
+  renderCatalogSelect("switchTypeSelectHost", "switchTypeSelect", state.catalog.switches, "switch");
+  renderCatalogSelect("xTrackTypeSelectHost", "xTrackTypeSelect", state.catalog.crossings, "crossing");
 
-  // Curve Types
-  const curveTypeHost = document.getElementById("curveTypeSelectHost");
-  if (curveTypeHost && state.catalog.curves?.length > 0) {
-    curveTypeHost.innerHTML = `
-      <select id="curveTypeSelect" style="width: 100%; padding: 6px;">
-        ${state.catalog.curves.map(c => `
-          <option value="${c.label}" data-image="/assets/track/${c.label}.jpg">
-            ${c.label} (R${c.radius || "?"}mm)
-          </option>
-        `).join("")}
-      </select>
-    `;
-    addImagePreview("curveTypeSelect");
-  }
-
-  // Switch Types
-  const switchTypeHost = document.getElementById("switchTypeSelectHost");
-  if (switchTypeHost && state.catalog.switches?.length > 0) {
-    switchTypeHost.innerHTML = `
-      <select id="switchTypeSelect" style="width: 100%; padding: 6px;">
-        ${state.catalog.switches.map(s => `
-          <option value="${s.label}" data-image="/assets/track/${s.label}.jpg">
-            ${s.label}
-          </option>
-        `).join("")}
-      </select>
-    `;
-    addImagePreview("switchTypeSelect");
-  }
-
-  // Crossing Types
-  const xTrackTypeHost = document.getElementById("xTrackTypeSelectHost");
-  if (xTrackTypeHost && state.catalog.crossings?.length > 0) {
-    xTrackTypeHost.innerHTML = `
-      <select id="xTrackTypeSelect" style="width: 100%; padding: 6px;">
-        ${state.catalog.crossings.map(x => `
-          <option value="${x.label}" data-image="/assets/track/${x.label}.jpg">
-            ${x.label}
-          </option>
-        `).join("")}
-      </select>
-    `;
-    addImagePreview("xTrackTypeSelect");
-  }
-
-  console.log("✅ Katalog UI initialisiert");
-}
-
-function addImagePreview(selectId) {
-  const select = document.getElementById(selectId);
-  if (!select) return;
-
-  // Create preview container
-  const preview = document.createElement("div");
-  preview.style.cssText = `
-    width: 100%;
-    height: 60px;
-    margin-top: 6px;
-    background: #222;
-    border: 1px solid #444;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  `;
-
-  const img = document.createElement("img");
-  img.style.cssText = `
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-  `;
-
-  // Set initial image
-  const firstOption = select.options[0];
-  if (firstOption?.dataset.image) {
-    img.src = firstOption.dataset.image;
-    img.onerror = () => {
-      img.style.display = "none";
-      preview.textContent = "Kein Bild verfügbar";
-    };
-  }
-
-  preview.appendChild(img);
-  select.parentElement.insertBefore(preview, select.nextSibling);
-
-  // Update image on select change
-  select.addEventListener("change", () => {
-    const selectedOption = select.options[select.selectedIndex];
-    if (selectedOption?.dataset.image) {
-      img.src = selectedOption.dataset.image;
-      img.style.display = "block";
-      preview.textContent = "";
-      preview.appendChild(img);
-    }
+  document.addEventListener("click", (event) => {
+    document.querySelectorAll(".custom-select.open").forEach((root) => {
+      if (root.contains(event.target)) return;
+      root.classList.remove("open");
+      root.querySelector(".custom-select-list")?.classList.add("hidden");
+      root.querySelector(".custom-select-btn")?.setAttribute("aria-expanded", "false");
+    });
   });
 }

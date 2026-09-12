@@ -2,114 +2,298 @@
 
 import { state } from "../core/state.js";
 import { showInspector, inspectorLeer } from "./inspect.js";
-import { 
-  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawTrackMarker, 
-  drawCurveDual, drawSwitchShape, drawSignalShape, drawEspSignalShape, 
-  drawTransformerShape, drawLabel 
+import {
+  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawCurveDual,
+  drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
+  localConnectionPorts, worldConnectionPort
 } from "./shapes.js";
+import { recordHistory } from "./history.js";
 
-export function renderCanvas() {
-  const svg_elem = document.getElementById("builderSvg");
-  if (!svg_elem) return;
+const WIDTH = 1600;
+const HEIGHT = 900;
 
-  const elementLayer = document.getElementById("builderElementLayer");
-  const connectionLayer = document.getElementById("builderConnectionLayer");
-  if (!elementLayer || !connectionLayer) return;
-
-  elementLayer.innerHTML = "";
-  connectionLayer.innerHTML = "";
-
-  const elements = state.layout.elemente || [];
-  console.log(`🎨 Rendering ${elements.length} elements`);
-
-  elements.forEach(el => {
-    drawElement(el, elementLayer);
-  });
-
-  updateElementCount();
+function pointFromEvent(root, event) {
+  const matrix = root.getScreenCTM();
+  if (matrix && typeof DOMPoint !== "undefined") {
+    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+    return { x: point.x, y: point.y };
+  }
+  const rect = root.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / Math.max(1, rect.width)) * WIDTH,
+    y: ((event.clientY - rect.top) / Math.max(1, rect.height)) * HEIGHT
+  };
 }
 
-function drawElement(element, layer) {
-  const g = svg("g");
-  g.classList.add("layout-element");
-  g.dataset.id = element.id;
-  
-  if (element.id === state.selectedElement) {
-    g.classList.add("selected");
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value) || 0));
+}
+
+function snap(value) {
+  const size = Number(state.layout?.metadaten?.raster) || 25;
+  return state.snapToGrid === false ? value : Math.round(value / size) * size;
+}
+
+function catalogItem(element, group) {
+  const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
+  return (state.catalog?.[group] || []).find((item) => String(item.code) === String(code)) || {};
+}
+
+function elementCatalogItem(element) {
+  const group = element.typ === "track" ? "tracks"
+    : element.typ === "curve" ? "curves"
+    : element.typ === "switch" ? "switches"
+    : (element.typ === "crossing" || element.typ === "xtrack") ? "crossings"
+    : "";
+  return group ? catalogItem(element, group) : {};
+}
+
+function portAt(element, portIndex = 0) {
+  const ports = localConnectionPorts(element, elementCatalogItem(element));
+  const local = ports[Math.max(0, Math.min(ports.length - 1, Number(portIndex) || 0))] || ports[0];
+  return worldConnectionPort(element, local);
+}
+
+function drawConnections(layer, elements) {
+  const byId = new Map(elements.map((element) => [element.id, element]));
+  for (const connection of state.layout.verbindungen || []) {
+    const from = byId.get(connection.von);
+    const to = byId.get(connection.nach);
+    if (!from || !to) continue;
+    const a = portAt(from, connection.vonPort);
+    const b = portAt(to, connection.nachPort);
+    const line = svg("line");
+    attrs(line, {
+      x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+      stroke: "#536779", "stroke-width": 3, "stroke-dasharray": "5 5", opacity: .7,
+      "data-from": from.id, "data-to": to.id
+    });
+    layer.appendChild(line);
   }
-
-  g.setAttribute("transform", `translate(${element.x}, ${element.y}) rotate(${element.rotation})`);
-
-  // Hitbox
-  const hitbox = svg("rect");
-  attrs(hitbox, {
-    x: -80, y: -50, width: 160, height: 100,
-    fill: "transparent",
-    "pointer-events": "all"
+}
+function updateConnectedLines(element) {
+  document.querySelectorAll("#builderConnectionLayer line").forEach((line) => {
+    const connection = (state.layout.verbindungen || []).find((item) => item.von === line.dataset.from && item.nach === line.dataset.to);
+    if (!connection) return;
+    if (line.dataset.from === element.id) {
+      const p = portAt(element, connection.vonPort);
+      attrs(line, { x1: p.x, y1: p.y });
+    }
+    if (line.dataset.to === element.id) {
+      const p = portAt(element, connection.nachPort);
+      attrs(line, { x2: p.x, y2: p.y });
+    }
   });
-  g.appendChild(hitbox);
+}
+export function renderCanvas() {
+  const root = document.getElementById("builderSvg");
+  const elementLayer = document.getElementById("builderElementLayer");
+  const connectionLayer = document.getElementById("builderConnectionLayer");
+  if (!root || !elementLayer || !connectionLayer) return;
 
-  // Draw shape
-  drawElementShape(g, element);
-
-  // Label
-  if (state.showLabels !== false) {
-    drawLabel(g, element, element.rotation);
+  if (state.layoutDirty) {
+    try { localStorage.setItem("dynora.layoutDraft", JSON.stringify({ savedAt: Date.now(), layout: state.layout })); } catch {}
   }
 
-  // Click handler
-  g.addEventListener("click", (e) => {
-    e.stopPropagation();
+  elementLayer.replaceChildren();
+  connectionLayer.replaceChildren();
+  const elements = Array.isArray(state.layout?.elemente) ? state.layout.elemente : [];
+  drawConnections(connectionLayer, elements);
+  elements.forEach((element) => drawElement(root, element, elementLayer));
+
+  const empty = document.getElementById("builderEmptyHint");
+  if (empty) empty.style.display = elements.length ? "none" : "block";
+  const count = document.getElementById("elementCount");
+  if (count) count.textContent = String(elements.length);
+  const connectionCount = document.getElementById("connectionCount");
+  if (connectionCount) connectionCount.textContent = String(state.layout.verbindungen?.length || 0);
+
+  root.onpointerdown = (event) => {
+    if (event.target.closest?.(".layout-element")) return;
+    state.selectedElement = null;
+    state.connectFrom = null;
+    renderCanvas();
+    inspectorLeer();
+  };
+}
+
+function angleDistance(a, b) {
+  let d = Math.abs((((a - b) % 360) + 540) % 360 - 180);
+  return d;
+}
+
+function connectElement(element) {
+  if (!state.connectFrom) {
+    state.connectFrom = element.id;
+    state.selectedElement = element.id;
+    renderCanvas();
+    return;
+  }
+
+  const source = state.layout.elemente?.find((item) => item.id === state.connectFrom);
+  const target = element;
+  if (source && source.id !== target.id) {
+    const sourcePorts = localConnectionPorts(source, elementCatalogItem(source));
+    const targetPorts = localConnectionPorts(target, elementCatalogItem(target));
+    let best = null;
+
+    sourcePorts.forEach((sourcePort, sourceIndex) => {
+      targetPorts.forEach((targetPort, targetIndex) => {
+        const targetWorld = worldConnectionPort(target, targetPort);
+        const desiredRotation = ((targetWorld.angle + 180 - sourcePort.angle) % 360 + 360) % 360;
+        const oldRotation = Number(source.rotation ?? source.winkel ?? 0);
+        const rotationPenalty = angleDistance(desiredRotation, oldRotation) * .65;
+        const sourceWorldNow = worldConnectionPort(source, sourcePort);
+        const distance = Math.hypot(sourceWorldNow.x - targetWorld.x, sourceWorldNow.y - targetWorld.y);
+        const score = distance + rotationPenalty;
+        if (!best || score < best.score) best = { sourceIndex, targetIndex, sourcePort, targetWorld, desiredRotation, score };
+      });
+    });
+
+    if (best) {
+      recordHistory();
+      source.rotation = best.desiredRotation;
+      source.winkel = best.desiredRotation;
+      const rotatedSourcePort = worldConnectionPort({ ...source, x: 0, y: 0 }, best.sourcePort);
+      source.x = clamp(best.targetWorld.x - rotatedSourcePort.x, 40, WIDTH - 40);
+      source.y = clamp(best.targetWorld.y - rotatedSourcePort.y, 40, HEIGHT - 40);
+
+      if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
+      const existing = state.layout.verbindungen.find((item) =>
+        (item.von === source.id && item.nach === target.id) ||
+        (item.von === target.id && item.nach === source.id)
+      );
+      if (existing) {
+        if (existing.von === source.id) {
+          existing.vonPort = best.sourceIndex;
+          existing.nachPort = best.targetIndex;
+        } else {
+          existing.vonPort = best.targetIndex;
+          existing.nachPort = best.sourceIndex;
+        }
+      } else {
+        state.layout.verbindungen.push({
+          id: `connection_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+          von: source.id,
+          vonPort: best.sourceIndex,
+          nach: target.id,
+          nachPort: best.targetIndex
+        });
+      }
+      state.layoutDirty = true;
+    }
+  }
+  state.connectFrom = null;
+  state.selectedElement = element.id;
+  renderCanvas();
+}
+function drawElement(root, element, layer) {
+  element.x = clamp(element.x, 40, WIDTH - 40);
+  element.y = clamp(element.y, 40, HEIGHT - 40);
+  element.rotation = Number(element.rotation ?? element.winkel ?? 0);
+  const group = svg("g");
+  group.classList.add("layout-element");
+  if (element.id === state.selectedElement) group.classList.add("selected");
+  if (element.id === state.connectFrom) group.classList.add("connection-source");
+  group.dataset.id = element.id;
+  group.setAttribute("transform", `translate(${element.x}, ${element.y}) rotate(${element.rotation})`);
+
+  const hitbox = svg("rect");
+  attrs(hitbox, { x: -80, y: -55, width: 160, height: 110, rx: 12, fill: "transparent", "pointer-events": "all" });
+  group.appendChild(hitbox);
+  drawElementShape(group, element);
+  if (state.showLabels !== false) drawLabel(group, element, element.rotation);
+
+  let drag = null;
+  let suppressClick = false;
+  group.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    if (state.selectedTool === "connect") return;
+    const point = pointFromEvent(root, event);
+    drag = { id: event.pointerId, dx: point.x - element.x, dy: point.y - element.y, moved: false };
+    group.setPointerCapture?.(event.pointerId);
+    state.selectedElement = element.id;
+    group.classList.add("selected", "dragging");
+  });
+  group.addEventListener("pointermove", (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    const point = pointFromEvent(root, event);
+    const x = clamp(point.x - drag.dx, 40, WIDTH - 40);
+    const y = clamp(point.y - drag.dy, 40, HEIGHT - 40);
+    if (!drag.moved && (Math.abs(x - element.x) > 1 || Math.abs(y - element.y) > 1)) {
+      recordHistory();
+      drag.moved = true;
+    }
+    element.x = x;
+    element.y = y;
+    group.setAttribute("transform", `translate(${x}, ${y}) rotate(${element.rotation})`);
+    updateConnectedLines(element);
+  });
+  const finishDrag = (event) => {
+    if (!drag || drag.id !== event.pointerId) return;
+    suppressClick = drag.moved;
+    drag = null;
+    group.classList.remove("dragging");
+    element.x = clamp(snap(element.x), 40, WIDTH - 40);
+    element.y = clamp(snap(element.y), 40, HEIGHT - 40);
+    if (suppressClick) state.layoutDirty = true;
+    renderCanvas();
+    showInspector(element);
+  };
+  group.addEventListener("pointerup", finishDrag);
+  group.addEventListener("pointercancel", finishDrag);
+  group.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (suppressClick) {
+      suppressClick = false;
+      return;
+    }
+    if (state.selectedTool === "connect") {
+      connectElement(element);
+      return;
+    }
     state.selectedElement = element.id;
     renderCanvas();
     showInspector(element);
   });
-
-  layer.appendChild(g);
+  layer.appendChild(group);
 }
 
-function drawElementShape(g, element) {
+function drawElementShape(group, element) {
   switch (element.typ) {
     case "track":
-      drawDoubleRailLine(g, -45, 0, 45, 0, "#c7c7c7", 8);
-      drawStateSegmentLine(g, -20, 0, 20, 0, getTrackColor(element));
+      {
+        const half = Math.max(12, Number(catalogItem(element, "tracks").length || 180) * .25);
+        drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8);
+        drawStateSegmentLine(group, -Math.min(half - 3, 20), 0, Math.min(half - 3, 20), 0, element.powerState ? "#2fd36b" : "#607080");
+      }
       break;
-
     case "curve":
-      drawCurveDual(g, 110, 30, "#c7c7c7");
+      {
+        const item = catalogItem(element, "curves");
+        drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), "#d5dbe0");
+      }
       break;
-
     case "switch":
-      drawSwitchShape(g, "left", true);
+      const item = catalogItem(element, "switches");
+        drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item);
       break;
-
     case "crossing":
-      drawDoubleRailLine(g, -50, -40, 50, 40, "#c7c7c7", 8);
-      drawDoubleRailLine(g, -50, 40, 50, -40, "#c7c7c7", 8);
+      {
+        const item = catalogItem(element, "crossings");
+        drawCrossingShape(group, item, element.xState || "gerade");
+      }
       break;
-
     case "signal":
-      drawSignalShape(g, element.signalState);
+      drawSignalShape(group, element.signalState);
       break;
-
     case "espSignal":
-      drawEspSignalShape(g, element.espState);
+      drawEspSignalShape(group, element.espState || element.ledState);
       break;
-
     case "transformer":
-      drawTransformerShape(g);
+      drawTransformerShape(group);
       break;
   }
-}
-
-function getTrackColor(element) {
-  // Hier könnte man später Sensor-Status etc. berücksichtigen
-  return "#20b24d";
-}
-
-function updateElementCount() {
-  const count = document.getElementById("elementCount");
-  if (count) count.textContent = state.layout.elemente?.length || 0;
 }
 
 export { inspectorLeer, showInspector };

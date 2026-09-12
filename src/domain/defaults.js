@@ -2,10 +2,10 @@
 
 function defaultLightButtons() {
   return [
-    { id: 1, name: "Licht 1", module: "GLEIS_01", relay: 0 },
-    { id: 2, name: "Licht 2", module: "GLEIS_01", relay: 0 },
-    { id: 3, name: "Licht 3", module: "GLEIS_01", relay: 0 },
-    { id: 4, name: "Licht 4", module: "GLEIS_01", relay: 0 }
+    { id: 1, name: "Licht 1", module: "", relay: 0 },
+    { id: 2, name: "Licht 2", module: "", relay: 0 },
+    { id: 3, name: "Licht 3", module: "", relay: 0 },
+    { id: 4, name: "Licht 4", module: "", relay: 0 }
   ];
 }
 
@@ -23,10 +23,13 @@ function defaultHardware() {
   return {
     version: 4,
     module: {},
+    modules: {},
     relays: [],
     sensors: [],
     leds: [],
     lightButtons: defaultLightButtons(),
+    defaults: [],
+    ledConfig: {},
     updatedAt: 0
   };
 }

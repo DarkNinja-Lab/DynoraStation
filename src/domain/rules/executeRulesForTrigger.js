@@ -42,7 +42,8 @@ function executeRulesForTrigger({
       const channel = validRelay(action?.channel);
       if (!channel) return false;
 
-      const moduleId = cleanText(action?.module || "GLEIS_01", 48) || "GLEIS_01";
+      const moduleId = cleanText(action?.module || "", 48);
+      if (!moduleId) return false;
       const state = parseState(action?.state);
       const module = moduleRegistry.getOrCreateModule(moduleId);
 
@@ -62,7 +63,8 @@ function executeRulesForTrigger({
       const channel = validLedChannel(action?.channel);
       if (!channel) return false;
 
-      const moduleId = cleanText(action?.module || "LEDMOD_01", 48) || "LEDMOD_01";
+      const moduleId = cleanText(action?.module || "", 48);
+      if (!moduleId) return false;
       const state = parseState(action?.state);
       const module = moduleRegistry.getOrCreateModule(moduleId);
 
@@ -86,7 +88,8 @@ function executeRulesForTrigger({
       const channel = state === "gerade" ? validRelay(element.relayStraight) : validRelay(element.relayBranch);
       if (!channel) return false;
 
-      const moduleId = cleanText(element.module || "GLEIS_01", 48) || "GLEIS_01";
+      const moduleId = cleanText(element.module || "", 48);
+      if (!moduleId) return false;
       moduleRegistry.getOrCreateModule(moduleId);
 
       element.switchState = state;
@@ -106,7 +109,8 @@ function executeRulesForTrigger({
       const channel = state === "halt" ? validRelay(element.relayHp0) : validRelay(element.relayHp1);
       if (!channel) return false;
 
-      const moduleId = cleanText(element.module || "GLEIS_01", 48) || "GLEIS_01";
+      const moduleId = cleanText(element.module || "", 48);
+      if (!moduleId) return false;
       moduleRegistry.getOrCreateModule(moduleId);
 
       element.signalState = state;
@@ -126,7 +130,8 @@ function executeRulesForTrigger({
       const channel = state === "gerade" ? validRelay(element.relayA) : validRelay(element.relayB);
       if (!channel) return false;
 
-      const moduleId = cleanText(element.module || "GLEIS_01", 48) || "GLEIS_01";
+      const moduleId = cleanText(element.module || "", 48);
+      if (!moduleId) return false;
       moduleRegistry.getOrCreateModule(moduleId);
 
       element.xState = state;
@@ -134,6 +139,36 @@ function executeRulesForTrigger({
       emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state}`);
 
       layoutChanged = true;
+      return true;
+    }
+
+    if (kind === "ledsignal") {
+      const elementId = String(action?.elementId || "");
+      const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === "ledSignal");
+      if (!element) return false;
+      const state = ["halt", "warnung", "fahrt"].includes(action?.state) ? action.state : "halt";
+      const moduleId = cleanText(element.module || "", 48);
+      if (!moduleId) return false;
+      const channels = {
+        halt: validLedChannel(element.ledChannelRed),
+        warnung: validLedChannel(element.ledChannelYellow),
+        fahrt: validLedChannel(element.ledChannelGreen)
+      };
+      if (!channels[state]) return false;
+      const module = moduleRegistry.getOrCreateModule(moduleId);
+      for (const [aspect, channel] of Object.entries(channels)) {
+        if (!channel) continue;
+        const on = aspect === state;
+        upsertLed(runtimeState.hardware, moduleId, channel, { state: on, brightness: on ? 255 : 0, blinking: false });
+        while (module.leds.length < channel) module.leds.push({ state: false, brightness: 0, blinking: false });
+        module.leds[channel - 1] = { state: on, brightness: on ? 255 : 0, blinking: false };
+        commandQueueApi.createCommand("LED_SET", { channel, state: on, elementId, ruleId: rule.id }, moduleId);
+      }
+      element.ledState = state;
+      element.powerState = true;
+      hardwareChanged = true;
+      layoutChanged = true;
+      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state}`);
       return true;
     }
 

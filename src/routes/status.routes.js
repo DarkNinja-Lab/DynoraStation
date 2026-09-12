@@ -3,7 +3,7 @@
 const express = require("express");
 const { wrap } = require("../utils/errors");
 
-function createStatusRoutes({ runtimeState, moduleRegistry }) {
+function createStatusRoutes({ runtimeState, moduleRegistry, env }) {
   const router = express.Router();
 
   router.get("/api/status", wrap(async (req, res) => {
@@ -16,6 +16,8 @@ function createStatusRoutes({ runtimeState, moduleRegistry }) {
         id: m.id,
         name: m.name,
         type: m.type,
+        kind: m.kind,
+        capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
         ip: m.ip,
         online: m.online,
         lastHeartbeat: Number(m.lastHeartbeat || 0),
@@ -42,6 +44,7 @@ function createStatusRoutes({ runtimeState, moduleRegistry }) {
       ok: true,
       serverTime: Date.now(),
       moduleTimeoutMs: Number(process.env.MODULE_TIMEOUT || 10000),
+      uiStatusIntervalMs: env.UI_STATUS_INTERVAL_MS,
 
       // beide Formen zurückgeben (Array + Objekt), damit alte/neue Frontendteile funktionieren
       modules,
@@ -58,6 +61,10 @@ function createStatusRoutes({ runtimeState, moduleRegistry }) {
       },
 
       // optionale Frontend-Felder, falls vorhanden
+      layout: runtimeState.layout,
+      lightButtons: runtimeState.hardware?.lightButtons || [],
+      defaults: runtimeState.hardware?.defaults || [],
+      ledConfig: runtimeState.hardware?.ledConfig || {},
       rules: runtimeState.rulesData?.rules || [],
       events: Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, 100) : []
     });

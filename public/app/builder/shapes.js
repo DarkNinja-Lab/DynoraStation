@@ -7,28 +7,47 @@ export function svg(tag) {
 }
 
 export function attrs(el, map) {
-  Object.entries(map).forEach(([k, v]) => el.setAttribute(k, String(v)));
+  Object.entries(map).forEach(([k, v]) => {
+    if (v === null || v === undefined || v === "") {
+      el.removeAttribute(k);
+      return;
+    }
+    el.setAttribute(k, String(v));
+  });
 }
 
 export function drawDoubleRailLine(g, x1, y1, x2, y2, color = "#c5c5c5", width = 8) {
-  const base = svg("line");
-  attrs(base, { x1, y1, x2, y2, stroke: "#e8e8e8", "stroke-width": width + 4, "stroke-linecap": "round" });
-  g.appendChild(base);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy) || 1;
+  const ox = (-dy / len) * 4.5;
+  const oy = (dx / len) * 4.5;
+
+  const bed = svg("line");
+  attrs(bed, { x1, y1, x2, y2, stroke: "#3c4650", "stroke-width": width + 9, "stroke-linecap": "round" });
+  g.appendChild(bed);
+
+  const sleeperCount = Math.max(3, Math.floor(len / 13));
+  for (let i = 0; i <= sleeperCount; i += 1) {
+    const ratio = i / sleeperCount;
+    const cx = x1 + dx * ratio;
+    const cy = y1 + dy * ratio;
+    const sleeper = svg("line");
+    attrs(sleeper, { x1: cx + ox * 1.5, y1: cy + oy * 1.5, x2: cx - ox * 1.5, y2: cy - oy * 1.5, stroke: "#77818a", "stroke-width": 2.2, "stroke-linecap": "round" });
+    g.appendChild(sleeper);
+  }
 
   const rail1 = svg("line");
   const rail2 = svg("line");
 
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  const ox = (-dy / len) * 4;
-  const oy = (dx / len) * 4;
-
-  attrs(rail1, { x1: x1 + ox, y1: y1 + oy, x2: x2 + ox, y2: y2 + oy, stroke: color, "stroke-width": 3.2, "stroke-linecap": "round" });
-  attrs(rail2, { x1: x1 - ox, y1: y1 - oy, x2: x2 - ox, y2: y2 - oy, stroke: color, "stroke-width": 3.2, "stroke-linecap": "round" });
+  attrs(rail1, { x1: x1 + ox, y1: y1 + oy, x2: x2 + ox, y2: y2 + oy, stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
+  attrs(rail2, { x1: x1 - ox, y1: y1 - oy, x2: x2 - ox, y2: y2 - oy, stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
 
   g.appendChild(rail1);
   g.appendChild(rail2);
+  const contacts = svg("line");
+  attrs(contacts, { x1, y1, x2, y2, stroke: "#d8dde1", "stroke-width": 1.4, "stroke-dasharray": "1 9", "stroke-linecap": "round", opacity: .85 });
+  g.appendChild(contacts);
 }
 
 export function drawStateSegmentLine(g, x1, y1, x2, y2, stateColor) {
@@ -57,161 +76,189 @@ export function drawTrackMarker(g, x, y, angleDeg, activeColor = "#111") {
 }
 
 export function drawCurveDual(g, radius, angleDeg, color = "#c5c5c5") {
-  const rad = (angleDeg * Math.PI) / 180;
-  const offset = 5;
-  const rInner = Math.max(8, radius - offset);
-  const rOuter = radius + offset;
-
-  const angleStart = Math.PI;
-  const angleEnd = Math.PI + rad;
-
-  const pInner = svg("path");
-  const sxInner = -rInner;
-  const syInner = 0;
-  const exInner = rInner * Math.cos(angleEnd);
-  const eyInner = rInner * Math.sin(angleEnd);
-
-  const largeArc = angleDeg > 180 ? 1 : 0;
-  const sweepFlag = 1;
-
-  attrs(pInner, {
-    d: `M ${sxInner} ${syInner} A ${rInner} ${rInner} 0 ${largeArc} ${sweepFlag} ${exInner} ${eyInner}`,
-    fill: "none",
-    stroke: color,
-    "stroke-width": 3.2,
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round"
-  });
-
-  const pOuter = svg("path");
-  const sxOuter = -rOuter;
-  const syOuter = 0;
-  const exOuter = rOuter * Math.cos(angleEnd);
-  const eyOuter = rOuter * Math.sin(angleEnd);
-
-  attrs(pOuter, {
-    d: `M ${sxOuter} ${syOuter} A ${rOuter} ${rOuter} 0 ${largeArc} ${sweepFlag} ${exOuter} ${eyOuter}`,
-    fill: "none",
-    stroke: color,
-    "stroke-width": 3.2,
-    "stroke-linecap": "round",
-    "stroke-linejoin": "round"
-  });
-
-  const startCap = svg("line");
-  attrs(startCap, {
-    x1: sxInner, y1: syInner, x2: sxOuter, y2: syOuter,
-    stroke: "#c7c7c7", "stroke-width": 2.4, "stroke-linecap": "round", opacity: 1.0
-  });
-
-  const endCap = svg("line");
-  attrs(endCap, {
-    x1: exInner, y1: eyInner, x2: exOuter, y2: eyOuter,
-    stroke: "#c7c7c7", "stroke-width": 2.4, "stroke-linecap": "round", opacity: 1.0
-  });
-
-  g.append(pInner, pOuter, startCap, endCap);
+  const r = Math.max(35, Number(radius) || 180);
+  const angle = Math.max(2, Math.min(90, Number(angleDeg) || 30));
+  const chord = 2 * r * Math.sin((angle * Math.PI / 180) / 2);
+  const x1 = -chord / 2;
+  const x2 = chord / 2;
+  const centerPath = `M ${x1} 0 A ${r} ${r} 0 0 1 ${x2} 0`;
+  const bed = svg("path");
+  attrs(bed, { d: centerPath, fill: "none", stroke: "#3c4650", "stroke-width": 17, "stroke-linecap": "round" });
+  const outer = svg("path");
+  attrs(outer, { d: `M ${x1} -4.5 A ${r + 4.5} ${r + 4.5} 0 0 1 ${x2} -4.5`, fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
+  const inner = svg("path");
+  attrs(inner, { d: `M ${x1} 4.5 A ${Math.max(12, r - 4.5)} ${Math.max(12, r - 4.5)} 0 0 1 ${x2} 4.5`, fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
+  const contacts = svg("path");
+  attrs(contacts, { d: centerPath, fill: "none", stroke: "#d8dde1", "stroke-width": 1.4, "stroke-dasharray": "1 9", "stroke-linecap": "round" });
+  g.append(bed, outer, inner, contacts);
 }
 
-export function drawSwitchShape(g, handed = "left", isGerade = true) {
+export function drawSwitchShape(g, handed = "left", isGerade = true, geometry = {}, occupied = false) {
   const sign = handed === "right" ? 1 : -1;
-  const straightCol = isGerade ? "#22b24d" : "#df3b3b";
-  const branchCol = isGerade ? "#df3b3b" : "#22b24d";
+  const scale = .5;
+  const length = Math.max(120, Number(geometry.length) || 180) * scale;
+  const radius = Math.max(250, Number(geometry.radius) || 437.4) * scale;
+  const angle = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 24.2833));
+  const half = length / 2;
+  const a = angle * Math.PI / 180;
+  const branchX = -half + radius * Math.sin(a);
+  const branchY = sign * radius * (1 - Math.cos(a));
+  const activeRoute = "#f6b94c";
+  const passiveRoute = "#566675";
+  const straightCol = isGerade ? activeRoute : passiveRoute;
+  const branchCol = isGerade ? passiveRoute : activeRoute;
+  const railColor = occupied ? "#ff5f69" : "#c7c7c7";
 
-  drawDoubleRailLine(g, -110, 0, 110, 0, "#c7c7c7", 8);
+  drawDoubleRailLine(g, -half, 0, half, 0, railColor, 7);
 
-  const branchBg = svg("path");
-  attrs(branchBg, {
-    d: `M -110 0 C -30 0, 15 ${-8 * sign}, 62 ${-42 * sign} C 84 ${-57 * sign}, 98 ${-66 * sign}, 110 ${-72 * sign}`,
-    fill: "none",
-    stroke: "#e8e8e8",
-    "stroke-width": 12,
-    "stroke-linecap": "round"
+  const branchBed = svg("path");
+  attrs(branchBed, {
+    d: `M ${-half} 0 Q ${-half + length * .58} 0 ${branchX} ${branchY}`,
+    fill: "none", stroke: "#3c4650", "stroke-width": 16, "stroke-linecap": "round"
   });
-  g.appendChild(branchBg);
-
   const branchRail1 = svg("path");
   const branchRail2 = svg("path");
-  attrs(branchRail1, {
-    d: `M -110 -3 C -30 -3, 15 ${(-8 * sign) - 3}, 62 ${(-42 * sign) - 3} C 84 ${(-57 * sign) - 3}, 98 ${(-66 * sign) - 3}, 110 ${(-72 * sign) - 3}`,
-    fill: "none",
-    stroke: "#c7c7c7",
-    "stroke-width": 3.2,
-    "stroke-linecap": "round"
-  });
-  attrs(branchRail2, {
-    d: `M -110 3 C -30 3, 15 ${(-8 * sign) + 3}, 62 ${(-42 * sign) + 3} C 84 ${(-57 * sign) + 3}, 98 ${(-66 * sign) + 3}, 110 ${(-72 * sign) + 3}`,
-    fill: "none",
-    stroke: "#c7c7c7",
-    "stroke-width": 3.2,
-    "stroke-linecap": "round"
-  });
-  g.append(branchRail1, branchRail2);
+  attrs(branchRail1, { d: `M ${-half} -4.5 Q ${-half + length * .58} -4.5 ${branchX} ${branchY - 4.5}`, fill: "none", stroke: railColor, "stroke-width": 2.7, "stroke-linecap": "round" });
+  attrs(branchRail2, { d: `M ${-half} 4.5 Q ${-half + length * .58} 4.5 ${branchX} ${branchY + 4.5}`, fill: "none", stroke: railColor, "stroke-width": 2.7, "stroke-linecap": "round" });
+  g.append(branchBed, branchRail1, branchRail2);
 
-  drawStateSegmentLine(g, -8, 0, 30, 0, straightCol);
-
-  const branchSeg = svg("path");
-  attrs(branchSeg, {
-    d: `M -4 0 C 18 ${-2 * sign}, 42 ${-16 * sign}, 68 ${-34 * sign}`,
-    fill: "none",
-    stroke: branchCol,
-    "stroke-width": 8,
-    "stroke-linecap": "round"
+  drawStateSegmentLine(g, -10, 0, Math.min(half - 4, 22), 0, straightCol);
+  const branchState = svg("path");
+  attrs(branchState, {
+    d: `M -10 0 Q ${length * .12} 0 ${Math.min(branchX - 5, length * .28)} ${branchY * .65}`,
+    fill: "none", stroke: branchCol, "stroke-width": 7, "stroke-linecap": "round"
   });
-  g.appendChild(branchSeg);
+  g.appendChild(branchState);
 
-  const tip = svg("line");
-  if (isGerade) {
-    attrs(tip, { x1: 86, y1: 0, x2: 108, y2: 0, stroke: "#22b24d", "stroke-width": 8, "stroke-linecap": "round" });
+  const positionMarker = svg("path");
+  const markerX = isGerade ? 16 : Math.min(branchX - 5, length * .24);
+  const markerY = isGerade ? 0 : branchY * .55;
+  const markerRotation = isGerade ? 0 : sign * angle * .65;
+  attrs(positionMarker, {
+    d: "M -5 -5 L 4 0 L -5 5 Z",
+    transform: `translate(${markerX} ${markerY}) rotate(${markerRotation})`,
+    fill: "#fff4d2", stroke: "#a56a11", "stroke-width": 1.2,
+    "pointer-events": "none"
+  });
+  g.appendChild(positionMarker);
+}
+
+export function drawCrossingShape(g, geometry = {}, xState = "gerade", occupied = false) {
+  const scale = .5;
+  const length = Math.max(120, Number(geometry.length) || 193) * scale;
+  const angle = Math.max(10, Math.min(60, Number(geometry.crossingAngleDeg) || 30));
+  const half = length / 2;
+  const rise = Math.tan((angle / 2) * Math.PI / 180) * half;
+  const active = "#f6b94c";
+  const inactive = "#566675";
+
+  const railColor = occupied ? "#ff5f69" : "#d5dbe0";
+  drawDoubleRailLine(g, -half, -rise, half, rise, railColor, 7);
+  drawDoubleRailLine(g, -half, rise, half, -rise, railColor, 7);
+
+  if (xState === "abzweig") {
+    const curve1 = svg("path");
+    const curve2 = svg("path");
+    attrs(curve1, { d: `M ${-half} ${-rise} Q 0 ${-rise * .15} ${half} ${-rise}`, fill: "none", stroke: active, "stroke-width": 7, "stroke-linecap": "round" });
+    attrs(curve2, { d: `M ${-half} ${rise} Q 0 ${rise * .15} ${half} ${rise}`, fill: "none", stroke: active, "stroke-width": 7, "stroke-linecap": "round" });
+    const diag1 = svg("line");
+    const diag2 = svg("line");
+    attrs(diag1, { x1: -half * .35, y1: -rise * .35, x2: half * .35, y2: rise * .35, stroke: inactive, "stroke-width": 6, "stroke-linecap": "round" });
+    attrs(diag2, { x1: -half * .35, y1: rise * .35, x2: half * .35, y2: -rise * .35, stroke: inactive, "stroke-width": 6, "stroke-linecap": "round" });
+    g.append(diag1, diag2, curve1, curve2);
   } else {
-    attrs(tip, { x1: 91, y1: -58 * sign, x2: 110, y2: -72 * sign, stroke: "#22b24d", "stroke-width": 8, "stroke-linecap": "round" });
+    const diag1 = svg("line");
+    const diag2 = svg("line");
+    attrs(diag1, { x1: -half * .55, y1: -rise * .55, x2: half * .55, y2: rise * .55, stroke: active, "stroke-width": 7, "stroke-linecap": "round" });
+    attrs(diag2, { x1: -half * .55, y1: rise * .55, x2: half * .55, y2: -rise * .55, stroke: active, "stroke-width": 7, "stroke-linecap": "round" });
+    g.append(diag1, diag2);
   }
-  g.appendChild(tip);
+
+  const positionMarker = svg("path");
+  attrs(positionMarker, {
+    d: "M 0 -6 L 6 0 L 0 6 L -6 0 Z", fill: "#fff4d2", stroke: "#a56a11",
+    "stroke-width": 1.2, "pointer-events": "none"
+  });
+  g.appendChild(positionMarker);
+}
+
+export function localConnectionPorts(element, catalogItem = {}) {
+  const type = element.typ === "xtrack" ? "crossing" : element.typ;
+  if (type === "track") {
+    const half = Math.max(12, Number(catalogItem.length || 180) * .25);
+    return [{ x: -half, y: 0, angle: 180 }, { x: half, y: 0, angle: 0 }];
+  }
+  if (type === "curve") {
+    const radius = Math.max(35, Number(catalogItem.radius || 360) * .5);
+    const angle = Math.max(2, Math.min(90, Number(catalogItem.angleDeg) || 30));
+    const chord = 2 * radius * Math.sin((angle * Math.PI / 180) / 2);
+    return [{ x: -chord / 2, y: 0, angle: 180 - angle / 2 }, { x: chord / 2, y: 0, angle: angle / 2 }];
+  }
+  if (type === "switch") {
+    const sign = (catalogItem.handed || "left") === "right" ? 1 : -1;
+    const length = Math.max(120, Number(catalogItem.length) || 180) * .5;
+    const radius = Math.max(250, Number(catalogItem.radius) || 437.4) * .5;
+    const angle = Math.max(10, Math.min(40, Number(catalogItem.angleDeg) || 24.2833));
+    const a = angle * Math.PI / 180;
+    const half = length / 2;
+    return [
+      { x: -half, y: 0, angle: 180 },
+      { x: half, y: 0, angle: 0 },
+      { x: -half + radius * Math.sin(a), y: sign * radius * (1 - Math.cos(a)), angle: sign * angle }
+    ];
+  }
+  if (type === "crossing") {
+    const length = Math.max(120, Number(catalogItem.length) || 193) * .5;
+    const angle = Math.max(10, Math.min(60, Number(catalogItem.crossingAngleDeg) || 30));
+    const half = length / 2;
+    const rise = Math.tan((angle / 2) * Math.PI / 180) * half;
+    return [
+      { x: -half, y: -rise, angle: 180 + angle / 2 },
+      { x: half, y: rise, angle: angle / 2 },
+      { x: -half, y: rise, angle: 180 - angle / 2 },
+      { x: half, y: -rise, angle: -angle / 2 }
+    ];
+  }
+  return [{ x: 0, y: 0, angle: 0 }];
+}
+
+export function worldConnectionPort(element, port) {
+  const rotation = Number(element.rotation ?? element.winkel ?? 0);
+  const rad = rotation * Math.PI / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  return {
+    x: Number(element.x || 0) + port.x * cos - port.y * sin,
+    y: Number(element.y || 0) + port.x * sin + port.y * cos,
+    angle: ((port.angle + rotation) % 360 + 360) % 360
+  };
 }
 
 export function drawSignalShape(g, state = "halt") {
   const halt = state !== "fahrt";
-  const rect = svg("rect");
-  attrs(rect, { width: 20, height: 50, x: -10, y: -25, fill: "none", stroke: "#888", "stroke-width": 1 });
-  g.appendChild(rect);
-
-  const circle1 = svg("circle");
-  attrs(circle1, { cx: 0, cy: -15, r: 5, fill: halt ? "#ff4444" : "#bcbcbc" });
-  g.appendChild(circle1);
-
-  const circle2 = svg("circle");
-  attrs(circle2, { cx: 0, cy: 0, r: 5, fill: "#ffff44" });
-  g.appendChild(circle2);
-
-  const circle3 = svg("circle");
-  attrs(circle3, { cx: 0, cy: 15, r: 5, fill: halt ? "#bcbcbc" : "#44ff44" });
-  g.appendChild(circle3);
+  const mast = svg("path"); attrs(mast, { d: "M -2 22 L -2 58 L -14 58 L -14 63 L 14 63 L 14 58 L 2 58 L 2 22", fill: "#8b9096", stroke: "#202327", "stroke-width": 1.5 });
+  const head = svg("rect"); attrs(head, { x: -15, y: -29, width: 30, height: 53, rx: 11, fill: "#16191d", stroke: "#aeb4bb", "stroke-width": 2 });
+  const red = svg("circle"); attrs(red, { cx: 0, cy: -13, r: 7, fill: halt ? "#ff2b32" : "#3d1517", stroke: "#080808", "stroke-width": 2, filter: halt ? "url(#builderGlow)" : "" });
+  const green = svg("circle"); attrs(green, { cx: 0, cy: 11, r: 7, fill: halt ? "#12341d" : "#28dc60", stroke: "#080808", "stroke-width": 2, filter: halt ? "" : "url(#builderGlow)" });
+  g.append(mast, head, red, green);
 }
 
 export function drawEspSignalShape(g, state = "halt") {
-  const halt = state !== "fahrt";
-  const rect = svg("rect");
-  attrs(rect, { width: 30, height: 40, x: -15, y: -20, fill: "#001100", stroke: "#00ff00", "stroke-width": 2 });
-  g.appendChild(rect);
-
-  const redLed = svg("circle");
-  attrs(redLed, { cx: -8, cy: -8, r: 4, fill: halt ? "#ff5252" : "#333" });
-  g.appendChild(redLed);
-
-  const greenLed = svg("circle");
-  attrs(greenLed, { cx: 8, cy: -8, r: 4, fill: halt ? "#333" : "#22b24d" });
-  g.appendChild(greenLed);
+  const active = ["halt", "warnung", "fahrt"].includes(state) ? state : "halt";
+  const mast = svg("path"); attrs(mast, { d: "M -2 31 L -2 61 L -13 61 L -13 66 L 13 66 L 13 61 L 2 61 L 2 31", fill: "#67717a", stroke: "#15181b", "stroke-width": 1.5 });
+  const head = svg("rect"); attrs(head, { x: -16, y: -37, width: 32, height: 70, rx: 12, fill: "#10151a", stroke: "#6f8794", "stroke-width": 2 });
+  const colors = { halt: ["#ff2e38", "#371216", -22], warnung: ["#ffd42a", "#3a3210", 0], fahrt: ["#28df62", "#10351b", 22] };
+  const lamps = Object.entries(colors).map(([aspect, values]) => { const lamp = svg("circle"); attrs(lamp, { cx: 0, cy: values[2], r: 7, fill: active === aspect ? values[0] : values[1], stroke: "#050607", "stroke-width": 2, filter: active === aspect ? "url(#builderGlow)" : "" }); return lamp; });
+  g.append(mast, head, ...lamps);
 }
 
 export function drawTransformerShape(g) {
-  const rect = svg("rect");
-  attrs(rect, { width: 40, height: 30, x: -20, y: -15, fill: "#CC6633", stroke: "#884422", "stroke-width": 2 });
-  g.appendChild(rect);
-
-  const text = svg("text");
-  attrs(text, { x: 0, y: 6, "text-anchor": "middle", fill: "#fff", "font-size": 16, "font-weight": "bold" });
-  text.textContent = "T";
-  g.appendChild(text);
+  const body = svg("rect"); attrs(body, { width: 90, height: 62, x: -45, y: -31, rx: 8, fill: "#d7d3c5", stroke: "#69675f", "stroke-width": 2 });
+  const face = svg("rect"); attrs(face, { width: 80, height: 42, x: -40, y: -25, rx: 5, fill: "#e7e3d5", stroke: "#aaa697" });
+  const dial = svg("circle"); attrs(dial, { cx: 0, cy: -4, r: 17, fill: "#bd2029", stroke: "#651017", "stroke-width": 3 });
+  const knob = svg("path"); attrs(knob, { d: "M 0 -17 L 4 -5 L 0 1 L -4 -5 Z", fill: "#f3d2d4" });
+  const label = svg("text"); attrs(label, { x: 0, y: 26, "text-anchor": "middle", fill: "#313131", "font-size": 10, "font-weight": "700" }); label.textContent = "MÄRKLIN 6631";
+  g.append(body, face, dial, knob, label);
 }
 
 export function drawLabel(g, element, rotationDeg) {
@@ -223,11 +270,18 @@ export function drawLabel(g, element, rotationDeg) {
 
   const t = svg("text");
   t.textContent = name;
+  const type = element.typ === "ledSignal" || element.typ === "espSignal" ? "espSignal" : element.typ;
+  const labelY = type === "signal" ? 82 : type === "espSignal" ? 88 : type === "transformer" ? 52 : 28;
   attrs(t, {
     x: 0,
-    y: 28,
-    fill: "#e8e8e8",
+    y: labelY,
+    fill: "#f3f6f8",
+    stroke: "#0a1118",
+    "stroke-width": 3,
+    "paint-order": "stroke",
+    "stroke-linejoin": "round",
     "font-size": 12,
+    "font-weight": 600,
     "font-family": "Segoe UI, Arial, sans-serif",
     "text-anchor": "middle",
     "pointer-events": "none"

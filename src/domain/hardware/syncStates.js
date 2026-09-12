@@ -61,9 +61,10 @@ function syncAllElementStatesFromRelaysAndLeds(layout, hardware) {
 
     if (e.typ === "ledSignal") {
       const redOn = ledState(hardware, mId, e.ledChannelRed);
+      const yellowOn = ledState(hardware, mId, e.ledChannelYellow);
       const greenOn = ledState(hardware, mId, e.ledChannelGreen);
-      e.ledState = greenOn ? "fahrt" : "halt";
-      e.powerState = redOn || greenOn;
+      e.ledState = greenOn ? "fahrt" : yellowOn ? "warnung" : "halt";
+      e.powerState = redOn || yellowOn || greenOn;
       return;
     }
 

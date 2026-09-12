@@ -13,8 +13,8 @@ function normalizeLightButtons(input) {
     return {
       id: i + 1,
       name: cleanText(src.name || b.name, 64) || b.name,
-      module: cleanText(src.module || b.module, 48) || b.module,
-      relay: validRelay(src.relay || 0)
+      module: cleanText(src.module ?? src.moduleId ?? b.module, 48),
+      relay: validRelay(src.relay ?? src.relayIndex ?? 0)
     };
   });
 }
@@ -26,12 +26,30 @@ function normalizeHardware(input) {
   out.version = 4;
   out.updatedAt = toNumber(src.updatedAt, 0);
   out.module = src.module && typeof src.module === "object" ? src.module : {};
+  out.modules = {};
+  const moduleMeta = src.modules && typeof src.modules === "object" ? src.modules : {};
+  Object.entries(moduleMeta).forEach(([key, value]) => {
+    const id = cleanText(value?.id || key, 48);
+    if (!id) return;
+    out.modules[id] = {
+      id,
+      name: cleanText(value?.name || `Modul ${id}`, 80) || `Modul ${id}`,
+      type: cleanText(value?.type || value?.typ || "GLEISSTEUERUNG", 40) || "GLEISSTEUERUNG",
+      capabilities: Array.isArray(value?.capabilities)
+        ? value.capabilities.filter((item) => ["relay", "sensor", "led"].includes(item))
+        : [],
+      kind: cleanText(value?.kind || "UNKNOWN", 40) || "UNKNOWN",
+      ip: cleanText(value?.ip || "", 80),
+      lastHeartbeat: toNumber(value?.lastHeartbeat, 0)
+    };
+  });
 
   const relayMap = new Map();
   (Array.isArray(src.relays) ? src.relays : []).forEach((r, idx) => {
     const channel = validRelay(r?.channel ?? idx + 1);
     if (!channel) return;
-    const moduleId = cleanText(r?.module || "GLEIS_01", 48) || "GLEIS_01";
+    const moduleId = cleanText(r?.module || "", 48);
+    if (!moduleId) return;
     const key = `${moduleId}#${channel}`;
     if (relayMap.has(key)) return;
 
@@ -49,7 +67,8 @@ function normalizeHardware(input) {
   (Array.isArray(src.leds) ? src.leds : []).forEach((l, idx) => {
     const channel = validLedChannel(l?.channel ?? idx + 1);
     if (!channel) return;
-    const moduleId = cleanText(l?.module || "LEDMOD_01", 48) || "LEDMOD_01";
+    const moduleId = cleanText(l?.module || "", 48);
+    if (!moduleId) return;
     const key = `${moduleId}#${channel}`;
     if (ledMap.has(key)) return;
 
@@ -71,7 +90,8 @@ function normalizeHardware(input) {
   (Array.isArray(src.sensors) ? src.sensors : []).forEach((s, idx) => {
     const id = cleanText(s?.id || `S${idx + 1}`, 48);
     if (!id) return;
-    const moduleId = cleanText(s?.module || "GLEIS_01", 48) || "GLEIS_01";
+    const moduleId = cleanText(s?.module || "", 48);
+    if (!moduleId) return;
     const key = `${moduleId}#${id}`;
     if (sensorMap.has(key)) return;
 
@@ -100,6 +120,8 @@ function normalizeHardware(input) {
   });
 
   out.lightButtons = normalizeLightButtons(src.lightButtons);
+  out.defaults = Array.isArray(src.defaults) ? src.defaults.slice(0, 100) : [];
+  out.ledConfig = src.ledConfig && typeof src.ledConfig === "object" ? src.ledConfig : {};
 
   return out;
 }

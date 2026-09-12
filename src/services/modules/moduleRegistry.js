@@ -11,6 +11,8 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
         id,
         name: `Modul ${id}`,
         type: "GLEISSTEUERUNG",
+        capabilities: [],
+        kind: "UNKNOWN",
         ip: "",
         online: false,
         lastHeartbeat: 0,
@@ -35,6 +37,8 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
         name: m.name,
         type: m.type,
         typ: m.type,
+        capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
+        kind: m.kind || "UNKNOWN",
         ip: m.ip,
         online,
         relays: Array.isArray(m.relays) ? m.relays : [],
@@ -57,6 +61,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       if (channel <= 0) return;
 
       const m = getOrCreateModule(moduleId);
+      if (!m.capabilities.includes("relay")) m.capabilities.push("relay");
       while (m.relays.length < channel) m.relays.push(false);
       m.relays[channel - 1] = Boolean(r?.state);
     });
@@ -68,6 +73,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       if (channel <= 0) return;
 
       const m = getOrCreateModule(moduleId);
+      if (!m.capabilities.includes("led")) m.capabilities.push("led");
       while (m.leds.length < channel) {
         m.leds.push({ state: false, brightness: 0, blinking: false });
       }
@@ -85,6 +91,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       if (!sensorId) return;
 
       const m = getOrCreateModule(moduleId);
+      if (!m.capabilities.includes("sensor")) m.capabilities.push("sensor");
       const idx = m.sensors.findIndex((x) => x.id === sensorId);
       const sensorObj = {
         id: sensorId,
@@ -106,6 +113,10 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       const m = getOrCreateModule(moduleId);
       m.name = cleanText(mi?.name || m.name, 80) || m.name;
       m.type = cleanText(mi?.type || m.type, 40) || m.type;
+      if (Array.isArray(mi?.capabilities) && mi.capabilities.length) {
+        m.capabilities = mi.capabilities.filter((x) => ["relay", "sensor", "led"].includes(x));
+      }
+      m.kind = cleanText(mi?.kind || m.kind, 40) || m.kind;
       m.ip = cleanText(mi?.ip || m.ip, 80) || m.ip;
       m.lastHeartbeat = toNumber(mi?.lastHeartbeat, m.lastHeartbeat || 0);
       m.online = moduleIsOnline(m);
@@ -113,6 +124,10 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
 
     // Final konsistent setzen
     Object.values(runtimeState.modules).forEach((m) => {
+      const hasLed = m.capabilities.includes("led");
+      const hasRail = m.capabilities.includes("relay") || m.capabilities.includes("sensor");
+      m.kind = hasLed && hasRail ? "HYBRID" : hasLed ? "SIGNAL_LED" : hasRail ? "RELAY_SENSOR" : (m.kind || "UNKNOWN");
+      m.type = m.kind;
       m.online = moduleIsOnline(m);
     });
   }

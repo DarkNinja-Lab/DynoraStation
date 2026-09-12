@@ -10,6 +10,7 @@ const MAX_COMMANDS = toInt(process.env.MAX_COMMANDS, 500);
 const MAX_EVENTS = toInt(process.env.MAX_EVENTS, 800);
 const COMMAND_MAX_AGE_MS = toInt(process.env.COMMAND_MAX_AGE_MS, 15000);
 const COMMAND_MAX_ATTEMPTS = toInt(process.env.COMMAND_MAX_ATTEMPTS, 40);
+const UI_STATUS_INTERVAL_MS = Math.max(250, toInt(process.env.UI_STATUS_INTERVAL_MS, 400));
 
 const JSON_LIMIT = process.env.JSON_LIMIT || "2mb";
 const TRUST_PROXY = parseState(process.env.TRUST_PROXY ?? "true");
@@ -36,6 +37,7 @@ module.exports = {
   MAX_EVENTS,
   COMMAND_MAX_AGE_MS,
   COMMAND_MAX_ATTEMPTS,
+  UI_STATUS_INTERVAL_MS,
   JSON_LIMIT,
   TRUST_PROXY,
   ENABLE_DEBUG_ENDPOINTS,

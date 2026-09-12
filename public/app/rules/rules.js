@@ -3,271 +3,271 @@
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 
-function esc(v) {
-  return String(v ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+function esc(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
-function ensureRules() {
-  if (!Array.isArray(state.rules)) state.rules = [];
+function modules() { return Object.values(state.hardware?.modules || {}); }
+function relayName(moduleId, channel) { return state.relayConfig?.[`${moduleId}:${channel}`]?.name || `Relay ${channel}`; }
+function sensorName(moduleId, sensor, index) {
+  const id = sensor?.id || `S${index + 1}`;
+  return state.sensorConfig?.[`${moduleId}:${id}`]?.name || sensor?.name || id;
 }
 
-function getModules() {
-  return Object.values(state?.hardware?.modules || {});
+function allTriggerOptions() {
+  const hardware = modules().flatMap((module) => [
+    ...(module.sensors || []).map((sensor, index) => ({ type: "sensor", value: `${module.id}::${sensor.id || `S${index + 1}`}`, label: `${module.name || module.id} · ${sensorName(module.id, sensor, index)}` })),
+    ...(module.relays || []).map((_, index) => ({ type: "relay", value: `${module.id}::${index + 1}`, label: `${module.name || module.id} · ${relayName(module.id, index + 1)}` })),
+    ...(module.leds || []).map((_, index) => ({ type: "led", value: `${module.id}::${index + 1}`, label: `${module.name || module.id} · LED ${index + 1}` }))
+  ]);
+  const typeMap = { switch: "switch", signal: "signal", crossing: "xtrack", xtrack: "xtrack", espSignal: "ledsignal", ledSignal: "ledsignal" };
+  const layout = (state.layout?.elemente || []).flatMap((element) => {
+    const type = typeMap[element.typ];
+    return type ? [{ type, value: element.id, label: element.name || `${triggerTypeLabel(type)} · ${element.id}` }] : [];
+  });
+  return [...hardware, ...layout];
 }
 
-function getSensorOptions() {
-  const options = [];
-  for (const mod of getModules()) {
-    const sensors = Array.isArray(mod.sensors) ? mod.sensors : [];
-    sensors.forEach((s, idx) => {
-      options.push({
-        value: `${mod.id}::${s.id || `S${idx + 1}`}`,
-        label: `${mod.name || mod.id} • ${s.name || s.id || `Sensor ${idx + 1}`}`
-      });
-    });
-  }
-  return options;
+function targetOptions() {
+  const hardware = modules().flatMap((module) => [
+    ...(module.relays || []).map((_, index) => ({ type: "relay", value: `${module.id}::${index + 1}`, label: `${module.name || module.id} · ${relayName(module.id, index + 1)}` })),
+    ...(module.leds || []).map((_, index) => ({ type: "led", value: `${module.id}::${index + 1}`, label: `${module.name || module.id} · LED ${index + 1}` }))
+  ]);
+  const typeMap = { switch: "switch", signal: "signal", crossing: "crossing", xtrack: "crossing", espSignal: "espSignal", ledSignal: "espSignal" };
+  const layout = (state.layout?.elemente || []).flatMap((element) => {
+    const type = typeMap[element.typ];
+    return type ? [{ type, value: element.id, label: element.name || `${targetTypeLabel(type)} · ${element.id}` }] : [];
+  });
+  return [...hardware, ...layout];
 }
 
-function getTargetOptions() {
-  const options = [];
-  for (const mod of getModules()) {
-    const relays = Array.isArray(mod.relays) ? mod.relays : [];
-    relays.forEach((_, idx) => {
-      options.push({
-        type: "relay",
-        value: `${mod.id}::${idx + 1}`,
-        label: `${mod.name || mod.id} • Relay ${idx + 1}`
-      });
-    });
-
-    const leds = Array.isArray(mod.leds) ? mod.leds : [];
-    leds.forEach((_, idx) => {
-      options.push({
-        type: "espSignal",
-        value: `${mod.id}::${idx + 1}`,
-        label: `${mod.name || mod.id} • LED ${idx + 1}`
-      });
-    });
-  }
-  return options;
-}
-
-function parseSensorValue(v) {
-  const [module, sensorId] = String(v || "").split("::");
-  return { module: module || "", sensorId: sensorId || "" };
-}
-
-function parseTargetValue(v) {
-  const [module, channel] = String(v || "").split("::");
+function splitRef(value) {
+  const [module, channel] = String(value || "").split("::");
   return { module: module || "", channel: Number(channel || 0) };
 }
 
-function toUiRule(raw) {
-  const sensorModule = raw?.if?.module || "";
-  const sensorId = raw?.if?.sensorId || "";
-  const targetType = raw?.then?.targetType || "relay";
-  const targetModule = raw?.then?.module || "";
-  const targetChannel = Number(raw?.then?.channel || 0);
-  const action = raw?.then?.action || "on";
+function triggerTypeLabel(type) {
+  return ({ sensor: "Sensor", relay: "Relay", led: "LED", switch: "Weiche", signal: "Signal", xtrack: "Kreuzungsweiche", ledsignal: "ESP-Signal" })[type] || type;
+}
+function targetTypeLabel(type) {
+  return ({ relay: "Relay", led: "Einzelne LED", switch: "Weiche", crossing: "Kreuzungsweiche", signal: "Märklin-Signal", espSignal: "ESP-Signal" })[type] || type;
+}
 
+function triggerStateOptions(type) {
+  const map = {
+    sensor: [["triggered", "Aktiv / ausgelöst"], ["free", "Frei / Ruhe"]],
+    relay: [["on", "Ein"], ["off", "Aus"]],
+    led: [["on", "Ein"], ["off", "Aus"]],
+    switch: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
+    xtrack: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
+    signal: [["halt", "Rot / Halt"], ["fahrt", "Grün / Fahrt"]],
+    ledsignal: [["halt", "Rot / Halt"], ["warnung", "Gelb / Warnung"], ["fahrt", "Grün / Fahrt"]]
+  };
+  return map[type] || [["on", "Ein"]];
+}
+
+function actionOptions(type) {
+  const map = {
+    relay: [["on", "Einschalten"], ["off", "Ausschalten"]],
+    led: [["on", "Einschalten"], ["off", "Ausschalten"]],
+    switch: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
+    crossing: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
+    signal: [["halt", "Rot / Halt"], ["fahrt", "Grün / Fahrt"]],
+    espSignal: [["halt", "Rot / Halt"], ["warnung", "Gelb / Warnung"], ["fahrt", "Grün / Fahrt"]]
+  };
+  return map[type] || map.relay;
+}
+
+function defaultRule() {
+  return { id: `RULE_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: "Neue Automation", enabled: true, cooldownMs: 500, triggerType: "sensor", triggerRef: "", triggerState: "triggered", targetType: "relay", targetRef: "", action: "on" };
+}
+
+function toUiRule(rule) {
+  const action = Array.isArray(rule?.actions) ? rule.actions[0] || {} : {};
+  const targetType = ({ ledsignal: "espSignal", xtrack: "crossing" })[action.kind] || action.kind || "relay";
+  const hardwareTarget = ["relay", "led"].includes(targetType);
+  const condition = rule?.condition || {};
+  const triggerType = condition.kind || "sensor";
+  const triggerHardware = ["sensor", "relay", "led"].includes(triggerType);
+  let triggerRef = condition.elementId || "";
+  if (triggerHardware && condition.module) {
+    const channel = triggerType === "sensor" ? condition.sensorId : condition.channel;
+    triggerRef = channel ? `${condition.module}::${channel}` : "";
+  }
+  let triggerState = condition.state || "";
+  if (triggerType === "sensor") triggerState = condition.triggered === false ? "free" : "triggered";
+  if (!triggerState) triggerState = triggerStateOptions(triggerType)[0][0];
   return {
-    ifSensor: sensorModule && sensorId ? `${sensorModule}::${sensorId}` : "",
+    id: rule.id,
+    name: rule.name || "Automation",
+    enabled: rule.enabled !== false,
+    cooldownMs: Number(rule.cooldownMs || 500),
+    triggerType,
+    triggerRef,
+    triggerState,
     targetType,
-    targetRef: targetModule && targetChannel ? `${targetModule}::${targetChannel}` : "",
-    action
+    targetRef: hardwareTarget && action.module && action.channel ? `${action.module}::${action.channel}` : action.elementId || "",
+    action: action.state || actionOptions(targetType)[0][0]
   };
 }
 
-function toApiRule(ui) {
-  const s = parseSensorValue(ui.ifSensor);
-  const t = parseTargetValue(ui.targetRef);
+function toApiRule(rule) {
+  const trigger = splitRef(rule.triggerRef);
+  const actionKind = rule.targetType === "espSignal" ? "ledsignal" : rule.targetType === "crossing" ? "xtrack" : rule.targetType;
+  const hardwareTarget = ["relay", "led"].includes(actionKind);
+  const target = splitRef(rule.targetRef);
+  const hardwareTrigger = ["sensor", "relay", "led"].includes(rule.triggerType);
+  const condition = {
+    kind: rule.triggerType,
+    module: hardwareTrigger ? trigger.module : "",
+    sensorId: rule.triggerType === "sensor" ? String(rule.triggerRef || "").split("::")[1] || "" : "",
+    channel: ["relay", "led"].includes(rule.triggerType) ? trigger.channel : 0,
+    elementId: hardwareTrigger ? "" : rule.triggerRef,
+    state: rule.triggerState,
+    triggered: rule.triggerState !== "free"
+  };
   return {
-    if: {
-      kind: "sensor",
-      module: s.module,
-      sensorId: s.sensorId,
-      triggered: true
-    },
-    then: {
-      targetType: ui.targetType || "relay",
-      module: t.module,
-      channel: t.channel,
-      action: ui.action || "on"
-    },
-    enabled: true
+    id: rule.id, name: rule.name, enabled: rule.enabled, cooldownMs: Math.max(0, Number(rule.cooldownMs || 0)),
+    condition,
+    actions: [{ kind: actionKind, elementId: hardwareTarget ? "" : rule.targetRef, module: hardwareTarget ? target.module : "", channel: hardwareTarget ? target.channel : 0, state: rule.action }]
   };
 }
 
-function defaultUiRule() {
-  return { ifSensor: "", targetType: "relay", targetRef: "", action: "on" };
-}
-
-function actionOptionsForType(type) {
-  if (type === "relay") return ["on", "off", "toggle"];
-  if (type === "espSignal") return ["on", "off", "blink"];
-  if (type === "signal") return ["red", "green"];
-  if (type === "switch" || type === "crossing") return ["straight", "turn"];
-  return ["on", "off"];
-}
-
-function renderRuleRow(rule, idx, sensors, targets) {
-  const sensorOpts = [`<option value="">Sensor wählen…</option>`]
-    .concat(sensors.map(s => `<option value="${esc(s.value)}" ${rule.ifSensor === s.value ? "selected" : ""}>${esc(s.label)}</option>`))
-    .join("");
-
-  const filteredTargets = targets.filter(t => t.type === rule.targetType);
-  const targetOpts = [`<option value="">Ziel wählen…</option>`]
-    .concat(filteredTargets.map(t => `<option value="${esc(t.value)}" ${rule.targetRef === t.value ? "selected" : ""}>${esc(t.label)}</option>`))
-    .join("");
-
-  const typeOpts = ["relay", "espSignal", "switch", "signal", "crossing"]
-    .map(t => `<option value="${t}" ${rule.targetType === t ? "selected" : ""}>${t}</option>`)
-    .join("");
-
-  const actionOpts = actionOptionsForType(rule.targetType)
-    .map(a => `<option value="${a}" ${rule.action === a ? "selected" : ""}>${a}</option>`)
-    .join("");
-
-  return `
-    <div class="rule-card" data-rule-index="${idx}">
-      <div class="rule-title">Regel ${idx + 1}</div>
-
-      <label>WENN Sensor</label>
-      <select data-field="ifSensor">${sensorOpts}</select>
-
-      <label>DANN Zieltyp</label>
-      <select data-field="targetType">${typeOpts}</select>
-
-      <label>Ziel</label>
-      <select data-field="targetRef">${targetOpts}</select>
-
-      <label>Aktion</label>
-      <select data-field="action">${actionOpts}</select>
-
-      <button type="button" class="secondary-button" data-action="delete-rule">Löschen</button>
-    </div>
-  `;
-}
-
-function validateUiRules(rules) {
-  const errors = [];
-  rules.forEach((r, i) => {
-    if (!r.ifSensor) errors.push(`Regel ${i + 1}: Sensor fehlt`);
-    if (!r.targetType) errors.push(`Regel ${i + 1}: Zieltyp fehlt`);
-    if (!r.targetRef) errors.push(`Regel ${i + 1}: Ziel fehlt`);
-    if (!r.action) errors.push(`Regel ${i + 1}: Aktion fehlt`);
-  });
-  return errors;
+function validate(rules) {
+  for (let index = 0; index < rules.length; index += 1) {
+    if (!rules[index].name.trim()) return `Automation ${index + 1}: Name fehlt`;
+    if (!rules[index].triggerRef) return `Automation ${index + 1}: WENN-Auslöser fehlt`;
+    if (!rules[index].targetRef) return `Automation ${index + 1}: DANN-Ziel fehlt`;
+  }
+  return "";
 }
 
 let uiRules = [];
 let bound = false;
+let rulesDirty = false;
 
 export async function rulesLaden() {
   try {
     const data = await apiCall("/rules");
     state.rules = Array.isArray(data?.rules) ? data.rules : [];
-  } catch {
-    state.rules = [];
-  }
+  } catch { state.rules = []; }
   uiRules = state.rules.map(toUiRule);
-  if (!uiRules.length) uiRules = [defaultUiRule()];
+  if (!uiRules.length) uiRules = [defaultRule()];
 }
 
 export async function rulesSpeichern() {
-  const errors = validateUiRules(uiRules);
   const hint = document.getElementById("rulesHint");
-  if (errors.length) {
-    if (hint) hint.textContent = errors[0];
-    return;
-  }
+  const error = validate(uiRules);
+  if (error) { if (hint) hint.textContent = error; return; }
+  if (hint) hint.textContent = "Speichert …";
+  const data = await apiCall("/rules", { method: "POST", body: { rules: uiRules.map(toApiRule) } });
+  state.rules = Array.isArray(data?.rules) ? data.rules : [];
+  uiRules = state.rules.map(toUiRule);
+  rulesDirty = false;
+  if (hint) hint.textContent = "Automationen gespeichert";
+  renderRulesGrid();
+}
 
-  const payloadRules = uiRules.map(toApiRule);
-  const data = await apiCall("/rules", {
-    method: "POST",
-    body: { rules: payloadRules }
-  });
-  state.rules = Array.isArray(data?.rules) ? data.rules : payloadRules;
-  if (hint) hint.textContent = "Regeln gespeichert ✅";
+function renderRow(rule, index, triggers, targets) {
+  const triggerTypes = [["sensor", "Sensor"], ["switch", "Weiche"], ["xtrack", "Kreuzungsweiche"], ["signal", "Märklin-Signal"], ["ledsignal", "ESP-Signal"], ["relay", "Relay"], ["led", "LED"]];
+  const targetTypes = [["relay", "Relay"], ["led", "Einzelne LED"], ["switch", "Weiche"], ["crossing", "Kreuzungsweiche"], ["signal", "Märklin-Signal"], ["espSignal", "ESP-Signal"]];
+  const availableTriggers = triggers.filter((item) => item.type === rule.triggerType);
+  const availableTargets = targets.filter((target) => target.type === rule.targetType);
+  return `<article class="automation-card ${rule.enabled ? "" : "disabled"}" data-rule-index="${index}">
+    <header class="automation-card-head">
+      <div class="automation-identity">
+        <span class="automation-number">${String(index + 1).padStart(2, "0")}</span>
+        <label class="automation-name"><span>Name der Automation</span><input data-field="name" value="${esc(rule.name)}" placeholder="z. B. Einfahrt Gleis 1"></label>
+      </div>
+      <div class="automation-head-actions">
+        <label class="automation-toggle"><input data-field="enabled" type="checkbox" ${rule.enabled ? "checked" : ""}><span>${rule.enabled ? "Aktiv" : "Pausiert"}</span></label>
+        <button type="button" class="icon-danger-button" data-action="delete-rule" aria-label="Automation löschen">×</button>
+      </div>
+    </header>
+    <div class="automation-flow">
+      <section class="automation-step when-step">
+        <div class="automation-step-title"><span>WENN</span><strong>Auslöser</strong></div>
+        <div class="automation-condition-grid">
+          <label>Typ<select data-field="triggerType">${triggerTypes.map(([value, label]) => `<option value="${value}" ${rule.triggerType === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+          <label>Quelle<select class="${rule.triggerRef ? "" : "field-invalid"}" data-field="triggerRef"><option value="">Auslöser wählen…</option>${availableTriggers.map((item) => `<option value="${esc(item.value)}" ${rule.triggerRef === item.value ? "selected" : ""}>${esc(item.label)}</option>`).join("")}</select></label>
+          <label>Zustand<select data-field="triggerState">${triggerStateOptions(rule.triggerType).map(([value, label]) => `<option value="${value}" ${rule.triggerState === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+        </div>
+        <p>Die Automation startet, sobald diese Bedingung eintritt.</p>
+      </section>
+      <div class="automation-arrow" aria-hidden="true">→</div>
+      <section class="automation-step then-step">
+        <div class="automation-step-title"><span>DANN</span><strong>Aktion</strong></div>
+        <div class="automation-action-grid">
+          <label>Zieltyp<select data-field="targetType">${targetTypes.map(([value, label]) => `<option value="${value}" ${rule.targetType === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+          <label>Ziel<select class="${rule.targetRef ? "" : "field-invalid"}" data-field="targetRef"><option value="">Ziel wählen…</option>${availableTargets.map((item) => `<option value="${esc(item.value)}" ${rule.targetRef === item.value ? "selected" : ""}>${esc(item.label)}</option>`).join("")}</select></label>
+          <label>Aktion<select data-field="action">${actionOptions(rule.targetType).map(([value, label]) => `<option value="${value}" ${rule.action === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+        </div>
+        <p>Dieses Ziel wird nach erfüllter Bedingung geschaltet.</p>
+      </section>
+    </div>
+    <footer class="automation-card-footer">
+      <span>Wiederholschutz verhindert mehrfaches Auslösen in kurzer Folge.</span>
+      <label>Wiederholschutz <input data-field="cooldownMs" type="number" min="0" step="100" value="${rule.cooldownMs}"> ms</label>
+    </footer>
+  </article>`;
+}
+
+function markRulesDirty() {
+  rulesDirty = true;
+  const hint = document.getElementById("rulesHint");
+  if (hint) hint.textContent = "Änderungen noch nicht gespeichert";
+  document.querySelector('[data-action="save-rules"]')?.classList.add("needs-save");
 }
 
 export function renderRulesGrid() {
   const root = document.getElementById("rulesGrid");
   if (!root) return;
-
-  ensureRules();
-  if (!uiRules.length) uiRules = state.rules.map(toUiRule);
-  if (!uiRules.length) uiRules = [defaultUiRule()];
-
-  const sensors = getSensorOptions();
-  const targets = getTargetOptions();
-
-  root.innerHTML = `
-    <div class="rules-head">
-      <div id="rulesHint" class="builder-message">Baue Regeln ohne Tipparbeit.</div>
-      <div class="rules-actions">
-        <button type="button" class="primary-button" data-action="add-rule">+ Regel</button>
-        <button type="button" class="secondary-button" data-action="save-rules">Speichern</button>
-      </div>
-    </div>
-    <div class="rules-cards">
-      ${uiRules.map((r, i) => renderRuleRow(r, i, sensors, targets)).join("")}
-    </div>
-  `;
-
+  if (!uiRules.length) uiRules = [defaultRule()];
+  const triggers = allTriggerOptions();
+  const targets = targetOptions();
+  const active = uiRules.filter((rule) => rule.enabled).length;
+  const incomplete = uiRules.filter((rule) => !rule.triggerRef || !rule.targetRef).length;
+  root.innerHTML = `<div class="automation-overview">
+    <div class="automation-stats"><div><strong>${uiRules.length}</strong><span>Automationen</span></div><div><strong>${active}</strong><span>Aktiv</span></div><div><strong>${incomplete}</strong><span>Unvollständig</span></div></div>
+    <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-rule">＋ Automation anlegen</button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">Änderungen speichern</button></div>
+  </div>
+  <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Automationen sind markiert." : "Alle Automationen sind vollständig konfiguriert."}</div>
+  <div class="automation-list">${uiRules.map((rule, index) => renderRow(rule, index, triggers, targets)).join("")}</div>`;
   if (bound) return;
   bound = true;
-
-  root.addEventListener("change", (ev) => {
-    const card = ev.target.closest("[data-rule-index]");
+  root.addEventListener("change", (event) => {
+    const card = event.target.closest("[data-rule-index]");
     if (!card) return;
-    const idx = Number(card.dataset.ruleIndex);
-    const field = ev.target.dataset.field;
-    if (Number.isNaN(idx) || !field || !uiRules[idx]) return;
-
-    uiRules[idx][field] = ev.target.value;
-
-    if (field === "targetType") {
-      uiRules[idx].targetRef = "";
-      uiRules[idx].action = actionOptionsForType(uiRules[idx].targetType)[0];
-      renderRulesGrid();
-    }
+    const rule = uiRules[Number(card.dataset.ruleIndex)];
+    const field = event.target.dataset.field;
+    if (!rule || !field) return;
+    rule[field] = field === "enabled" ? event.target.checked : field === "cooldownMs" ? Number(event.target.value) : event.target.value;
+    markRulesDirty();
+    if (field === "enabled") { renderRulesGrid(); return; }
+    if (field === "targetType") { rule.targetRef = ""; rule.action = actionOptions(rule.targetType)[0][0]; renderRulesGrid(); }
+    if (field === "triggerType") { rule.triggerRef = ""; rule.triggerState = triggerStateOptions(rule.triggerType)[0][0]; renderRulesGrid(); }
   });
-
-  root.addEventListener("click", async (ev) => {
-    const btn = ev.target.closest("button");
-    if (!btn) return;
-
-    if (btn.dataset.action === "add-rule") {
-      uiRules.push(defaultUiRule());
-      renderRulesGrid();
+  root.addEventListener("input", (event) => {
+    const card = event.target.closest("[data-rule-index]");
+    const field = event.target.dataset.field;
+    if (!card || !["name", "cooldownMs"].includes(field)) return;
+    uiRules[Number(card.dataset.ruleIndex)][field] = field === "cooldownMs" ? Number(event.target.value) : event.target.value;
+    markRulesDirty();
+  });
+  root.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    if (button.dataset.action === "add-rule") { uiRules.push(defaultRule()); rulesDirty = true; }
+    if (button.dataset.action === "delete-rule") {
+      const card = button.closest("[data-rule-index]");
+      uiRules.splice(Number(card.dataset.ruleIndex), 1);
+      if (!uiRules.length) uiRules.push(defaultRule());
+      rulesDirty = true;
+    }
+    if (button.dataset.action === "save-rules") {
+      try { await rulesSpeichern(); } catch (error) { const hint = document.getElementById("rulesHint"); if (hint) { hint.textContent = `Fehler: ${error.message || error}`; hint.className = "automation-message error"; } }
       return;
     }
-
-    if (btn.dataset.action === "delete-rule") {
-      const card = btn.closest("[data-rule-index]");
-      if (!card) return;
-      const idx = Number(card.dataset.ruleIndex);
-      if (!Number.isNaN(idx)) {
-        uiRules.splice(idx, 1);
-        if (!uiRules.length) uiRules.push(defaultUiRule());
-        renderRulesGrid();
-      }
-      return;
-    }
-
-    if (btn.dataset.action === "save-rules") {
-      try {
-        await rulesSpeichern();
-      } catch (e) {
-        const hint = document.getElementById("rulesHint");
-        if (hint) hint.textContent = `Fehler: ${e.message || e}`;
-      }
-    }
+    renderRulesGrid();
   });
 }

@@ -26,14 +26,15 @@ function normalizeLayout(input) {
   (Array.isArray(src.elemente) ? src.elemente : [])
     .filter((e) => e && e.typ !== "sensor")
     .forEach((e) => {
-      const typ = ["track", "xtrack", "curve", "switch", "signal", "transformer", "ledSignal"].includes(e.typ) ? e.typ : "track";
+      const rawTyp = e.typ === "crossing" ? "xtrack" : e.typ === "espSignal" ? "ledSignal" : e.typ;
+      const typ = ["track", "xtrack", "curve", "switch", "signal", "transformer", "ledSignal"].includes(rawTyp) ? rawTyp : "track";
       const id = String(e.id || makeId(typ));
       if (elementMap.has(id)) return;
 
-      const trackCode = typ === "track" ? validTrackCode(e.trackCode || e.code) : "";
-      const xTrackCode = typ === "xtrack" ? validXTrackCode(e.xTrackCode || e.code) : "";
-      const curveCode = typ === "curve" ? validCurveCode(e.curveCode || e.code) : "";
-      const switchCode = typ === "switch" ? validSwitchCode(e.switchCode || e.code) : "";
+      const trackCode = typ === "track" ? validTrackCode(e.trackCode || e.code || e.catalogCode) : "";
+      const xTrackCode = typ === "xtrack" ? validXTrackCode(e.xTrackCode || e.code || e.catalogCode) : "";
+      const curveCode = typ === "curve" ? validCurveCode(e.curveCode || e.code || e.catalogCode) : "";
+      const switchCode = typ === "switch" ? validSwitchCode(e.switchCode || e.code || e.catalogCode) : "";
 
       elementMap.set(id, {
         id,
@@ -41,9 +42,10 @@ function normalizeLayout(input) {
         name: String(e.name ?? ""),
         x: toNumber(e.x, 300),
         y: toNumber(e.y, 250),
-        winkel: ((toNumber(e.winkel, 0) % 360) + 360) % 360,
+        winkel: ((toNumber(e.winkel ?? e.rotation, 0) % 360) + 360) % 360,
+        rotation: ((toNumber(e.rotation ?? e.winkel, 0) % 360) + 360) % 360,
         section: String(e.section || ""),
-        module: cleanText(e.module || (typ === "ledSignal" ? "LEDMOD_01" : "GLEIS_01"), 48) || (typ === "ledSignal" ? "LEDMOD_01" : "GLEIS_01"),
+        module: cleanText(e.module || "", 48),
 
         trackCode,
         xTrackCode,
@@ -74,9 +76,10 @@ function normalizeLayout(input) {
         stromkreis: String(e.stromkreis || ""),
 
         ledChannelRed: validLedChannel(e.ledChannelRed || 0),
+        ledChannelYellow: validLedChannel(e.ledChannelYellow || 0),
         ledChannelGreen: validLedChannel(e.ledChannelGreen || 0),
-        ledState: e.ledState === "fahrt" ? "fahrt" : "halt",
-        defaultLedState: e.defaultLedState === "fahrt" ? "fahrt" : "halt"
+        ledState: ["halt", "warnung", "fahrt"].includes(e.ledState || e.espState) ? (e.ledState || e.espState) : "halt",
+        defaultLedState: ["halt", "warnung", "fahrt"].includes(e.defaultLedState) ? e.defaultLedState : "halt"
       });
     });
 

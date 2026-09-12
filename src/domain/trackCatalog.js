@@ -3,10 +3,10 @@
 const TRACK_CATALOG = {
   "5106": { kind: "track", label: "5106", length: 180 },
   "5107": { kind: "track", label: "5107", length: 90 },
-  "5108": { kind: "track", label: "5108", length: 70 },
-  "5109": { kind: "track", label: "5109", length: 45 },
-  "5110": { kind: "track", label: "5110", length: 30 },
-  "5129": { kind: "track", label: "5129", length: 22.5 },
+  "5108": { kind: "track", label: "5108", length: 45 },
+  "5109": { kind: "track", label: "5109", length: 33.5 },
+  "5110": { kind: "track", label: "5110", length: 22.5 },
+  "5129": { kind: "track", label: "5129", length: 70 },
 
   "5128": {
     kind: "xtrack",
@@ -16,11 +16,13 @@ const TRACK_CATALOG = {
     hasLantern: true
   },
 
-  "5100": { kind: "curve", label: "5100", radius: 110, angleDeg: 30 },
-  "5101": { kind: "curve", label: "5101", radius: 110, angleDeg: 15 },
-  "5120": { kind: "curve", label: "5120", radius: 150, angleDeg: 30 },
-  "5202": { kind: "switch", label: "5202 links", handed: "left" },
-  "5203": { kind: "switch", label: "5203 rechts", handed: "right" }
+  "5100": { kind: "curve", label: "5100 R1", radius: 360, angleDeg: 30, arcLength: 188.5 },
+  "5101": { kind: "curve", label: "5101 R1 halb", radius: 360, angleDeg: 15, arcLength: 94.2 },
+  "5102": { kind: "curve", label: "5102 R1 viertel", radius: 360, angleDeg: 7.5, arcLength: 47.1 },
+  "5200": { kind: "curve", label: "5200 R2", radius: 437.4, angleDeg: 30, arcLength: 229 },
+  "5120": { kind: "curve", label: "5120 Industriekreis", radius: 286, angleDeg: 45, arcLength: 224.6 },
+  "5202": { kind: "switch", label: "5202 links", handed: "left", length: 180, radius: 437.4, angleDeg: 24.2833 },
+  "5203": { kind: "switch", label: "5203 rechts", handed: "right", length: 180, radius: 437.4, angleDeg: 24.2833 }
 };
 
 function defaultTrackCode() { return "5106"; }

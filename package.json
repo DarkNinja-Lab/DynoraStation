@@ -1,8 +1,8 @@
 {
-  "name": "h0-bahn-zentrale",
+  "name": "dynorastation",
   "version": "1.0.0",
   "private": true,
-  "description": "H0-Bahn-Zentrale mit Express-Backend und Web-UI",
+  "description": "DynoraStation mit Express-Backend und Web-UI",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.22.2"
+  },
+  "overrides": {
+    "qs": "6.16.0"
   }
 }

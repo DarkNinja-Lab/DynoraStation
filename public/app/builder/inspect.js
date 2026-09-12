@@ -4,9 +4,11 @@ import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 import { renderCanvas } from "./render.js";
 import { showToast } from "../ui/toast.js";
+import { recordHistory } from "./history.js";
 
 export function showInspector(element) {
   if (!element) return;
+  clearUnavailableAssignment(element);
   
   const inspector = document.getElementById("inspector");
   if (!inspector) return;
@@ -15,8 +17,17 @@ export function showInspector(element) {
   inspector.innerHTML = html;
 
   // Event listeners für alle Inputs
-  inspector.querySelectorAll("input, select").forEach(el => {
-    el.addEventListener("change", () => saveInspectorChanges(element));
+  inspector.querySelectorAll("input, select").forEach(input => {
+    input.addEventListener("change", () => {
+      const moduleChanged = input.id === "inspModule";
+      recordHistory();
+      saveInspectorChanges(element);
+      if (moduleChanged) {
+        resetElementChannels(element);
+        renderCanvas();
+        showInspector(element);
+      }
+    });
   });
 
   // Close button
@@ -29,7 +40,10 @@ export function showInspector(element) {
   // Delete button
   document.getElementById("inspectorDeleteBtn")?.addEventListener("click", () => {
     if (!confirm("Element wirklich löschen?")) return;
+    recordHistory();
     state.layout.elemente = (state.layout.elemente || []).filter(e => e.id !== element.id);
+    state.layout.verbindungen = (state.layout.verbindungen || []).filter(v => v.von !== element.id && v.nach !== element.id);
+    state.layoutDirty = true;
     state.selectedElement = null;
     renderCanvas();
     inspectorLeer();
@@ -61,7 +75,7 @@ function inspectorHtmlForElement(el) {
     <label class="inspector-field">
       <span>Modul</span>
       <select id="inspModule">
-        ${getModuleOptions(el.module || "GLEIS_01")}
+        ${getModuleOptions(el.module || "", el.typ)}
       </select>
     </label>
   `;
@@ -108,14 +122,14 @@ function inspectorTrack(el) {
       <label class="inspector-field">
         <span>Relay (Gleisstrom)</span>
         <select id="inspRelay">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relay || 0)}
+          ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
         <span>Sensor (Zugdetection)</span>
         <select id="inspSensor">
-          ${getSensorOptions(el.module || "GLEIS_01", el.sensorId || "")}
+          ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
 
@@ -134,14 +148,14 @@ function inspectorCurve(el) {
       <label class="inspector-field">
         <span>Relay (Gleisstrom)</span>
         <select id="inspRelay">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relay || 0)}
+          ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
         <span>Sensor (Zugdetection)</span>
         <select id="inspSensor">
-          ${getSensorOptions(el.module || "GLEIS_01", el.sensorId || "")}
+          ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
 
@@ -160,21 +174,21 @@ function inspectorSwitch(el) {
       <label class="inspector-field">
         <span>Relay GERADE</span>
         <select id="inspRelayStraight">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relayStraight || 0)}
+          ${getRelayOptions(el.module || "", el.relayStraight || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
         <span>Relay ABZWEIG</span>
         <select id="inspRelayBranch">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relayBranch || 0)}
+          ${getRelayOptions(el.module || "", el.relayBranch || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
         <span>Sensor (Zugdetection)</span>
         <select id="inspSensor">
-          ${getSensorOptions(el.module || "GLEIS_01", el.sensorId || "")}
+          ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
 
@@ -191,21 +205,26 @@ function inspectorCrossing(el) {
       <strong style="font-size: 12px; color: #aaa;">Kreuzungsweiche-Eigenschaften</strong>
       
       <label class="inspector-field">
-        <span>Relay (Gleisstrom)</span>
-        <select id="inspRelay">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relay || 0)}
+        <span>Relay GERADE</span>
+        <select id="inspRelayA">
+          ${getRelayOptions(el.module || "", el.relayA || 0)}
         </select>
+      </label>
+
+      <label class="inspector-field">
+        <span>Relay ABZWEIG</span>
+        <select id="inspRelayB">${getRelayOptions(el.module || "", el.relayB || 0)}</select>
       </label>
 
       <label class="inspector-field">
         <span>Sensor (Zugdetection)</span>
         <select id="inspSensor">
-          ${getSensorOptions(el.module || "GLEIS_01", el.sensorId || "")}
+          ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
 
       <div class="inspector-info">
-        Kreuzungsweiche 5128: 30° Kreuzung, 193mm, mit optionalen Relay/Sensor.
+        Kreuzungsweiche 5128: reale 30°-Geometrie, getrennte Relais für beide Stellungen.
       </div>
     </div>
   `;
@@ -219,14 +238,14 @@ function inspectorSignal(el) {
       <label class="inspector-field">
         <span>Relay ROT (Halt)</span>
         <select id="inspRelayRed">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relayHp0 || 0)}
+          ${getRelayOptions(el.module || "", el.relayHp0 || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
         <span>Relay GRÜN (Fahrt)</span>
         <select id="inspRelayGreen">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relayHp1 || 0)}
+          ${getRelayOptions(el.module || "", el.relayHp1 || 0)}
         </select>
       </label>
 
@@ -253,14 +272,18 @@ function inspectorEspSignal(el) {
       <label class="inspector-field">
         <span>LED ROT Kanal</span>
         <select id="inspLedRed">
-          ${getLedOptions(el.module || "LEDMOD_01", el.ledChannelRed || 0)}
+          ${getLedOptions(el.module || "", el.ledChannelRed || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
+        <span>LED GELB Kanal</span>
+        <select id="inspLedYellow">${getLedOptions(el.module || "", el.ledChannelYellow || 0)}</select>
+      </label>
+      <label class="inspector-field">
         <span>LED GRÜN Kanal</span>
         <select id="inspLedGreen">
-          ${getLedOptions(el.module || "LEDMOD_01", el.ledChannelGreen || 0)}
+          ${getLedOptions(el.module || "", el.ledChannelGreen || 0)}
         </select>
       </label>
 
@@ -268,12 +291,13 @@ function inspectorEspSignal(el) {
         <span>Aktueller Zustand</span>
         <select id="inspEspState">
           <option value="halt" ${el.espState === "halt" ? "selected" : ""}>Halt (Rot)</option>
+          <option value="warnung" ${el.espState === "warnung" ? "selected" : ""}>Warnung (Gelb)</option>
           <option value="fahrt" ${el.espState === "fahrt" ? "selected" : ""}>Fahrt (Grün)</option>
         </select>
       </label>
 
       <div class="inspector-info">
-        DIY ESP-Signalmast: Je ein LED-Kanal für Rot und Grün.
+        DIY ESP-Signalmast: Je ein LED-Kanal für Rot, Gelb und Grün.
       </div>
     </div>
   `;
@@ -287,12 +311,12 @@ function inspectorTransformer(el) {
       <label class="inspector-field">
         <span>Relay (Stromversorgung)</span>
         <select id="inspRelay">
-          ${getRelayOptions(el.module || "GLEIS_01", el.relay || 0)}
+          ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
       </label>
 
       <div class="inspector-info">
-        Märklin Transformator: Optional ein Relay zur Kontrolle der Stromversorgung.
+        Märklin Transformator 6631: Optional ein Relay zur Kontrolle der Stromversorgung.
       </div>
     </div>
   `;
@@ -301,7 +325,7 @@ function inspectorTransformer(el) {
 function saveInspectorChanges(element) {
   const name = document.getElementById("inspName")?.value || "";
   const rotation = parseFloat(document.getElementById("inspRotation")?.value || 0) % 360;
-  const module = document.getElementById("inspModule")?.value || "GLEIS_01";
+  const module = document.getElementById("inspModule")?.value || "";
 
   element.name = name;
   element.rotation = rotation;
@@ -311,8 +335,13 @@ function saveInspectorChanges(element) {
   switch (element.typ) {
     case "track":
     case "curve":
-    case "crossing":
       element.relay = parseInt(document.getElementById("inspRelay")?.value || 0);
+      element.sensorId = document.getElementById("inspSensor")?.value || "";
+      break;
+
+    case "crossing":
+      element.relayA = parseInt(document.getElementById("inspRelayA")?.value || 0);
+      element.relayB = parseInt(document.getElementById("inspRelayB")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
       break;
 
@@ -330,8 +359,10 @@ function saveInspectorChanges(element) {
 
     case "espSignal":
       element.ledChannelRed = parseInt(document.getElementById("inspLedRed")?.value || 0);
+      element.ledChannelYellow = parseInt(document.getElementById("inspLedYellow")?.value || 0);
       element.ledChannelGreen = parseInt(document.getElementById("inspLedGreen")?.value || 0);
       element.espState = document.getElementById("inspEspState")?.value || "halt";
+      element.ledState = element.espState;
       break;
 
     case "transformer":
@@ -339,6 +370,7 @@ function saveInspectorChanges(element) {
       break;
   }
 
+  state.layoutDirty = true;
   renderCanvas();
   showToast("✅ Änderungen übernommen");
 }
@@ -381,37 +413,75 @@ function escape(str) {
   }[c]));
 }
 
-function getModuleOptions(selected) {
-  const modules = ["GLEIS_01", "LEDMOD_01"];
-  return `<option value="">Kein Modul</option>` + modules.map(m => 
-    `<option value="${m}" ${m === selected ? "selected" : ""}>${m}</option>`
-  ).join("");
+function getModuleOptions(selected, elementType = "track") {
+  const needed = elementType === "espSignal" ? "led" : "relay";
+  const list = Object.values(state.hardware?.modules || {}).filter((module) => moduleSupports(module, needed));
+  return `<option value="">Kein Modul</option>` + list.map((module) => {
+    const label = moduleKindLabel(module);
+    return `<option value="${escape(module.id)}" ${module.id === selected ? "selected" : ""}>${escape(module.name || module.id)} · ${label}</option>`;
+  }).join("");
 }
 
 function getRelayOptions(module, selected) {
-  return `
-    <option value="0">Kein Relay</option>
-    ${Array.from({length: 8}, (_, i) => i + 1).map(ch =>
-      `<option value="${ch}" ${parseInt(selected) === ch ? "selected" : ""}>Relay ${ch}</option>`
-    ).join("")}
-  `;
+  const count = Array.isArray(state.hardware?.modules?.[module]?.relays) ? state.hardware.modules[module].relays.length : 0;
+  return `<option value="0">Kein Relay</option>${Array.from({ length: count }, (_, i) => i + 1).map((channel) => {
+    const configured = state.relayConfig?.[`${module}:${channel}`]?.name;
+    const label = configured ? `${configured} (Relay ${channel})` : `Relay ${channel}`;
+    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${escape(label)}</option>`;
+  }).join("")}`;
 }
 
 function getSensorOptions(module, selected) {
-  return `
-    <option value="">Kein Sensor</option>
-    ${Array.from({length: 8}, (_, i) => {
-      const id = `S${i + 1}`;
-      return `<option value="${id}" ${selected === id ? "selected" : ""}>${id}</option>`;
-    }).join("")}
-  `;
+  const sensors = Array.isArray(state.hardware?.modules?.[module]?.sensors) ? state.hardware.modules[module].sensors : [];
+  return `<option value="">Kein Sensor</option>${sensors.map((sensor, index) => {
+    const id = sensor?.id || `S${index + 1}`;
+    const configured = state.sensorConfig?.[`${module}:${id}`]?.name;
+    const label = configured || sensor?.name || id;
+    return `<option value="${escape(id)}" ${selected === id ? "selected" : ""}>${escape(label)}</option>`;
+  }).join("")}`;
 }
 
 function getLedOptions(module, selected) {
-  return `
-    <option value="0">Keine LED</option>
-    ${Array.from({length: 8}, (_, i) => i + 1).map(ch =>
-      `<option value="${ch}" ${parseInt(selected) === ch ? "selected" : ""}>LED ${ch}</option>`
-    ).join("")}
-  `;
+  const count = Array.isArray(state.hardware?.modules?.[module]?.leds) ? state.hardware.modules[module].leds.length : 0;
+  return `<option value="0">Keine LED</option>${Array.from({ length: count }, (_, i) => i + 1).map((channel) =>
+    `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>LED ${channel}</option>`
+  ).join("")}`;
+}
+
+function moduleSupports(module, capability) {
+  const caps = Array.isArray(module?.capabilities) ? module.capabilities : [];
+  if (caps.includes(capability)) return true;
+  if (capability === "relay" && (module?.kind === "RELAY_SENSOR" || module?.kind === "HYBRID")) return true;
+  if (capability === "led" && (module?.kind === "SIGNAL_LED" || module?.kind === "HYBRID")) return true;
+  return module?.kind === "UNKNOWN";
+}
+
+function moduleKindLabel(module) {
+  if (module?.kind === "SIGNAL_LED") return "Signal/LED";
+  if (module?.kind === "RELAY_SENSOR") return "Relay/Sensor";
+  if (module?.kind === "HYBRID") return "Hybrid";
+  return "noch nicht erkannt";
+}
+
+function clearUnavailableAssignment(element) {
+  const list = state.hardware?.modules || {};
+  if (!Object.keys(list).length || !element.module || list[element.module]) return;
+  element.module = "";
+  resetElementChannels(element);
+  state.layoutDirty = true;
+}
+
+function resetElementChannels(element) {
+  element.relay = 0;
+  element.relayA = 0;
+  element.relayB = 0;
+  element.relayStraight = 0;
+  element.relayBranch = 0;
+  element.relayHp0 = 0;
+  element.relayHp1 = 0;
+  element.ledChannelRed = 0;
+  element.ledChannelYellow = 0;
+  element.ledChannelGreen = 0;
+  element.sensorId = "";
+  state.layoutDirty = true;
 }
