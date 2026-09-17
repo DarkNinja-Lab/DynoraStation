@@ -260,7 +260,10 @@ function drawElement(root, element, layer) {
   group.setAttribute("transform", `translate(${element.x}, ${element.y}) rotate(${element.rotation})`);
 
   const hitbox = svg("rect");
-  attrs(hitbox, { x: -80, y: -55, width: 160, height: 110, rx: 12, fill: "transparent", "pointer-events": "all" });
+  const is5141 = element.typ === "switch" && elementCatalogItem(element).switchGeometry === "5141";
+  attrs(hitbox, is5141
+    ? { x: -68, y: -55, width: 140, height: 85, rx: 12, fill: "transparent", "pointer-events": "all" }
+    : { x: -80, y: -55, width: 160, height: 110, rx: 12, fill: "transparent", "pointer-events": "all" });
   group.appendChild(hitbox);
   drawElementShape(group, element);
   if (state.showLabels !== false) drawLabel(group, element, element.rotation);

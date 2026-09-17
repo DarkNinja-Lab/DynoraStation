@@ -11,6 +11,7 @@ function normalizeElementForUi(element) {
   e.winkel = Number(e.winkel ?? e.rotation ?? 0);
   e.espState = e.espState || e.ledState || "halt";
   e.signalAspectMode = e.signalAspectMode === "rgy" ? "rgy" : "rg";
+  e.showInDirectControl = e.showInDirectControl !== false;
   if (e.signalAspectMode === "rg" && e.espState === "warnung") e.espState = e.ledState = "halt";
   return e;
 }
@@ -36,7 +37,7 @@ export async function layoutLaden() {
   } catch (error) {
     console.warn("Layout konnte nicht geladen werden", error);
     state.layout = {
-      version: 31,
+      version: 32,
       metadaten: { name: "Meine Modellbahn", massstab: "H0", raster: 12.5, rasterMm: 25, plateWidthMm: 3200, plateHeightMm: 1800 },
       stromkreise: [],
       elemente: [],

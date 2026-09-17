@@ -127,7 +127,8 @@ function createElement(type, x, y, rotation = 0, requestedCatalogCode = "", sign
     relayStraight: 0, relayBranch: 0, switchState: "gerade",
     relayHp0: 0, relayHp1: 0, signalState: "halt",
     signalAspectMode: signalAspectMode === "rgy" ? "rgy" : "rg",
-    ledChannelRed: 0, ledChannelYellow: 0, ledChannelGreen: 0, espState: "halt", ledState: "halt"
+    ledChannelRed: 0, ledChannelYellow: 0, ledChannelGreen: 0, espState: "halt", ledState: "halt",
+    showInDirectControl: true
   };
 }
 

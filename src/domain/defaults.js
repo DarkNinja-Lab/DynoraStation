@@ -11,7 +11,7 @@ function defaultLightButtons() {
 
 function defaultLayout() {
   return {
-    version: 31,
+    version: 32,
     metadaten: { name: "Meine Modellbahn", massstab: "H0", raster: 12.5, rasterMm: 25, plateWidthMm: 3200, plateHeightMm: 1800 },
     stromkreise: [],
     elemente: [],

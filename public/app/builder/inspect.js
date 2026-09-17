@@ -4,6 +4,7 @@ import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 import { renderCanvas } from "./render.js";
 import { showToast } from "../ui/toast.js";
+import { renderCs3Tiles } from "../ui/render.js";
 import { recordHistory } from "./history.js";
 
 export function showInspector(element) {
@@ -55,6 +56,7 @@ export function showInspector(element) {
 }
 
 function inspectorHtmlForElement(el) {
+  const directControlType = ["switch", "crossing", "signal", "espSignal"].includes(el.typ);
   let html = `
     <div class="inspector-header">
       <div>
@@ -85,6 +87,10 @@ function inspectorHtmlForElement(el) {
         ${getModuleOptions(el.module || "", el.typ)}
       </select>
     </label>
+    ${directControlType ? `<label class="check-option inspector-direct-toggle">
+      <input type="checkbox" id="inspShowInDirectControl" ${el.showInDirectControl !== false ? "checked" : ""}>
+      <span>In Direktsteuerung anzeigen</span>
+    </label>` : ""}
   `;
 
   // Element-spezifische Properties
@@ -367,6 +373,9 @@ function saveInspectorChanges(element) {
   element.x = Math.max(40, Math.min(boardWidth - 40, Number(document.getElementById("inspX")?.value || element.x * 2) * .5));
   element.y = Math.max(40, Math.min(boardHeight - 40, Number(document.getElementById("inspY")?.value || element.y * 2) * .5));
   element.module = module;
+  if (["switch", "crossing", "signal", "espSignal"].includes(element.typ)) {
+    element.showInDirectControl = document.getElementById("inspShowInDirectControl")?.checked !== false;
+  }
 
   // Element-spezifisch
   switch (element.typ) {
@@ -413,6 +422,7 @@ function saveInspectorChanges(element) {
 
   state.layoutDirty = true;
   renderCanvas();
+  renderCs3Tiles();
   showToast("✅ Änderungen übernommen");
 }
 

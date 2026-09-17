@@ -195,7 +195,8 @@ test("Anlagenplattenmasse und Raster werden sofort persistent gespeichert", asyn
     method: "POST", headers,
     body: JSON.stringify({
       metadaten: { name: "Mass-Test", massstab: "H0", plateWidthMm: 4200, plateHeightMm: 2100, rasterMm: 25, raster: 12.5 },
-      elemente: [], verbindungen: [], stromkreise: []
+      elemente: [{ id: "hidden-switch", typ: "switch", x: 200, y: 200, switchCode: "5141", showInDirectControl: false }],
+      verbindungen: [], stromkreise: []
     })
   });
   assert.equal(response.status, 200);
@@ -203,11 +204,13 @@ test("Anlagenplattenmasse und Raster werden sofort persistent gespeichert", asyn
   assert.equal(body.layout.metadaten.plateWidthMm, 4200);
   assert.equal(body.layout.metadaten.plateHeightMm, 2100);
   assert.equal(body.layout.metadaten.rasterMm, 25);
+  assert.equal(body.layout.elemente[0].showInDirectControl, false);
 
   const persisted = JSON.parse(fs.readFileSync(path.join(projectDir, "data", "layout.json"), "utf8"));
   assert.equal(persisted.metadaten.plateWidthMm, 4200);
   assert.equal(persisted.metadaten.plateHeightMm, 2100);
   assert.equal(persisted.metadaten.rasterMm, 25);
+  assert.equal(persisted.elemente[0].showInDirectControl, false);
 });
 
 test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfehler", async () => {
@@ -253,6 +256,72 @@ test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", (
   assert.ok(Math.abs(TRACK_CATALOG["5202"].radius * Math.sin(TRACK_CATALOG["5202"].angleDeg * Math.PI / 180) - TRACK_CATALOG["5202"].length) < 0.2);
   assert.equal(TRACK_CATALOG["5128"].crossingAngleDeg, 30);
   assert.equal(TRACK_CATALOG["5141"].branchRadius, 437.4);
+  assert.equal(TRACK_CATALOG["5141"].radius, 360);
+  assert.equal(TRACK_CATALOG["5141"].angleDeg, 30);
+  assert.equal(TRACK_CATALOG["5141"].innerCurveCode, "5100");
+  assert.equal(TRACK_CATALOG["5141"].outerCurveCode, "5200");
+  assert.equal(TRACK_CATALOG["5141"].switchGeometry, "5141");
+  assert.ok(Math.abs((TRACK_CATALOG["5141"].branchRadius - TRACK_CATALOG["5141"].radius) - 77.4) < 0.001);
+});
+
+test("Direktsteuerung priorisiert bei ESP-Signalen den LED-Zustand", async () => {
+  const { directControlState } = await import("../public/app/ui/render.js");
+  assert.equal(directControlState({ typ: "signal", signalState: "fahrt" }), "fahrt");
+  assert.equal(directControlState({ typ: "ledSignal", signalState: "halt", ledState: "fahrt" }), "fahrt");
+  assert.equal(directControlState({ typ: "espSignal", signalState: "halt", ledState: "warnung" }), "warnung");
+  assert.equal(directControlState({ typ: "switch", switchState: "abzweig" }), "abzweig");
+});
+
+test("5141 stellt drei klar getrennte und korrekt ausgerichtete Anschluesse bereit", async () => {
+  const { localConnectionPorts } = await import("../public/app/builder/shapes.js");
+  const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, branchRadius: 437.4, angleDeg: 30 });
+  assert.equal(ports.length, 3);
+  assert.ok(Math.abs(ports[0].x + 54.675) < .001);
+  assert.equal(ports[0].y, 0);
+  assert.equal(ports[0].angle, 180);
+  assert.ok(ports[1].y < ports[2].y);
+  assert.equal(ports[1].angle, -30);
+  assert.equal(ports[2].angle, -30);
+  assert.notEqual(ports[1].x, ports[2].x);
+});
+
+test("Direktsteuerungs-Endpunkte schalten Gleis, Weiche, Kreuzung und Signal konsistent", async () => {
+  const moduleId = "ESP8266-CONTROL-AUDIT";
+  const headers = { "content-type": "application/json" };
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: moduleId, moduleType: "HYBRID", relays: Array(8).fill(false), leds: [{ channel: 1 }, { channel: 2 }] })
+  })).status, 200);
+
+  const elements = [
+    { id: "audit-track", typ: "track", module: moduleId, relay: 7 },
+    { id: "audit-switch", typ: "switch", module: moduleId, switchCode: "5141", relayStraight: 1, relayBranch: 2 },
+    { id: "audit-crossing", typ: "crossing", module: moduleId, xTrackCode: "5128", relayA: 3, relayB: 4 },
+    { id: "audit-signal", typ: "signal", module: moduleId, relayHp0: 5, relayHp1: 6 }
+  ];
+  assert.equal((await fetch(`${baseUrl}/api/layout`, {
+    method: "POST", headers, body: JSON.stringify({ metadaten: {}, elemente: elements, verbindungen: [], stromkreise: [] })
+  })).status, 200);
+
+  const commands = [
+    ["/api/track/control", { elementId: "audit-track", state: true }, true],
+    ["/api/switch/control", { elementId: "audit-switch", state: "abzweig" }, "abzweig"],
+    ["/api/xtrack/control", { elementId: "audit-crossing", state: "abzweig" }, "abzweig"],
+    ["/api/signal/control", { elementId: "audit-signal", state: "fahrt" }, "fahrt"]
+  ];
+  for (const [endpoint, payload, expectedState] of commands) {
+    const response = await fetch(`${baseUrl}${endpoint}`, { method: "POST", headers, body: JSON.stringify(payload) });
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).state, expectedState);
+  }
+
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  const byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+  assert.equal(byId.get("audit-track").powerState, true);
+  assert.equal(byId.get("audit-switch").switchState, "abzweig");
+  assert.equal(byId.get("audit-crossing").xState, "abzweig");
+  assert.equal(byId.get("audit-signal").signalState, "fahrt");
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
 
 test("NOT-AUS schaltet Live-Zustaende ab und verwirft alte Schaltbefehle", async () => {

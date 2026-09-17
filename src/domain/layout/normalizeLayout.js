@@ -15,7 +15,7 @@ function normalizeLayout(input) {
   const src = input && typeof input === "object" ? input : {};
   const out = defaultLayout();
 
-  out.version = 31;
+  out.version = 32;
   out.metadaten = {
     name: cleanText(src.metadaten?.name || "Meine Modellbahn", 120) || "Meine Modellbahn",
     massstab: cleanText(src.metadaten?.massstab || "H0", 20) || "H0",
@@ -77,6 +77,7 @@ function normalizeLayout(input) {
         defaultSignalState: e.defaultSignalState === "fahrt" ? "fahrt" : "halt",
 
         linkedSignalId: cleanText(e.linkedSignalId || "", 80),
+        showInDirectControl: e.showInDirectControl !== false,
 
         powerState: Boolean(e.powerState),
         stromkreis: String(e.stromkreis || ""),

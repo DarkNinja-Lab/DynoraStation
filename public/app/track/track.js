@@ -203,7 +203,10 @@ export function renderTrackLayout() {
     group.setAttribute("aria-label", interactive ? `${element.name || uiType(element.typ)} schalten${occupied ? ", Sensor belegt" : ""}` : `${element.name || "Prellbock"} 5129`);
 
     const hitbox = svg("rect");
-    attrs(hitbox, { x: -80, y: -55, width: 160, height: 115, fill: "transparent", "pointer-events": "all" });
+    const is5141 = uiType(element.typ) === "switch" && elementCatalogItem(element).switchGeometry === "5141";
+    attrs(hitbox, is5141
+      ? { x: -68, y: -55, width: 140, height: 85, fill: "transparent", "pointer-events": "all" }
+      : { x: -80, y: -55, width: 160, height: 115, fill: "transparent", "pointer-events": "all" });
     group.appendChild(hitbox);
     drawShape(group, element, occupied);
     if (occupied) drawOccupancyBadge(group, rotation);

@@ -56,9 +56,30 @@ export function renderSidebarEspStatus() {
 function controlTileVisual(element) {
   const type = element.typ === "xtrack" ? "crossing" : element.typ === "ledSignal" ? "espSignal" : element.typ;
   if (type === "switch") {
-    const branchRight = dashboardCatalogItem(element, "switches").handed === "right";
+    const switchItem = dashboardCatalogItem(element, "switches");
+    const branchRight = switchItem.handed === "right";
     const branchY = branchRight ? 43 : 13;
     const straight = element.switchState !== "abzweig";
+    if (switchItem.switchStyle === "curved") {
+      if (switchItem.switchGeometry === "5141") {
+        const throughPath = branchRight ? "M10 12A94 94 0 0 1 103 38" : "M10 44A94 94 0 0 0 103 18";
+        const branchPath = branchRight ? "M10 12A76 76 0 0 1 83 34" : "M10 44A76 76 0 0 0 83 22";
+        return `<svg class="control-symbol" viewBox="0 0 112 56" aria-hidden="true">
+          <path class="symbol-base" d="${throughPath}"/><path class="symbol-base" d="${branchPath}"/>
+          <path class="symbol-route ${straight ? "selected" : ""}" d="${throughPath}"/>
+          <path class="symbol-route ${straight ? "" : "selected"}" d="${branchPath}"/>
+          <circle class="symbol-node" cx="28" cy="${branchRight ? 13 : 43}" r="3"/>
+        </svg>`;
+      }
+      const innerPath = branchRight ? "M12 10Q57 10 99 34" : "M12 46Q57 46 99 22";
+      const outerPath = branchRight ? "M12 10Q57 10 99 47" : "M12 46Q57 46 99 9";
+      return `<svg class="control-symbol" viewBox="0 0 112 56" aria-hidden="true">
+        <path class="symbol-base" d="${innerPath}"/><path class="symbol-base" d="${outerPath}"/>
+        <path class="symbol-route ${straight ? "selected" : ""}" d="${innerPath}"/>
+        <path class="symbol-route ${straight ? "" : "selected"}" d="${outerPath}"/>
+        <circle class="symbol-node" cx="28" cy="${branchRight ? 12 : 44}" r="3"/>
+      </svg>`;
+    }
     return `<svg class="control-symbol" viewBox="0 0 112 56" aria-hidden="true">
       <path class="symbol-base" d="M12 28H100"/>
       <path class="symbol-base" d="M12 28Q50 28 88 ${branchY}"/>
@@ -77,7 +98,7 @@ function controlTileVisual(element) {
         : '<path d="M12 12L100 44"/><path d="M12 44L100 12"/>'}</g>
     </svg>`;
   }
-  const stateValue = element.signalState || element.ledState || element.espState || "halt";
+  const stateValue = directControlState(element);
   const hasWarning = type === "espSignal" && element.signalAspectMode === "rgy";
   return `<svg class="control-symbol signal-symbol" viewBox="0 0 112 56" aria-hidden="true">
     <path class="signal-mast" d="M56 47V13"/>
@@ -88,11 +109,20 @@ function controlTileVisual(element) {
   </svg>`;
 }
 
+export function directControlState(element) {
+  const type = element.typ === "xtrack" ? "crossing" : element.typ === "ledSignal" ? "espSignal" : element.typ;
+  if (type === "switch") return element.switchState === "abzweig" ? "abzweig" : "gerade";
+  if (type === "crossing") return element.xState === "abzweig" ? "abzweig" : "gerade";
+  if (type === "signal") return element.signalState === "fahrt" ? "fahrt" : "halt";
+  if (type === "espSignal") {
+    const stateValue = element.ledState || element.espState || "halt";
+    return ["halt", "warnung", "fahrt"].includes(stateValue) ? stateValue : "halt";
+  }
+  return "halt";
+}
+
 function readableControlState(element) {
-  const value = element.typ === "switch" ? element.switchState
-    : element.typ === "xtrack" || element.typ === "crossing" ? element.xState
-    : element.typ === "signal" ? element.signalState
-    : (element.ledState || element.espState);
+  const value = directControlState(element);
   return ({ gerade: "Gerade", abzweig: "Abzweig", halt: "Halt", warnung: "Warnung", fahrt: "Fahrt" })[value] || "Nicht gemeldet";
 }
 
@@ -100,7 +130,9 @@ export function renderCs3Tiles() {
   const grid = document.getElementById("cs3TileGrid");
   if (!grid) return;
 
-  const controllable = (state.layout?.elemente || []).filter((element) => ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ));
+  const controllable = (state.layout?.elemente || []).filter((element) =>
+    element.showInDirectControl !== false && ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ)
+  );
   const tiles = controllable.map((element) => {
     const type = element.typ === "xtrack" || element.typ === "crossing" ? "Kreuzungsweiche" : element.typ === "signal" ? "Signal" : element.typ === "ledSignal" || element.typ === "espSignal" ? "ESP-Signal" : "Weiche";
     const stateText = readableControlState(element);

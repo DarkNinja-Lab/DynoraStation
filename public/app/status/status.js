@@ -86,11 +86,12 @@ function trackRenderSignature(layout, modules) {
 
 function directControlSignature(layout) {
   return JSON.stringify((layout?.elemente || [])
-    .filter((element) => ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ))
+    .filter((element) => element.showInDirectControl !== false && ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ))
     .map((element) => ({
       id: element.id,
       name: element.name,
       typ: element.typ,
+      showInDirectControl: element.showInDirectControl,
       switchState: element.switchState,
       xState: element.xState,
       signalState: element.signalState,

@@ -2,7 +2,7 @@
 
 Webbasierte Steuerzentrale für eine H0-Modellbahn mit mehreren ESP8266-Modulen. DynoraStation kombiniert Gleisbild-Editor, Live-Betrieb, Hardwareverwaltung und Wenn-Dann-Automationen.
 
-Aktuelle Version: **1.7.2**. Das präzisere Magnet-Andocken verwendet nur freie Gleisanschlüsse, aktive gerade und gebogene Gleise leuchten klar grün, der PDF-Export arbeitet ohne ungültige SVG-Höhe oder mehrfach gebundene Popups und das Brassworks-Design besitzt einen vollständig neu aufgebauten Markenbereich.
+Aktuelle Version: **1.7.4**. Die Bogenweiche 5141 verwendet nun zwei mathematisch exakte 30°-Kreisbögen: innen R360 wie 5100 und außen R437,4 wie 5200, ergänzt um Weichenzunge und Herzstück. Die Direktsteuerung verwendet für normale und ESP-Signale einen gemeinsamen, getesteten Zustandsweg, sodass Lampenbild und Textzustand synchron umschalten.
 
 ## Eigenes Dynora-Logo einsetzen
 
@@ -25,11 +25,11 @@ Für das beste Ergebnis sollte das Logo quadratisch sein, einen transparenten Hi
 - Professionelle Betriebsübersicht im Industrial-/Steampunk-Design mit DB-roten Akzenten
 - Visueller Gleisbild-Editor mit physischem Millimeter-Raster, magnetischen Gleisenden, Zoom und Undo/Redo
 - Märklin-M-Gleiskatalog mit Geraden, Kurven, Weichen und Kreuzungsweiche
-- Weichen 5118 (links), 5119 (rechts), 5141 (Bogenweiche links) und Prellbock 5129
+- Weichen 5118 (links), 5119 (rechts), 5141 (Bogenweiche links mit R1/R2-Doppelbogen) und Prellbock 5129
 - Frei konfigurierbare Anlagenplatte mit Breite, Tiefe und 10/25/50/90/180-mm-Raster
 - Druckoptimierter PDF-Bauplan mit Artikelnummern, Stückliste und Montagekoordinaten
 - Mobile Bedienoberfläche für iPhone/Android mit Drawer, unterer Schnellnavigation und Touch-Builder
-- Direktsteuerung für Gleise, Licht, Weichen und zwei- oder dreibegriffige ESP-Signalmasten
+- Direktsteuerung für Gleise, Licht, Weichen und zwei- oder dreibegriffige ESP-Signalmasten; Weichen und Signale lassen sich pro Element ein- oder ausblenden
 - Rote Belegtmeldung im Gleisbild bei ausgelöstem, zugewiesenem Sensor
 - Verwaltung mehrerer ESP-Module, Relais, Sensoren und LED-Kanäle
 - Grundstellungen für den Betriebsstart

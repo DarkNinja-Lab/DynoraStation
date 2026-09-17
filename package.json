@@ -1,6 +1,6 @@
 {
   "name": "dynorastation",
-  "version": "1.7.2",
+  "version": "1.7.4",
   "private": true,
   "description": "DynoraStation mit Express-Backend und Web-UI",
   "main": "src/server.js",
