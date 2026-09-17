@@ -22,7 +22,8 @@ export async function apiCall(path, options = {}) {
 
   const fetchOptions = {
     method,
-    headers
+    headers,
+    ...(method === "GET" ? { cache: "no-store" } : {})
   };
 
   if (options.body !== undefined) {

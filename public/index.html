@@ -3,18 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#121212">
+  <meta name="theme-color" content="#17120c">
+  <meta name="color-scheme" content="dark">
   <title>DynoraStation • H0 Modellbahnsteuerung</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="app-shell">
     <aside class="left-rail" id="sidebar">
       <div class="brand-bar">
-        <div class="brand-icon" aria-hidden="true"><span>DS</span></div>
+        <div class="brand-icon"><img src="/assets/brand/dynora-logo-512.png" srcset="/assets/brand/dynora-logo-180.png 180w, /assets/brand/dynora-logo-192.png 192w, /assets/brand/dynora-logo-512.png 512w" sizes="40px" alt="Dynora Logo"></div>
         <div class="brand-text">
-          <strong>DynoraStation</strong>
-          <small>H0 Modellbahnsteuerung</small>
+          <span class="brand-works">DYNORA · STEAMWORKS</span>
+          <strong>Dynora<span>Station</span></strong>
+          <small>H0 · MODELLBAHNLEITSTELLE</small>
         </div>
       </div>
 
@@ -43,10 +48,19 @@
       </div>
     </aside>
 
+    <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
+      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>⌂</span><small>Start</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button"><span>⌁</span><small>Gleisbild</small></button>
+      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>⌘</span><small>Builder</small></button>
+      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>⚙</span><small>Setup</small></button>
+      <button id="mobileMoreButton" class="mobile-nav-button" type="button" aria-label="Weitere Bereiche öffnen" aria-controls="sidebar" aria-expanded="false"><span>•••</span><small>Mehr</small></button>
+    </nav>
+
     <main class="main-area">
       <header class="topbar">
         <div class="topbar-left">
-          <button id="mobileMenuButton" class="icon-button mobile-menu-btn" type="button" aria-label="Menü öffnen">☰</button>
+          <button id="mobileMenuButton" class="icon-button mobile-menu-btn" type="button" aria-label="Menü öffnen" aria-controls="sidebar" aria-expanded="false">☰</button>
+          <div class="topbar-brand-mark" aria-hidden="true"><img src="/assets/brand/dynora-logo-512.png" srcset="/assets/brand/dynora-logo-180.png 180w, /assets/brand/dynora-logo-192.png 192w, /assets/brand/dynora-logo-512.png 512w" sizes="38px" alt=""></div>
           <div>
             <div class="eyebrow">DYNORASTATION</div>
             <h1 id="pageTitle">Übersicht</h1>
@@ -67,10 +81,10 @@
         </section>
 
         <div class="operations-grid">
-          <article class="operation-card server"><span>WebServer</span><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small></article>
-          <article class="operation-card"><span>ESP-Module</span><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small></article>
-          <article class="operation-card"><span>Relais</span><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small></article>
-          <article class="operation-card"><span>Gleisbild</span><strong id="elementCardStatus">0</strong><small>Elemente im Plan</small></article>
+          <article class="operation-card server"><i aria-hidden="true">●</i><span>WebServer</span><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small></article>
+          <article class="operation-card"><i aria-hidden="true">⌁</i><span>ESP-Module</span><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small></article>
+          <article class="operation-card"><i aria-hidden="true">⇄</i><span>Relais</span><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small></article>
+          <article class="operation-card"><i aria-hidden="true">━</i><span>Gleisbild</span><strong id="elementCardStatus">0</strong><small>Elemente im Plan</small></article>
         </div>
 
         <div class="dashboard-workspace">
@@ -99,13 +113,20 @@
             </div>
             <div class="builder-header-actions">
               <span id="layoutMessage" class="builder-message" aria-live="polite"></span>
+              <button id="exportPlanButton" class="secondary-button" type="button">PDF / Bauplan</button>
               <button id="saveLayoutButton" class="primary-button" type="button">Speichern</button>
               <button id="undoButton" class="tool-button" type="button">↶</button>
               <button id="redoButton" class="tool-button" type="button">↷</button>
             </div>
           </div>
 
-          <div class="builder-layout">
+          <nav class="builder-mobile-tabs" aria-label="Builder-Bereiche">
+            <button class="active" data-builder-panel="canvas" type="button">Plan</button>
+            <button data-builder-panel="library" type="button">Bauteile</button>
+            <button data-builder-panel="inspector" type="button">Eigenschaften</button>
+          </nav>
+
+          <div class="builder-layout" data-mobile-panel="canvas">
             <aside class="builder-sidebar">
               <div class="builder-sidebar-head">
                 <div><span class="palette-kicker">BAUKASTEN</span><strong>Elementbibliothek</strong></div>
@@ -118,34 +139,40 @@
               </div>
 
               <details class="builder-library-group" open>
-                <summary>Gleise <span>4 Typen</span></summary>
+                <summary>Gleise <span>5 Typen</span></summary>
                 <div class="catalog-group">
                   <label>Gerades Gleis</label>
                   <div id="trackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight">━</span><span>Gerade platzieren<small>Ausgewählten Artikel verwenden</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight">━</span><span>Gerade auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
                 </div>
                 <div class="catalog-group">
                   <label>Kurve</label>
                   <div id="curveTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve">⌒</span><span>Kurve platzieren<small>Radius aus Auswahl</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve">⌒</span><span>Kurve auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
                 </div>
                 <div class="catalog-group">
                   <label>Weiche</label>
                   <div id="switchTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout">⑂</span><span>Weiche platzieren<small>Links oder rechts</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout">⑂</span><span>Weiche auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
                 </div>
                 <div class="catalog-group">
                   <label>Kreuzungsweiche</label>
                   <div id="xTrackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing">╳</span><span>Kreuzung platzieren<small>Gewählten Fahrweg schalten</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing">╳</span><span>Kreuzung auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                </div>
+                <div class="catalog-group">
+                  <label>Gleisabschluss</label>
+                  <div id="bumperTypeSelectHost"></div>
+                  <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper">⊣</span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
                 </div>
               </details>
 
               <details class="builder-library-group" open>
-                <summary>Steuerung <span>3 Typen</span></summary>
+                <summary>Steuerung <span>4 Typen</span></summary>
                 <div class="builder-control-grid">
                   <button class="palette-button add-element-button" data-add="signal" type="button"><span>●</span> Hauptsignal<b>＋</b></button>
-                  <button class="palette-button add-element-button" data-add="espSignal" type="button"><span>◉</span> ESP-Signal<b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span>◉</span><span>ESP-Signal<small>Rot / Grün</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rgy" type="button"><span>◉</span><span>ESP-Signal<small>Rot / Gelb / Grün</small></span><b>＋</b></button>
                   <button class="palette-button add-element-button" data-add="transformer" type="button"><span>ϟ</span> Trafo 6631<b>＋</b></button>
                 </div>
               </details>
@@ -162,6 +189,15 @@
 
               <details class="builder-library-group">
                 <summary>Ansicht</summary>
+                <div class="board-settings">
+                  <div class="board-settings-title"><strong>Anlagenplatte</strong><span id="boardAreaLabel">3,20 × 1,80 m</span></div>
+                  <div class="board-size-fields">
+                    <label><span>Breite (mm)</span><input id="plateWidthInput" type="number" min="500" max="20000" step="50" value="3200"></label>
+                    <label><span>Tiefe (mm)</span><input id="plateHeightInput" type="number" min="500" max="20000" step="50" value="1800"></label>
+                  </div>
+                  <label class="board-grid-field"><span>Raster (mm)</span><select id="gridSizeSelect"><option value="10">10 · fein</option><option value="25" selected>25 · Standard</option><option value="50">50 · grob</option><option value="90">90 · halbes 5106</option><option value="180">180 · 5106-Länge</option></select></label>
+                  <button id="applyBoardSizeButton" class="palette-button" type="button">Maße speichern</button>
+                </div>
                 <div class="builder-view-options">
                   <label class="check-option"><input id="gridCheckbox" type="checkbox" checked><span>Raster anzeigen</span></label>
                   <label class="check-option"><input id="snapCheckbox" type="checkbox" checked><span>Am Raster einrasten</span></label>
@@ -193,6 +229,14 @@
               </div>
 
               <div id="builderViewport" class="canvas-viewport">
+                <div id="placementBar" class="placement-bar" hidden>
+                  <div class="placement-info"><span class="placement-dot"></span><div><strong id="placementTitle">Bauteil platzieren</strong><small id="placementHint">Position anklicken · nahe Enden verbinden automatisch</small></div></div>
+                  <div class="placement-actions">
+                    <button id="placementRotateLeft" class="icon-button" type="button" aria-label="Vorschau nach links drehen">↺</button>
+                    <button id="placementRotateRight" class="icon-button" type="button" aria-label="Vorschau nach rechts drehen">↻</button>
+                    <button id="placementDone" class="primary-button" type="button">Fertig</button>
+                  </div>
+                </div>
                 <svg id="builderSvg" viewBox="0 0 1600 900" tabindex="0" role="application">
                   <defs>
                     <pattern id="builderGrid" width="100" height="100" patternUnits="userSpaceOnUse">
@@ -211,6 +255,7 @@
                   <rect id="builderBackground" x="0" y="0" width="1600" height="900" fill="url(#builderGrid)"></rect>
                   <g id="builderConnectionLayer"></g>
                   <g id="builderElementLayer"></g>
+                  <g id="builderPlacementLayer"></g>
 
                   <text id="builderEmptyHint" x="800" y="430" text-anchor="middle">
                     Noch kein Gleisbild vorhanden
@@ -285,7 +330,7 @@
           <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">◉</span><span><b>Licht</b><small>Bedienfelder zuweisen</small></span></button>
           <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">⇄</span><span><b>Relais</b><small>Ausgänge konfigurieren</small></span></button>
           <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">⌁</span><span><b>Sensoren</b><small>Eingänge und Namen</small></span></button>
-          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">●</span><span><b>Signale</b><small>LED-Masten einrichten</small></span></button>
+          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">●</span><span><b>LEDs</b><small>Kanäle einrichten und testen</small></span></button>
           <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">◇</span><span><b>Grundstellung</b><small>Startzustände festlegen</small></span></button>
         </nav>
         <div class="settings-content">
@@ -359,8 +404,8 @@
           <div class="panel-header">
             <div>
               <div class="eyebrow">SIGNALTECHNIK</div>
-              <h2>ESP-Signalmast</h2>
-              <p>Status und Konfiguration der LED-/Signalmast-Module.</p>
+              <h2>LED-Ausgänge</h2>
+              <p>LED-ESP auswählen, Kanäle benennen, Helligkeit festlegen und direkt testen.</p>
             </div>
             <div class="settings-section-actions"><span id="saveLedStatus" class="save-status"></span><button class="primary-button" data-save-section="leds" type="button">LEDs speichern</button></div>
           </div>

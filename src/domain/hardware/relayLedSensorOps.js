@@ -29,7 +29,7 @@ function upsertLed(hardware, moduleId, channel, patch = {}) {
 
   const idx = hardware.leds.findIndex((l) => l.module === mId && Number(l.channel) === Number(ch));
 
-  const nextObj = {
+  const previous = idx >= 0 ? hardware.leds[idx] : {
     id: `LED_${mId}_${ch}`,
     module: mId,
     channel: ch,
@@ -37,15 +37,21 @@ function upsertLed(hardware, moduleId, channel, patch = {}) {
     color: "rot",
     state: false,
     brightness: 0,
-    blinking: false,
-    ...patch
+    blinking: false
+  };
+  const nextObj = {
+    ...previous,
+    ...patch,
+    id: `LED_${mId}_${ch}`,
+    module: mId,
+    channel: ch
   };
 
   nextObj.brightness = validBrightness(nextObj.brightness);
   nextObj.state = Boolean(nextObj.state);
 
   if (idx >= 0) {
-    hardware.leds[idx] = { ...hardware.leds[idx], ...nextObj };
+    hardware.leds[idx] = nextObj;
   } else {
     hardware.leds.push(nextObj);
   }

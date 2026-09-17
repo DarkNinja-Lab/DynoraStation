@@ -10,6 +10,8 @@ function normalizeElementForUi(element) {
   e.rotation = Number(e.rotation ?? e.winkel ?? 0);
   e.winkel = Number(e.winkel ?? e.rotation ?? 0);
   e.espState = e.espState || e.ledState || "halt";
+  e.signalAspectMode = e.signalAspectMode === "rgy" ? "rgy" : "rg";
+  if (e.signalAspectMode === "rg" && e.espState === "warnung") e.espState = e.ledState = "halt";
   return e;
 }
 
@@ -34,8 +36,8 @@ export async function layoutLaden() {
   } catch (error) {
     console.warn("Layout konnte nicht geladen werden", error);
     state.layout = {
-      version: 30,
-      metadaten: { name: "Meine Modellbahn", massstab: "H0", raster: 25 },
+      version: 31,
+      metadaten: { name: "Meine Modellbahn", massstab: "H0", raster: 12.5, rasterMm: 25, plateWidthMm: 3200, plateHeightMm: 1800 },
       stromkreise: [],
       elemente: [],
       verbindungen: []
@@ -47,6 +49,11 @@ export function layoutNormalisieren() {
   if (!Array.isArray(state.layout.elemente)) state.layout.elemente = [];
   if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
   state.layout.elemente = state.layout.elemente.map(normalizeElementForUi);
+  if (!state.layout.metadaten) state.layout.metadaten = {};
+  state.layout.metadaten.plateWidthMm = Number(state.layout.metadaten.plateWidthMm) || 3200;
+  state.layout.metadaten.plateHeightMm = Number(state.layout.metadaten.plateHeightMm) || 1800;
+  state.layout.metadaten.rasterMm = Number(state.layout.metadaten.rasterMm) || (Number(state.layout.metadaten.raster) || 12.5) * 2;
+  state.layout.metadaten.raster = state.layout.metadaten.rasterMm * .5;
 }
 
 export async function layoutSpeichern() {

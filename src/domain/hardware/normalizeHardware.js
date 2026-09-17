@@ -34,6 +34,7 @@ function normalizeHardware(input) {
     out.modules[id] = {
       id,
       name: cleanText(value?.name || `Modul ${id}`, 80) || `Modul ${id}`,
+      customName: Boolean(value?.customName),
       type: cleanText(value?.type || value?.typ || "GLEISSTEUERUNG", 40) || "GLEISSTEUERUNG",
       capabilities: Array.isArray(value?.capabilities)
         ? value.capabilities.filter((item) => ["relay", "sensor", "led"].includes(item))
@@ -121,7 +122,26 @@ function normalizeHardware(input) {
 
   out.lightButtons = normalizeLightButtons(src.lightButtons);
   out.defaults = Array.isArray(src.defaults) ? src.defaults.slice(0, 100) : [];
-  out.ledConfig = src.ledConfig && typeof src.ledConfig === "object" ? src.ledConfig : {};
+  out.ledConfig = {};
+  const ledConfig = src.ledConfig && typeof src.ledConfig === "object" ? src.ledConfig : {};
+  Object.entries(ledConfig).forEach(([key, value]) => {
+    const split = String(key).lastIndexOf(":");
+    if (split <= 0 || !value || typeof value !== "object") return;
+    const moduleId = cleanText(String(key).slice(0, split), 48);
+    const channel = validLedChannel(String(key).slice(split + 1));
+    if (!moduleId || !channel) return;
+    out.ledConfig[`${moduleId}:${channel}`] = {
+      name: cleanText(value.name || `LED ${channel}`, 64) || `LED ${channel}`,
+      color: cleanText(value.color || "weiss", 20) || "weiss",
+      brightness: validBrightness(value.brightness ?? 255)
+    };
+  });
+  out.leds.forEach((led) => {
+    const config = out.ledConfig[`${led.module}:${led.channel}`];
+    if (!config) return;
+    led.name = config.name;
+    led.color = config.color;
+  });
 
   return out;
 }

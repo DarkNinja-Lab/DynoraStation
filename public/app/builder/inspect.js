@@ -20,11 +20,14 @@ export function showInspector(element) {
   inspector.querySelectorAll("input, select").forEach(input => {
     input.addEventListener("change", () => {
       const moduleChanged = input.id === "inspModule";
+      const structureChanged = input.id === "inspSignalAspectMode";
       recordHistory();
       saveInspectorChanges(element);
       if (moduleChanged) {
         resetElementChannels(element);
         renderCanvas();
+        showInspector(element);
+      } else if (structureChanged) {
         showInspector(element);
       }
     });
@@ -70,8 +73,12 @@ function inspectorHtmlForElement(el) {
     </label>
     <label class="inspector-field">
       <span>Rotation (°)</span>
-      <input type="number" id="inspRotation" value="${el.rotation || 0}" step="15">
+      <input type="number" id="inspRotation" value="${el.rotation || 0}" step="7.5">
     </label>
+    <div class="inspector-coordinate-grid">
+      <label class="inspector-field"><span>X (mm)</span><input type="number" id="inspX" value="${Math.round(Number(el.x || 0) * 20) / 10}" step="5"></label>
+      <label class="inspector-field"><span>Y (mm)</span><input type="number" id="inspY" value="${Math.round(Number(el.y || 0) * 20) / 10}" step="5"></label>
+    </div>
     <label class="inspector-field">
       <span>Modul</span>
       <select id="inspModule">
@@ -90,6 +97,9 @@ function inspectorHtmlForElement(el) {
       break;
     case "switch":
       html += inspectorSwitch(el);
+      break;
+    case "bumper":
+      html += inspectorBumper(el);
       break;
     case "crossing":
       html += inspectorCrossing(el);
@@ -199,6 +209,16 @@ function inspectorSwitch(el) {
   `;
 }
 
+function inspectorBumper(el) {
+  const article = el.bumperCode || el.catalogCode || "5129";
+  return `
+    <div class="inspector-info">
+      <strong>Prellbock ${escape(article)}</strong><br>
+      Passiver Gleisabschluss ohne Relais. Die Artikelnummer wird im Plan und Export ausgewiesen.
+    </div>
+  `;
+}
+
 function inspectorCrossing(el) {
   return `
     <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
@@ -265,9 +285,19 @@ function inspectorSignal(el) {
 }
 
 function inspectorEspSignal(el) {
+  const availableChannels = ledChannelsForModule(el.module || "");
+  const threeAspect = el.signalAspectMode === "rgy";
   return `
     <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
       <strong style="font-size: 12px; color: #aaa;">ESP-Signalmast-Eigenschaften</strong>
+
+      <label class="inspector-field">
+        <span>Signaltyp</span>
+        <select id="inspSignalAspectMode">
+          <option value="rg" ${!threeAspect ? "selected" : ""}>2-begriffig · Rot / Grün</option>
+          <option value="rgy" ${threeAspect ? "selected" : ""}>3-begriffig · Rot / Gelb / Grün</option>
+        </select>
+      </label>
       
       <label class="inspector-field">
         <span>LED ROT Kanal</span>
@@ -276,10 +306,10 @@ function inspectorEspSignal(el) {
         </select>
       </label>
 
-      <label class="inspector-field">
+      ${threeAspect ? `<label class="inspector-field">
         <span>LED GELB Kanal</span>
         <select id="inspLedYellow">${getLedOptions(el.module || "", el.ledChannelYellow || 0)}</select>
-      </label>
+      </label>` : ""}
       <label class="inspector-field">
         <span>LED GRÜN Kanal</span>
         <select id="inspLedGreen">
@@ -291,13 +321,15 @@ function inspectorEspSignal(el) {
         <span>Aktueller Zustand</span>
         <select id="inspEspState">
           <option value="halt" ${el.espState === "halt" ? "selected" : ""}>Halt (Rot)</option>
-          <option value="warnung" ${el.espState === "warnung" ? "selected" : ""}>Warnung (Gelb)</option>
+          ${threeAspect ? `<option value="warnung" ${el.espState === "warnung" ? "selected" : ""}>Warnung (Gelb)</option>` : ""}
           <option value="fahrt" ${el.espState === "fahrt" ? "selected" : ""}>Fahrt (Grün)</option>
         </select>
       </label>
 
       <div class="inspector-info">
-        DIY ESP-Signalmast: Je ein LED-Kanal für Rot, Gelb und Grün.
+        ${el.module
+          ? `${availableChannels.length} LED-Kanal${availableChannels.length === 1 ? "" : "e"} erkannt. ${threeAspect ? "Kanäle für Rot, Gelb und Grün" : "Kanäle für Rot und Grün"} wählen.`
+          : `Zuerst den LED-ESP auswählen. Danach erscheinen seine Kanäle für ${threeAspect ? "Rot, Gelb und Grün" : "Rot und Grün"}.`}
       </div>
     </div>
   `;
@@ -329,6 +361,11 @@ function saveInspectorChanges(element) {
 
   element.name = name;
   element.rotation = rotation;
+  element.winkel = rotation;
+  const boardWidth = Math.max(250, Number(state.layout?.metadaten?.plateWidthMm || 3200) * .5);
+  const boardHeight = Math.max(250, Number(state.layout?.metadaten?.plateHeightMm || 1800) * .5);
+  element.x = Math.max(40, Math.min(boardWidth - 40, Number(document.getElementById("inspX")?.value || element.x * 2) * .5));
+  element.y = Math.max(40, Math.min(boardHeight - 40, Number(document.getElementById("inspY")?.value || element.y * 2) * .5));
   element.module = module;
 
   // Element-spezifisch
@@ -358,15 +395,19 @@ function saveInspectorChanges(element) {
       break;
 
     case "espSignal":
+      element.signalAspectMode = document.getElementById("inspSignalAspectMode")?.value === "rgy" ? "rgy" : "rg";
       element.ledChannelRed = parseInt(document.getElementById("inspLedRed")?.value || 0);
-      element.ledChannelYellow = parseInt(document.getElementById("inspLedYellow")?.value || 0);
+      element.ledChannelYellow = element.signalAspectMode === "rgy" ? parseInt(document.getElementById("inspLedYellow")?.value || 0) : 0;
       element.ledChannelGreen = parseInt(document.getElementById("inspLedGreen")?.value || 0);
       element.espState = document.getElementById("inspEspState")?.value || "halt";
+      if (element.signalAspectMode === "rg" && element.espState === "warnung") element.espState = "halt";
       element.ledState = element.espState;
       break;
 
     case "transformer":
       element.relay = parseInt(document.getElementById("inspRelay")?.value || 0);
+      break;
+    case "bumper":
       break;
   }
 
@@ -395,6 +436,7 @@ function getTypName(typ) {
     track: "Gleis",
     curve: "Kurve",
     switch: "Weiche",
+    bumper: "Prellbock",
     crossing: "Kreuzungsweiche",
     signal: "Hauptsignal",
     espSignal: "ESP-Signalmast",
@@ -416,7 +458,9 @@ function escape(str) {
 function getModuleOptions(selected, elementType = "track") {
   const needed = elementType === "espSignal" ? "led" : "relay";
   const list = Object.values(state.hardware?.modules || {}).filter((module) => moduleSupports(module, needed));
-  return `<option value="">Kein Modul</option>` + list.map((module) => {
+  const emptyLabel = needed === "led" ? "Kein LED-ESP gewählt" : "Kein Modul";
+  const unavailable = list.length ? "" : `<option value="" disabled>Kein ${needed === "led" ? "LED-ESP" : "Relais-ESP"} erkannt</option>`;
+  return `<option value="">${emptyLabel}</option>${unavailable}` + list.map((module) => {
     const label = moduleKindLabel(module);
     return `<option value="${escape(module.id)}" ${module.id === selected ? "selected" : ""}>${escape(module.name || module.id)} · ${label}</option>`;
   }).join("");
@@ -442,19 +486,51 @@ function getSensorOptions(module, selected) {
 }
 
 function getLedOptions(module, selected) {
-  const count = Array.isArray(state.hardware?.modules?.[module]?.leds) ? state.hardware.modules[module].leds.length : 0;
-  return `<option value="0">Keine LED</option>${Array.from({ length: count }, (_, i) => i + 1).map((channel) =>
-    `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>LED ${channel}</option>`
-  ).join("")}`;
+  const channels = ledChannelsForModule(module);
+  return `<option value="0">Keine LED</option>${channels.map((channel) => {
+    const config = state.ledConfig?.[`${module}:${channel}`] || {};
+    const hardwareLed = (state.hardware?.leds || []).find((item) => item.module === module && Number(item.channel) === channel)
+      || state.hardware?.modules?.[module]?.leds?.[channel - 1]
+      || {};
+    const name = config.name || hardwareLed.name || `LED ${channel}`;
+    const color = config.color ? ` · ${config.color}` : "";
+    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${escape(name)} (Kanal ${channel})${escape(color)}</option>`;
+  }).join("")}`;
+}
+
+function ledChannelsForModule(moduleId) {
+  if (!moduleId) return [];
+  const channels = new Set();
+  const live = state.hardware?.modules?.[moduleId]?.leds;
+  if (Array.isArray(live)) live.forEach((item, index) => channels.add(Number(item?.channel) || index + 1));
+  (Array.isArray(state.hardware?.leds) ? state.hardware.leds : []).forEach((item) => {
+    if (item?.module === moduleId && Number(item.channel) > 0) channels.add(Number(item.channel));
+  });
+  Object.keys(state.ledConfig || {}).forEach((key) => {
+    if (!key.startsWith(`${moduleId}:`)) return;
+    const channel = Number(key.slice(moduleId.length + 1));
+    if (Number.isInteger(channel) && channel > 0) channels.add(channel);
+  });
+  return Array.from(channels).sort((a, b) => a - b);
 }
 
 function moduleSupports(module, capability) {
   const caps = Array.isArray(module?.capabilities) ? module.capabilities : [];
   if (caps.includes(capability)) return true;
+  if (capability === "relay" && Array.isArray(module?.relays) && module.relays.length > 0) return true;
+  if (capability === "led" && ledChannelsForModule(module?.id).length > 0) return true;
   if (capability === "relay" && (module?.kind === "RELAY_SENSOR" || module?.kind === "HYBRID")) return true;
   if (capability === "led" && (module?.kind === "SIGNAL_LED" || module?.kind === "HYBRID")) return true;
   return module?.kind === "UNKNOWN";
 }
+
+document.addEventListener("dynora:modules-updated", () => {
+  if (!document.getElementById("page-builder")?.classList.contains("active")) return;
+  const inspector = document.getElementById("inspector");
+  if (!inspector || inspector.contains(document.activeElement)) return;
+  const element = (state.layout?.elemente || []).find((item) => item.id === state.selectedElement);
+  if (element) showInspector(element);
+});
 
 function moduleKindLabel(module) {
   if (module?.kind === "SIGNAL_LED") return "Signal/LED";

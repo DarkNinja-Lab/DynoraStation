@@ -7,6 +7,7 @@ function createStatusRoutes({ runtimeState, moduleRegistry, env }) {
   const router = express.Router();
 
   router.get("/api/status", wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
     const modules = moduleRegistry.listModulesStatus();
 
     // Für Frontend-Kompatibilität zusätzlich als Objekt nach ID bereitstellen
@@ -15,6 +16,7 @@ function createStatusRoutes({ runtimeState, moduleRegistry, env }) {
       modulesById[m.id] = {
         id: m.id,
         name: m.name,
+        customName: Boolean(m.customName),
         type: m.type,
         kind: m.kind,
         capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],

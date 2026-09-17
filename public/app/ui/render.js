@@ -1,7 +1,7 @@
 "use strict";
 
 import { state } from "../core/state.js";
-import { svg, drawDoubleRailLine, drawCurveDual, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js";
+import { svg, drawDoubleRailLine, drawPowerLine, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js";
 
 function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 
@@ -78,7 +78,7 @@ function controlTileVisual(element) {
     </svg>`;
   }
   const stateValue = element.signalState || element.ledState || element.espState || "halt";
-  const hasWarning = type === "espSignal";
+  const hasWarning = type === "espSignal" && element.signalAspectMode === "rgy";
   return `<svg class="control-symbol signal-symbol" viewBox="0 0 112 56" aria-hidden="true">
     <path class="signal-mast" d="M56 47V13"/>
     <rect class="signal-head" x="43" y="4" width="26" height="42" rx="10"/>
@@ -168,12 +168,12 @@ function renderDashboardTrack() {
     const group = svg("g");
     group.setAttribute("transform", `translate(${Number(element.x || 0)} ${Number(element.y || 0)}) rotate(${Number(element.rotation ?? element.winkel ?? 0)})`);
     const type = element.typ === "xtrack" ? "crossing" : element.typ === "ledSignal" ? "espSignal" : element.typ;
-    if (type === "track") { const item = dashboardCatalogItem(element, "tracks"); const half = Math.max(12, Number(item.length || 180) * .25); drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8); }
-    if (type === "curve") { const item = dashboardCatalogItem(element, "curves"); drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), "#d5dbe0"); }
+    if (type === "track") { const item = dashboardCatalogItem(element, "tracks"); const half = Math.max(12, Number(item.length || 180) * .25); drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8); if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0); }
+    if (type === "curve") { const item = dashboardCatalogItem(element, "curves"); const radius = Number(item.radius || 360) * .5; const angle = Number(item.angleDeg || 30); drawCurveDual(group, radius, angle, "#d5dbe0"); if (element.powerState) drawPowerCurve(group, radius, angle); }
     if (type === "switch") { const item = dashboardCatalogItem(element, "switches"); drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item); }
     if (type === "crossing") { const item = dashboardCatalogItem(element, "crossings"); drawCrossingShape(group, item, element.xState || "gerade"); }
     if (type === "signal") drawSignalShape(group, element.signalState);
-    if (type === "espSignal") drawEspSignalShape(group, element.espState || element.ledState);
+    if (type === "espSignal") drawEspSignalShape(group, element.espState || element.ledState, element.signalAspectMode);
     if (type === "transformer") drawTransformerShape(group);
     layer.appendChild(group);
   });

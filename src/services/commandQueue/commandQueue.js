@@ -20,11 +20,16 @@ function createCommandQueue({ runtimeState, maxCommands, commandMaxAgeMs, comman
     cleanupCommandQueue();
 
     const isEmergency = String(type) === "NOT_AUS";
+    const normalizedModule = cleanText(module || "GLEIS_01", 48) || "GLEIS_01";
+    if (isEmergency) {
+      // Ein alter Schaltbefehl darf nach dem Not-Aus kein Relais wieder aktivieren.
+      runtimeState.commandQueue = runtimeState.commandQueue.filter((queued) => queued.module !== normalizedModule);
+    }
     while (runtimeState.commandQueue.length >= maxCommands) runtimeState.commandQueue.shift();
 
     const cmd = {
       id: runtimeState.nextCommandId++,
-      module: cleanText(module || "GLEIS_01", 48) || "GLEIS_01",
+      module: normalizedModule,
       type: String(type),
       data: data && typeof data === "object" ? data : {},
       created: Date.now(),

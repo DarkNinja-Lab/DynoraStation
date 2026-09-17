@@ -1,9 +1,11 @@
 "use strict";
 
 import { state } from "../core/state.js";
-import { renderCanvas } from "./render.js";
+import { apiCall } from "../core/api.js";
+import { renderCanvas, canvasSize } from "./render.js";
 import { showToast } from "../ui/toast.js";
 import { recordHistory } from "./history.js";
+import { cancelPlacement, rotatePlacement } from "./canvas.js";
 
 
 function isTypingTarget(target) {
@@ -17,7 +19,7 @@ function selectedElement() {
 function nudgeSelected(dx, dy) {
   const el = selectedElement();
   if (!el) return;
-  const step = state.snapToGrid ? 25 : 5;
+  const step = state.snapToGrid ? (Number(state.layout?.metadaten?.raster) || 25) : 5;
   recordHistory();
   el.x = Number(el.x || 0) + dx * step;
   el.y = Number(el.y || 0) + dy * step;
@@ -30,6 +32,11 @@ function bindKeyboardShortcuts() {
     if (isTypingTarget(event.target)) return;
     const key = event.key.toLowerCase();
     const mod = event.ctrlKey || event.metaKey;
+
+    if (key === "escape" && cancelPlacement()) {
+      event.preventDefault();
+      return;
+    }
 
     if (mod && key === "s") {
       event.preventDefault();
@@ -57,6 +64,7 @@ function bindKeyboardShortcuts() {
     }
     if (key === "r") {
       event.preventDefault();
+      if (rotatePlacement(event.shiftKey ? -7.5 : 7.5)) return;
       document.getElementById(event.shiftKey ? "rotateLeftButton" : "rotateRightButton")?.click();
       return;
     }
@@ -89,6 +97,7 @@ export function initializeTools() {
   const selectToolBtn = document.getElementById("selectToolButton");
   if (selectToolBtn) {
     selectToolBtn.addEventListener("click", () => {
+      cancelPlacement();
       state.selectedTool = "select";
       updateToolButtons();
       console.log("✅ Select Tool aktiv");
@@ -99,6 +108,7 @@ export function initializeTools() {
   const connectToolBtn = document.getElementById("connectToolButton");
   if (connectToolBtn) {
     connectToolBtn.addEventListener("click", () => {
+      cancelPlacement();
       state.selectedTool = "connect";
       updateToolButtons();
       console.log("✅ Connect Tool aktiv");
@@ -186,7 +196,7 @@ export function initializeTools() {
   const zoomOutBtn = document.getElementById("zoomOutButton");
   if (zoomOutBtn) {
     zoomOutBtn.addEventListener("click", () => {
-      state.zoom = Math.max(0.25, state.zoom - 0.1);
+      state.zoom = Math.max(0.25, state.zoom / 1.15);
       updateZoom();
     });
   }
@@ -194,7 +204,7 @@ export function initializeTools() {
   const zoomInBtn = document.getElementById("zoomInButton");
   if (zoomInBtn) {
     zoomInBtn.addEventListener("click", () => {
-      state.zoom = Math.min(3, state.zoom + 0.1);
+      state.zoom = Math.min(3, state.zoom * 1.15);
       updateZoom();
     });
   }
@@ -216,8 +226,9 @@ export function initializeTools() {
       if (elements.length) {
         const xs = elements.map((element) => Number(element.x) || 0);
         const ys = elements.map((element) => Number(element.y) || 0);
-        state.panX = (Math.min(...xs) + Math.max(...xs)) / 2 - 800 / state.zoom;
-        state.panY = (Math.min(...ys) + Math.max(...ys)) / 2 - 450 / state.zoom;
+        const size = canvasSize();
+        state.panX = (Math.min(...xs) + Math.max(...xs)) / 2 - size.width / (2 * state.zoom);
+        state.panY = (Math.min(...ys) + Math.max(...ys)) / 2 - size.height / (2 * state.zoom);
       } else {
         state.panX = 0;
         state.panY = 0;
@@ -226,8 +237,11 @@ export function initializeTools() {
     });
   }
 
+  setupBoardSettings();
+
   bindKeyboardShortcuts();
   bindCanvasNavigation();
+  updateZoom();
   console.log("✅ Tools initialized");
 }
 
@@ -294,10 +308,67 @@ function updateZoom() {
 
   const svg = document.getElementById("builderSvg");
   if (svg) {
-    const width = 1600 / state.zoom;
-    const height = 900 / state.zoom;
+    const size = canvasSize();
+    const width = size.width / state.zoom;
+    const height = size.height / state.zoom;
     svg.setAttribute("viewBox", `${state.panX} ${state.panY} ${width} ${height}`);
   }
+}
+
+function setupBoardSettings() {
+  const widthInput = document.getElementById("plateWidthInput");
+  const heightInput = document.getElementById("plateHeightInput");
+  const gridInput = document.getElementById("gridSizeSelect");
+  const areaLabel = document.getElementById("boardAreaLabel");
+  const updateLabel = () => {
+    if (!areaLabel) return;
+    const width = (Number(widthInput?.value) || 3200) / 1000;
+    const height = (Number(heightInput?.value) || 1800) / 1000;
+    areaLabel.textContent = `${width.toLocaleString("de-DE", { minimumFractionDigits: 2 })} × ${height.toLocaleString("de-DE", { minimumFractionDigits: 2 })} m`;
+  };
+  const syncFields = () => {
+    const currentMeta = state.layout?.metadaten || {};
+    if (widthInput) widthInput.value = Number(currentMeta.plateWidthMm) || 3200;
+    if (heightInput) heightInput.value = Number(currentMeta.plateHeightMm) || 1800;
+    if (gridInput) gridInput.value = String(Number(currentMeta.rasterMm) || 25);
+    updateLabel();
+  };
+  widthInput?.addEventListener("input", updateLabel);
+  heightInput?.addEventListener("input", updateLabel);
+  document.addEventListener("dynora:builder-opened", syncFields);
+  syncFields();
+  document.getElementById("applyBoardSizeButton")?.addEventListener("click", async () => {
+    const width = Math.max(500, Math.min(20000, Number(widthInput?.value) || 3200));
+    const height = Math.max(500, Math.min(20000, Number(heightInput?.value) || 1800));
+    const rasterMm = Math.max(5, Math.min(200, Number(gridInput?.value) || 25));
+    const meta = state.layout.metadaten || (state.layout.metadaten = {});
+    recordHistory();
+    meta.plateWidthMm = width;
+    meta.plateHeightMm = height;
+    meta.rasterMm = rasterMm;
+    meta.raster = rasterMm * .5;
+    state.zoom = 1;
+    state.panX = 0;
+    state.panY = 0;
+    state.layoutDirty = true;
+    if (widthInput) widthInput.value = width;
+    if (heightInput) heightInput.value = height;
+    updateLabel();
+    renderCanvas();
+    updateZoom();
+    const button = document.getElementById("applyBoardSizeButton");
+    if (button) button.disabled = true;
+    try {
+      await apiCall("/layout", { method: "POST", body: state.layout });
+      state.layoutDirty = false;
+      try { localStorage.removeItem("dynora.layoutDraft"); } catch {}
+      showToast("Anlagenplatte und Raster gespeichert");
+    } catch (error) {
+      showToast(`Anlagenplatte konnte nicht gespeichert werden: ${error?.message || error}`, "error");
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
 }
 
 function bindCanvasNavigation() {
@@ -309,13 +380,14 @@ function bindCanvasNavigation() {
   svg.addEventListener("wheel", (event) => {
     event.preventDefault();
     const rect = svg.getBoundingClientRect();
-    const oldWidth = 1600 / state.zoom;
-    const oldHeight = 900 / state.zoom;
+    const size = canvasSize();
+    const oldWidth = size.width / state.zoom;
+    const oldHeight = size.height / state.zoom;
     const ratioX = (event.clientX - rect.left) / Math.max(1, rect.width);
     const ratioY = (event.clientY - rect.top) / Math.max(1, rect.height);
     const nextZoom = Math.max(.25, Math.min(3, state.zoom * (event.deltaY < 0 ? 1.12 : .89)));
-    const nextWidth = 1600 / nextZoom;
-    const nextHeight = 900 / nextZoom;
+    const nextWidth = size.width / nextZoom;
+    const nextHeight = size.height / nextZoom;
     state.panX += ratioX * (oldWidth - nextWidth);
     state.panY += ratioY * (oldHeight - nextHeight);
     state.zoom = nextZoom;
@@ -323,13 +395,15 @@ function bindCanvasNavigation() {
   }, { passive: false });
 
   svg.addEventListener("pointerdown", (event) => {
+    if (state.selectedTool === "place") return;
     const background = !event.target.closest?.(".layout-element");
     const shouldPan = event.button === 1 || (background && event.button === 0);
     if (!shouldPan) return;
     event.preventDefault();
     event.stopPropagation();
     const rect = svg.getBoundingClientRect();
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, width: 1600 / state.zoom, height: 900 / state.zoom, rect };
+    const size = canvasSize();
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, width: size.width / state.zoom, height: size.height / state.zoom, rect };
     svg.setPointerCapture?.(event.pointerId);
     svg.classList.add("is-panning");
   }, true);

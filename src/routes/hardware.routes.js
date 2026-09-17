@@ -33,7 +33,7 @@ function createHardwareRoutes({
     relay.role = cleanText(req.body?.role || "", 64);
 
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
 
     addEvent("HARDWARE", relay.id, `${moduleId} Relay ${channel} konfiguriert`);
     res.json({ ok: true, relay });
@@ -50,7 +50,7 @@ function createHardwareRoutes({
     });
 
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
 
     const led = runtimeState.hardware.leds.find((l) => l.module === moduleId && l.channel === channel);
     addEvent("LED", `${moduleId}:LED_${channel}`, `LED ${channel} konfiguriert`);
@@ -70,7 +70,7 @@ function createHardwareRoutes({
 
     sensor.name = name;
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
 
     addEvent("HARDWARE", `${moduleId}:${id}`, `Sensor umbenannt: ${name}`);
     res.json({ ok: true, sensor });
@@ -92,7 +92,7 @@ function createHardwareRoutes({
 
     runtimeState.hardware.lightButtons = normalizeLightButtons(list);
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
 
     addEvent("HARDWARE", "LIGHT_BUTTONS", "Licht-Button-Konfiguration gespeichert");
     res.json({ ok: true, lightButtons: runtimeState.hardware.lightButtons });

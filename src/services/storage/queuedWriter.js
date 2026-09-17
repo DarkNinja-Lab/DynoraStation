@@ -8,25 +8,29 @@ async function queueWrite({ kind, file, payloadFactory, runtimeState, addEvent }
   const s = runtimeState.writeState[kind];
   s.pending = true;
 
-  if (s.running) return;
+  if (s.running) return s.promise;
 
   s.running = true;
-  try {
-    while (s.pending) {
-      s.pending = false;
-      const tmp = `${file}.tmp`;
-      const body = payloadFactory();
-      await fsp.writeFile(tmp, body, "utf8");
-      await fsp.rename(tmp, file);
-      s.lastError = null;
+  s.promise = (async () => {
+    try {
+      while (s.pending) {
+        s.pending = false;
+        const tmp = `${file}.tmp`;
+        const body = payloadFactory();
+        await fsp.writeFile(tmp, body, "utf8");
+        await fsp.rename(tmp, file);
+        s.lastError = null;
+      }
+    } catch (err) {
+      s.lastError = String(err?.message || err);
+      console.error(`Fehler beim Speichern (${kind}):`, s.lastError);
+      addEvent("IO", "SERVER", `Speicherfehler ${kind}: ${s.lastError}`);
+    } finally {
+      s.running = false;
+      s.promise = null;
     }
-  } catch (err) {
-    s.lastError = String(err?.message || err);
-    console.error(`Fehler beim Speichern (${kind}):`, s.lastError);
-    addEvent("IO", "SERVER", `Speicherfehler ${kind}: ${s.lastError}`);
-  } finally {
-    s.running = false;
-  }
+  })();
+  return s.promise;
 }
 
 function queueWriteLayout(runtimeState, addEvent) {

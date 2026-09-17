@@ -10,6 +10,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       runtimeState.modules[id] = {
         id,
         name: `Modul ${id}`,
+        customName: false,
         type: "GLEISSTEUERUNG",
         capabilities: [],
         kind: "UNKNOWN",
@@ -35,6 +36,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       return {
         id: m.id,
         name: m.name,
+        customName: Boolean(m.customName),
         type: m.type,
         typ: m.type,
         capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
@@ -112,6 +114,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
 
       const m = getOrCreateModule(moduleId);
       m.name = cleanText(mi?.name || m.name, 80) || m.name;
+      m.customName = Boolean(mi?.customName);
       m.type = cleanText(mi?.type || m.type, 40) || m.type;
       if (Array.isArray(mi?.capabilities) && mi.capabilities.length) {
         m.capabilities = mi.capabilities.filter((x) => ["relay", "sensor", "led"].includes(x));

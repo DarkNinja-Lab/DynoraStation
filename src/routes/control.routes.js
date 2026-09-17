@@ -29,6 +29,10 @@ function createControlRoutes({
     return cleanText(element?.module || "", 48);
   }
 
+  function configuredLedBrightness(moduleId, channel) {
+    return validBrightness(runtimeState.hardware?.ledConfig?.[`${moduleId}:${channel}`]?.brightness ?? 255);
+  }
+
   router.post("/api/control/settings", wrap(async (req, res) => {
     const body = req.body && typeof req.body === "object" ? req.body : {};
 
@@ -39,7 +43,10 @@ function createControlRoutes({
 
     if (body.relayConfig && typeof body.relayConfig === "object") {
       for (const [key, cfg] of Object.entries(body.relayConfig)) {
-        const [moduleId, channelText] = String(key).split(":");
+        const split = String(key).lastIndexOf(":");
+        if (split <= 0) continue;
+        const moduleId = cleanText(String(key).slice(0, split), 48);
+        const channelText = String(key).slice(split + 1);
         const channel = validRelay(channelText);
         if (!moduleId || !channel || !cfg || typeof cfg !== "object") continue;
         const relay = runtimeState.hardware.relays.find(
@@ -61,24 +68,49 @@ function createControlRoutes({
     }
 
     if (body.ledConfig && typeof body.ledConfig === "object") {
-      runtimeState.hardware.ledConfig = body.ledConfig;
+      const nextLedConfig = {};
+      for (const [key, cfg] of Object.entries(body.ledConfig)) {
+        const split = String(key).lastIndexOf(":");
+        if (split <= 0 || !cfg || typeof cfg !== "object") continue;
+        const moduleId = cleanText(String(key).slice(0, split), 48);
+        const channel = validLedChannel(String(key).slice(split + 1));
+        if (!moduleId || !channel) continue;
+        const safe = {
+          name: cleanText(cfg.name || `LED ${channel}`, 64) || `LED ${channel}`,
+          color: cleanText(cfg.color || "weiss", 20) || "weiss",
+          brightness: validBrightness(cfg.brightness ?? 255)
+        };
+        nextLedConfig[`${moduleId}:${channel}`] = safe;
+        const led = runtimeState.hardware.leds.find(
+          (item) => item.module === moduleId && Number(item.channel) === channel
+        );
+        if (led) {
+          led.name = safe.name;
+          led.color = safe.color;
+        }
+      }
+      runtimeState.hardware.ledConfig = nextLedConfig;
     }
 
     if (body.sensorConfig && typeof body.sensorConfig === "object") {
       for (const [key, cfg] of Object.entries(body.sensorConfig)) {
-        const split = String(key).indexOf(":");
+        const split = String(key).lastIndexOf(":");
         if (split <= 0 || !cfg || typeof cfg !== "object") continue;
-        const moduleId = String(key).slice(0, split);
-        const sensorId = String(key).slice(split + 1);
+        const moduleId = cleanText(String(key).slice(0, split), 48);
+        const sensorId = cleanText(String(key).slice(split + 1), 48);
         const sensor = runtimeState.hardware.sensors.find(
           (x) => x.module === moduleId && x.id === sensorId
         );
-        if (sensor && cfg.name) sensor.name = cleanText(cfg.name, 64) || sensor.name;
+        if (sensor && cfg.name) {
+          sensor.name = cleanText(cfg.name, 64) || sensor.name;
+          const live = runtimeState.modules?.[moduleId]?.sensors?.find((item) => item.id === sensorId);
+          if (live) live.name = sensor.name;
+        }
       }
     }
 
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
     addEvent("HARDWARE", "SETTINGS", "Einstellungen gespeichert");
     res.json({ ok: true, hardware: runtimeState.hardware });
   }));
@@ -153,10 +185,11 @@ function createControlRoutes({
         for (const [aspect, ledChannel] of Object.entries(channels)) {
           if (!ledChannel) continue;
           const on = aspect === next;
-          upsertLed(runtimeState.hardware, moduleId, ledChannel, { state: on, brightness: on ? 255 : 0, blinking: false });
+          const brightness = on ? configuredLedBrightness(moduleId, ledChannel) : 0;
+          upsertLed(runtimeState.hardware, moduleId, ledChannel, { state: brightness > 0, brightness, blinking: false });
           while (module.leds.length < ledChannel) module.leds.push({ state: false, brightness: 0, blinking: false });
-          module.leds[ledChannel - 1] = { state: on, brightness: on ? 255 : 0, blinking: false };
-          commandQueueApi.createCommand("LED_SET", { channel: ledChannel, state: on, elementId: element.id }, moduleId);
+          module.leds[ledChannel - 1] = { state: brightness > 0, brightness, blinking: false };
+          commandQueueApi.createCommand("LED_PWM", { channel: ledChannel, brightness, elementId: element.id }, moduleId);
         }
         element.ledState = next;
         applied.push(item);
@@ -371,20 +404,31 @@ function createControlRoutes({
   router.post("/api/esp-signal/control", wrap(async (req, res) => {
     const element = findElement(String(req.body?.elementId || ""));
     if (!element || element.typ !== "ledSignal") throw apiError(404, "ESP_SIGNAL_NOT_FOUND", "ESP-Signal nicht gefunden");
-    const state = ["halt", "warnung", "fahrt"].includes(req.body?.state) ? req.body.state : "halt";
+    const aspectMode = element.signalAspectMode === "rgy" ? "rgy" : "rg";
+    const allowedStates = aspectMode === "rgy" ? ["halt", "warnung", "fahrt"] : ["halt", "fahrt"];
+    const requestedState = cleanText(req.body?.state || "halt", 20).toLowerCase();
+    if (!allowedStates.includes(requestedState)) {
+      throw apiError(400, "ESP_SIGNAL_BAD_STATE", `Zustand ${requestedState || "unbekannt"} ist für den ${aspectMode === "rgy" ? "3-begriffigen" : "2-begriffigen"} Signalmast nicht verfügbar`);
+    }
+    const state = requestedState;
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "ESP_SIGNAL_NO_MODULE", "Dem ESP-Signal ist kein ESP-Modul zugewiesen");
-    const channels = { halt: validLedChannel(element.ledChannelRed), warnung: validLedChannel(element.ledChannelYellow), fahrt: validLedChannel(element.ledChannelGreen) };
+    const channels = {
+      halt: validLedChannel(element.ledChannelRed),
+      ...(aspectMode === "rgy" ? { warnung: validLedChannel(element.ledChannelYellow) } : {}),
+      fahrt: validLedChannel(element.ledChannelGreen)
+    };
     if (!channels[state]) throw apiError(400, "ESP_SIGNAL_NO_LED", `Für ${state} ist kein LED-Kanal zugewiesen`);
     const module = moduleRegistry.getOrCreateModule(moduleId);
     const commands = [];
     for (const [aspect, channel] of Object.entries(channels)) {
       if (!channel) continue;
       const on = aspect === state;
-      upsertLed(runtimeState.hardware, moduleId, channel, { state: on, brightness: on ? 255 : 0, blinking: false });
+      const brightness = on ? configuredLedBrightness(moduleId, channel) : 0;
+      upsertLed(runtimeState.hardware, moduleId, channel, { state: brightness > 0, brightness, blinking: false });
       while (module.leds.length < channel) module.leds.push({ state: false, brightness: 0, blinking: false });
-      module.leds[channel - 1] = { state: on, brightness: on ? 255 : 0, blinking: false };
-      commands.push(commandQueueApi.createCommand("LED_SET", { channel, state: on, elementId: element.id }, moduleId));
+      module.leds[channel - 1] = { state: brightness > 0, brightness, blinking: false };
+      commands.push(commandQueueApi.createCommand("LED_PWM", { channel, brightness, elementId: element.id }, moduleId));
     }
     element.ledState = state;
     element.powerState = true;
@@ -433,6 +477,13 @@ function createControlRoutes({
     runtimeState.hardware.relays.forEach((r) => { r.state = false; });
     runtimeState.hardware.leds.forEach((l) => { l.state = false; l.brightness = 0; l.blinking = false; });
 
+    Object.values(runtimeState.modules).forEach((module) => {
+      if (Array.isArray(module.relays)) module.relays = module.relays.map(() => false);
+      if (Array.isArray(module.leds)) {
+        module.leds = module.leds.map(() => ({ state: false, brightness: 0, blinking: false }));
+      }
+    });
+
     runtimeState.layout.elemente.forEach((e) => { e.powerState = false; });
     runtimeState.layout.stromkreise.forEach((s) => { s.state = false; });
 
@@ -440,12 +491,18 @@ function createControlRoutes({
     queueWriteHardware();
     queueWriteLayout();
 
-    Object.keys(runtimeState.modules).forEach((moduleId) => commandQueueApi.createCommand("NOT_AUS", {}, moduleId));
+    const moduleIds = new Set([
+      ...Object.keys(runtimeState.modules || {}),
+      ...Object.keys(runtimeState.hardware.modules || {}),
+      ...runtimeState.hardware.relays.map((item) => item.module),
+      ...runtimeState.hardware.leds.map((item) => item.module)
+    ].filter(Boolean));
+    moduleIds.forEach((moduleId) => commandQueueApi.createCommand("NOT_AUS", {}, moduleId));
 
     syncAllElementStatesFromRelaysAndLeds(runtimeState.layout, runtimeState.hardware);
     addEvent("NOT-AUS", "SYSTEM", "Alle Relais/LEDs ausgeschaltet");
 
-    res.json({ ok: true });
+    res.json({ ok: true, modules: moduleIds.size });
   }));
 
   return router;

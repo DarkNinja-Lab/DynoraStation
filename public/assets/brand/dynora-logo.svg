@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">DynoraStation</title>
+  <desc id="desc">Temporäres DynoraStation Logo, kann durch das eigene Logo ersetzt werden.</desc>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#122c3b"/>
+      <stop offset="1" stop-color="#07131d"/>
+    </linearGradient>
+    <linearGradient id="line" x1="118" y1="118" x2="394" y2="394" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8cf7ff"/>
+      <stop offset="1" stop-color="#23bfd2"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="18" width="476" height="476" rx="112" fill="url(#bg)" stroke="#2fd6e6" stroke-width="12"/>
+  <path d="M112 332h102c76 0 126-39 126-101S290 130 214 130h-50v204" fill="none" stroke="url(#line)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M274 258l58 74h68" fill="none" stroke="#b8fbff" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="112" cy="332" r="20" fill="#effeff"/>
+  <circle cx="400" cy="332" r="20" fill="#43e6f2"/>
+</svg>

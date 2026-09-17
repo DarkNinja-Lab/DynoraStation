@@ -18,6 +18,7 @@ const { createModuleRegistry } = require("../services/modules/moduleRegistry");
 
 const { rateLimitFactory } = require("./middleware/rateLimit");
 const { errorHandler } = require("./middleware/errorHandler");
+const { requestLogger } = require("./middleware/requestLogger");
 
 const { createRoutes } = require("../routes");
 const { upsertRelay, upsertLed, upsertSensor } = require("../domain/hardware/relayLedSensorOps");
@@ -28,6 +29,7 @@ const {
 
 function createApp() {
   const app = express();
+  const publicDir = path.join(runtimeState.paths.PROJECT_DIR, "public");
 
   runtimeState.layout = loadLayout(runtimeState.paths);
   runtimeState.hardware = loadHardware(runtimeState.paths);
@@ -56,6 +58,7 @@ function createApp() {
   app.set("trust proxy", env.TRUST_PROXY);
   app.use(express.json({ limit: env.JSON_LIMIT }));
   app.use(express.urlencoded({ extended: false }));
+  if (env.REQUEST_LOGGING) app.use(requestLogger);
 
   if (env.ENABLE_SECURITY_HEADERS) {
     app.use((req, res, next) => {
@@ -90,6 +93,15 @@ function createApp() {
     });
   }
 
+  // Assets sind keine API-Aufrufe und verbrauchen daher kein API-Limit.
+  app.use(express.static(publicDir, {
+    etag: true,
+    maxAge: env.NODE_ENV === "production" ? "1h" : 0,
+    setHeaders(res, filePath) {
+      if (/\.(?:html|webmanifest|js|css)$/i.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+    }
+  }));
+
   const rateLimit = rateLimitFactory(runtimeState.rateBuckets);
 
   app.use(rateLimit({
@@ -104,10 +116,8 @@ function createApp() {
     max: env.RL_MODULE_MAX
   }));
 
-  app.use(express.static(path.join(process.cwd(), "public")));
-
   app.get("/", (req, res) => {
-    res.sendFile(path.join(process.cwd(), "public", "index.html"));
+    res.sendFile(path.join(publicDir, "index.html"));
   });
 
   app.get("/favicon.ico", (req, res) => {

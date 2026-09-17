@@ -1,10 +1,5 @@
 node_modules/
-npm-debug.log*
-.DS_Store
-.env.local
-data/hardware.json
-data/layout.json
-data/rules.json
-package-lock.json
-yarn.lock
+data/
 .env
+npm-debug.log*
+*.log

@@ -17,7 +17,7 @@ function createLayoutRoutes({ runtimeState, queueWriteLayout, addEvent }) {
     if (err) throw apiError(400, "BAD_LAYOUT", err);
 
     runtimeState.layout = normalizeLayout(req.body);
-    queueWriteLayout();
+    await queueWriteLayout();
 
     addEvent("LAYOUT", "SERVER", "Layout gespeichert");
     res.json({ ok: true, layout: runtimeState.layout });

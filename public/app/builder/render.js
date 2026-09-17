@@ -3,16 +3,20 @@
 import { state } from "../core/state.js";
 import { showInspector, inspectorLeer } from "./inspect.js";
 import {
-  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawCurveDual,
-  drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
+  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawCurveDual, drawPowerCurve,
+  drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort
 } from "./shapes.js";
 import { recordHistory } from "./history.js";
 
-const WIDTH = 1600;
-const HEIGHT = 900;
+export function canvasSize() {
+  return {
+    width: Math.max(250, Number(state.layout?.metadaten?.plateWidthMm || 3200) * .5),
+    height: Math.max(250, Number(state.layout?.metadaten?.plateHeightMm || 1800) * .5)
+  };
+}
 
-function pointFromEvent(root, event) {
+export function canvasPointFromEvent(root, event) {
   const matrix = root.getScreenCTM();
   if (matrix && typeof DOMPoint !== "undefined") {
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
@@ -20,8 +24,8 @@ function pointFromEvent(root, event) {
   }
   const rect = root.getBoundingClientRect();
   return {
-    x: ((event.clientX - rect.left) / Math.max(1, rect.width)) * WIDTH,
-    y: ((event.clientY - rect.top) / Math.max(1, rect.height)) * HEIGHT
+    x: ((event.clientX - rect.left) / Math.max(1, rect.width)) * canvasSize().width,
+    y: ((event.clientY - rect.top) / Math.max(1, rect.height)) * canvasSize().height
   };
 }
 
@@ -34,6 +38,14 @@ function snap(value) {
   return state.snapToGrid === false ? value : Math.round(value / size) * size;
 }
 
+export function snapCanvasPoint(point) {
+  const size = canvasSize();
+  return {
+    x: clamp(snap(point.x), 40, size.width - 40),
+    y: clamp(snap(point.y), 40, size.height - 40)
+  };
+}
+
 function catalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
   return (state.catalog?.[group] || []).find((item) => String(item.code) === String(code)) || {};
@@ -43,6 +55,7 @@ function elementCatalogItem(element) {
   const group = element.typ === "track" ? "tracks"
     : element.typ === "curve" ? "curves"
     : element.typ === "switch" ? "switches"
+    : element.typ === "bumper" ? "bumpers"
     : (element.typ === "crossing" || element.typ === "xtrack") ? "crossings"
     : "";
   return group ? catalogItem(element, group) : {};
@@ -85,11 +98,55 @@ function updateConnectedLines(element) {
     }
   });
 }
+
+export function renderPlacementPreview() {
+  const layer = document.getElementById("builderPlacementLayer");
+  if (!layer) return;
+  layer.replaceChildren();
+  const placement = state.placement;
+  if (!placement) return;
+
+  if (placement.previewConnection) {
+    const target = svg("g");
+    target.classList.add("placement-snap-target");
+    const outer = svg("circle");
+    attrs(outer, { cx: placement.previewConnection.snapX, cy: placement.previewConnection.snapY, r: 15, fill: "rgba(50,242,154,.13)", stroke: "#32f29a", "stroke-width": 3 });
+    const inner = svg("circle");
+    attrs(inner, { cx: placement.previewConnection.snapX, cy: placement.previewConnection.snapY, r: 4, fill: "#eafff4" });
+    target.append(outer, inner);
+    layer.appendChild(target);
+  }
+
+  const group = svg("g");
+  group.classList.add("placement-preview");
+  if (placement.magnetic) group.classList.add("magnetic");
+  group.setAttribute("transform", `translate(${Number(placement.x || 0)}, ${Number(placement.y || 0)}) rotate(${Number(placement.rotation || 0)})`);
+  const halo = svg("circle");
+  attrs(halo, { cx: 0, cy: 0, r: 24, fill: "none", stroke: placement.magnetic ? "#4ac181" : "#d9a649", "stroke-width": placement.magnetic ? 3 : 2, "stroke-dasharray": placement.magnetic ? "" : "5 5" });
+  group.appendChild(halo);
+  drawElementShape(group, placement);
+  layer.appendChild(group);
+}
+
 export function renderCanvas() {
   const root = document.getElementById("builderSvg");
   const elementLayer = document.getElementById("builderElementLayer");
   const connectionLayer = document.getElementById("builderConnectionLayer");
   if (!root || !elementLayer || !connectionLayer) return;
+  const { width, height } = canvasSize();
+  const background = document.getElementById("builderBackground");
+  if (background) attrs(background, { width, height });
+  const emptyHint = document.getElementById("builderEmptyHint");
+  if (emptyHint) attrs(emptyHint, { x: width / 2, y: height / 2 });
+  const grid = document.getElementById("builderGrid");
+  const gridSize = Math.max(5, Number(state.layout?.metadaten?.raster) || 25);
+  if (grid) {
+    const major = gridSize * 4;
+    attrs(grid, { width: major, height: major });
+    const paths = grid.querySelectorAll("path");
+    if (paths[0]) paths[0].setAttribute("d", `M${gridSize} 0V${major} M${gridSize * 2} 0V${major} M${gridSize * 3} 0V${major} M0 ${gridSize}H${major} M0 ${gridSize * 2}H${major} M0 ${gridSize * 3}H${major}`);
+    if (paths[1]) paths[1].setAttribute("d", `M0 0H${major}V${major}H0Z`);
+  }
 
   if (state.layoutDirty) {
     try { localStorage.setItem("dynora.layoutDraft", JSON.stringify({ savedAt: Date.now(), layout: state.layout })); } catch {}
@@ -100,9 +157,10 @@ export function renderCanvas() {
   const elements = Array.isArray(state.layout?.elemente) ? state.layout.elemente : [];
   drawConnections(connectionLayer, elements);
   elements.forEach((element) => drawElement(root, element, elementLayer));
+  renderPlacementPreview();
 
   const empty = document.getElementById("builderEmptyHint");
-  if (empty) empty.style.display = elements.length ? "none" : "block";
+  if (empty) empty.style.display = elements.length || state.placement ? "none" : "block";
   const count = document.getElementById("elementCount");
   if (count) count.textContent = String(elements.length);
   const connectionCount = document.getElementById("connectionCount");
@@ -110,6 +168,7 @@ export function renderCanvas() {
 
   root.onpointerdown = (event) => {
     if (event.target.closest?.(".layout-element")) return;
+    if (state.selectedTool === "place") return;
     state.selectedElement = null;
     state.connectFrom = null;
     renderCanvas();
@@ -155,8 +214,9 @@ function connectElement(element) {
       source.rotation = best.desiredRotation;
       source.winkel = best.desiredRotation;
       const rotatedSourcePort = worldConnectionPort({ ...source, x: 0, y: 0 }, best.sourcePort);
-      source.x = clamp(best.targetWorld.x - rotatedSourcePort.x, 40, WIDTH - 40);
-      source.y = clamp(best.targetWorld.y - rotatedSourcePort.y, 40, HEIGHT - 40);
+      const size = canvasSize();
+      source.x = clamp(best.targetWorld.x - rotatedSourcePort.x, 40, size.width - 40);
+      source.y = clamp(best.targetWorld.y - rotatedSourcePort.y, 40, size.height - 40);
 
       if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
       const existing = state.layout.verbindungen.find((item) =>
@@ -188,8 +248,9 @@ function connectElement(element) {
   renderCanvas();
 }
 function drawElement(root, element, layer) {
-  element.x = clamp(element.x, 40, WIDTH - 40);
-  element.y = clamp(element.y, 40, HEIGHT - 40);
+  const size = canvasSize();
+  element.x = clamp(element.x, 40, size.width - 40);
+  element.y = clamp(element.y, 40, size.height - 40);
   element.rotation = Number(element.rotation ?? element.winkel ?? 0);
   const group = svg("g");
   group.classList.add("layout-element");
@@ -209,18 +270,27 @@ function drawElement(root, element, layer) {
   group.addEventListener("pointerdown", (event) => {
     event.stopPropagation();
     if (state.selectedTool === "connect") return;
-    const point = pointFromEvent(root, event);
-    drag = { id: event.pointerId, dx: point.x - element.x, dy: point.y - element.y, moved: false };
+    if (state.selectedTool === "place") return;
+    const point = canvasPointFromEvent(root, event);
+    drag = {
+      id: event.pointerId,
+      dx: point.x - element.x,
+      dy: point.y - element.y,
+      startX: element.x,
+      startY: element.y,
+      moved: false
+    };
     group.setPointerCapture?.(event.pointerId);
     state.selectedElement = element.id;
     group.classList.add("selected", "dragging");
   });
   group.addEventListener("pointermove", (event) => {
     if (!drag || drag.id !== event.pointerId) return;
-    const point = pointFromEvent(root, event);
-    const x = clamp(point.x - drag.dx, 40, WIDTH - 40);
-    const y = clamp(point.y - drag.dy, 40, HEIGHT - 40);
-    if (!drag.moved && (Math.abs(x - element.x) > 1 || Math.abs(y - element.y) > 1)) {
+    const point = canvasPointFromEvent(root, event);
+    const x = clamp(point.x - drag.dx, 40, size.width - 40);
+    const y = clamp(point.y - drag.dy, 40, size.height - 40);
+    if (!drag.moved && Math.hypot(x - drag.startX, y - drag.startY) < 5) return;
+    if (!drag.moved) {
       recordHistory();
       drag.moved = true;
     }
@@ -231,12 +301,14 @@ function drawElement(root, element, layer) {
   });
   const finishDrag = (event) => {
     if (!drag || drag.id !== event.pointerId) return;
-    suppressClick = drag.moved;
+    const moved = drag.moved;
+    suppressClick = moved;
     drag = null;
     group.classList.remove("dragging");
-    element.x = clamp(snap(element.x), 40, WIDTH - 40);
-    element.y = clamp(snap(element.y), 40, HEIGHT - 40);
-    if (suppressClick) state.layoutDirty = true;
+    if (!moved) return;
+    element.x = clamp(snap(element.x), 40, size.width - 40);
+    element.y = clamp(snap(element.y), 40, size.height - 40);
+    state.layoutDirty = true;
     renderCanvas();
     showInspector(element);
   };
@@ -252,6 +324,7 @@ function drawElement(root, element, layer) {
       connectElement(element);
       return;
     }
+    if (state.selectedTool === "place") return;
     state.selectedElement = element.id;
     renderCanvas();
     showInspector(element);
@@ -265,18 +338,23 @@ function drawElementShape(group, element) {
       {
         const half = Math.max(12, Number(catalogItem(element, "tracks").length || 180) * .25);
         drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8);
-        drawStateSegmentLine(group, -Math.min(half - 3, 20), 0, Math.min(half - 3, 20), 0, element.powerState ? "#2fd36b" : "#607080");
+        if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0);
+        else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#607080");
       }
       break;
     case "curve":
       {
         const item = catalogItem(element, "curves");
         drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), "#d5dbe0");
+        if (element.powerState) drawPowerCurve(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30));
       }
       break;
     case "switch":
       const item = catalogItem(element, "switches");
         drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item);
+      break;
+    case "bumper":
+      drawBumperShape(group, catalogItem(element, "bumpers"));
       break;
     case "crossing":
       {
@@ -288,7 +366,7 @@ function drawElementShape(group, element) {
       drawSignalShape(group, element.signalState);
       break;
     case "espSignal":
-      drawEspSignalShape(group, element.espState || element.ledState);
+      drawEspSignalShape(group, element.espState || element.ledState, element.signalAspectMode);
       break;
     case "transformer":
       drawTransformerShape(group);

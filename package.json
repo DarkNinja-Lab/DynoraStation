@@ -1,12 +1,13 @@
 {
   "name": "dynorastation",
-  "version": "1.0.0",
+  "version": "1.7.2",
   "private": true,
   "description": "DynoraStation mit Express-Backend und Web-UI",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

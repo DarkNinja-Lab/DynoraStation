@@ -26,12 +26,21 @@ function createModuleRoutes({
     const moduleId = cleanText(req.body?.module || "", 48);
     if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "Modul-ID fehlt");
     const module = moduleRegistry.getOrCreateModule(moduleId);
+    const wasOnline = moduleRegistry.moduleIsOnline(module);
 
     module.online = true;
     module.lastHeartbeat = Date.now();
     module.ip = ipFromReq(req) || module.ip || "";
     const firmwareType = cleanText(req.body?.moduleType || "", 40);
-    module.name = cleanText(req.body?.moduleName || req.body?.name || module.name || `Modul ${moduleId}`, 80) || `Modul ${moduleId}`;
+    const reportedName = cleanText(req.body?.moduleName || req.body?.name || "", 80);
+    // Ein im Webinterface gesetzter Anzeigename darf nicht vom naechsten
+    // Heartbeat der Firmware wieder ueberschrieben werden.
+    if (!module.customName) {
+      module.name = reportedName || module.name || `Modul ${moduleId}`;
+    }
+    if (!wasOnline) {
+      console.log(`[ESP] online · ${module.name} · ID ${moduleId} · ${module.ip || "IP unbekannt"}`);
+    }
 
     const relayStates = Array.isArray(req.body?.relays) ? req.body.relays : null;
     if (relayStates) {
@@ -49,7 +58,12 @@ function createModuleRoutes({
     const ledStates = Array.isArray(req.body?.leds) ? req.body.leds : null;
     if (ledStates) {
       module.leds = [];
-      runtimeState.hardware.leds = runtimeState.hardware.leds.filter((led) => led.module !== moduleId);
+      const reportedLedChannels = new Set(ledStates
+        .map((item, index) => validLedChannel(item?.channel ?? (index + 1)))
+        .filter(Boolean));
+      runtimeState.hardware.leds = runtimeState.hardware.leds.filter(
+        (led) => led.module !== moduleId || reportedLedChannels.has(Number(led.channel))
+      );
       ledStates.forEach((x, i) => {
         const channel = validLedChannel(x?.channel ?? (i + 1));
         if (!channel) return;
@@ -135,6 +149,7 @@ function createModuleRoutes({
     runtimeState.hardware.modules[moduleId] = {
       id: moduleId,
       name: module.name,
+      customName: Boolean(module.customName),
       type: module.type,
       kind: module.kind,
       capabilities: module.capabilities,
@@ -154,6 +169,34 @@ function createModuleRoutes({
         leds: ledStates ? ledStates.length : 0
       }
     });
+  }));
+
+  router.post("/api/module/rename", wrap(async (req, res) => {
+    const moduleId = cleanText(req.body?.module || req.body?.moduleId || "", 48);
+    const name = cleanText(req.body?.name || "", 80);
+    if (!moduleId) throw apiError(400, "BAD_MODULE_ID", "Modul-ID fehlt");
+    if (!name) throw apiError(400, "BAD_MODULE_NAME", "Modulname fehlt");
+
+    const known = runtimeState.modules[moduleId] || runtimeState.hardware?.modules?.[moduleId];
+    if (!known) throw apiError(404, "MODULE_NOT_FOUND", "ESP-Modul nicht gefunden");
+
+    const module = moduleRegistry.getOrCreateModule(moduleId);
+    module.name = name;
+    module.customName = true;
+    if (!runtimeState.hardware.modules || typeof runtimeState.hardware.modules !== "object") {
+      runtimeState.hardware.modules = {};
+    }
+    runtimeState.hardware.modules[moduleId] = {
+      ...(runtimeState.hardware.modules[moduleId] || {}),
+      id: moduleId,
+      name,
+      customName: true
+    };
+    runtimeState.hardware.updatedAt = Date.now();
+    queueWriteHardware();
+    addEvent("MODUL", moduleId, `ESP-Modul umbenannt: ${name}`);
+
+    res.json({ ok: true, module: moduleId, name });
   }));
 
   router.post("/api/module/sensor", wrap(async (req, res) => {
@@ -235,6 +278,11 @@ function createModuleRoutes({
     runtimeState.hardware.relays = (runtimeState.hardware.relays || []).filter((item) => item.module !== moduleId);
     runtimeState.hardware.leds = (runtimeState.hardware.leds || []).filter((item) => item.module !== moduleId);
     runtimeState.hardware.sensors = (runtimeState.hardware.sensors || []).filter((item) => item.module !== moduleId);
+    if (runtimeState.hardware.ledConfig && typeof runtimeState.hardware.ledConfig === "object") {
+      Object.keys(runtimeState.hardware.ledConfig).forEach((key) => {
+        if (key.startsWith(`${moduleId}:`)) delete runtimeState.hardware.ledConfig[key];
+      });
+    }
     runtimeState.hardware.lightButtons = (runtimeState.hardware.lightButtons || []).map((button) =>
       button.module === moduleId ? { ...button, module: "", relay: 0 } : button
     );

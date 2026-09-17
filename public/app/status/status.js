@@ -65,6 +65,11 @@ function normalizeModules(rawModules) {
 }
 
 let lastTrackRenderSignature = "";
+let lastDirectControlSignature = "";
+let lastLightButtonSignature = "";
+let lastSidebarSignature = "";
+let lastDashboardSignature = "";
+let lastHardwareInventorySignature = "";
 
 function trackRenderSignature(layout, modules) {
   const liveStates = Object.values(modules).map((module) => ({
@@ -79,6 +84,21 @@ function trackRenderSignature(layout, modules) {
   return JSON.stringify({ layout, liveStates });
 }
 
+function directControlSignature(layout) {
+  return JSON.stringify((layout?.elemente || [])
+    .filter((element) => ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ))
+    .map((element) => ({
+      id: element.id,
+      name: element.name,
+      typ: element.typ,
+      switchState: element.switchState,
+      xState: element.xState,
+      signalState: element.signalState,
+      ledState: element.ledState,
+      espState: element.espState
+    })));
+}
+
 export async function statusLaden({ ruhig = true } = {}) {
   try {
     const data = await apiCall("/status");
@@ -87,10 +107,33 @@ export async function statusLaden({ ruhig = true } = {}) {
     setServerOnline(true);
 
     const modules = normalizeModules(data?.hardware?.modules ?? data?.modules);
-    state.hardware.modules = modules;
+    state.hardware = {
+      ...(state.hardware || {}),
+      ...(data?.hardware && typeof data.hardware === "object" ? data.hardware : {}),
+      modules
+    };
+    const settingsSnapshotIsFresh = Number(data?.hardware?.updatedAt || 0) >= Number(state.settingsPersistedAt || 0);
+    if (settingsSnapshotIsFresh && !state.settingsDirty?.leds && !state.ledConfigDirty && data?.ledConfig && typeof data.ledConfig === "object") state.ledConfig = data.ledConfig;
 
     const allModules = Object.values(modules);
     const onlineModules = allModules.filter(m => !!m.online).length;
+
+    const hardwareInventorySignature = JSON.stringify({
+      modules: allModules.map((module) => ({
+        id: module.id,
+        name: module.name,
+        capabilities: module.capabilities,
+        kind: module.kind,
+        relayCount: module.relays?.length || 0,
+        sensorIds: (module.sensors || []).map((sensor) => sensor?.id),
+        ledCount: module.leds?.length || 0
+      })),
+      ledConfig: state.ledConfig
+    });
+    if (hardwareInventorySignature !== lastHardwareInventorySignature) {
+      lastHardwareInventorySignature = hardwareInventorySignature;
+      document.dispatchEvent(new CustomEvent("dynora:modules-updated"));
+    }
 
     setText("moduleCardStatus", `${onlineModules} / ${allModules.length}`);
     setText("dashboardSummary", onlineModules === allModules.length && allModules.length ? "Alle Systeme betriebsbereit" : allModules.length ? `${allModules.length - onlineModules} Modul(e) offline` : "Noch keine Module registriert");
@@ -124,15 +167,20 @@ export async function statusLaden({ ruhig = true } = {}) {
       state.events = data.events;
       renderEvents();
     }
-    if (Array.isArray(data?.defaults)) state.defaults = data.defaults;
-    if (data?.ledConfig && typeof data.ledConfig === "object") state.ledConfig = data.ledConfig;
+    if (settingsSnapshotIsFresh && !state.settingsDirty?.defaults && Array.isArray(data?.defaults)) state.defaults = data.defaults;
 
     // Namen/Rollen aus persistenter Hardware in die Settings-UI spiegeln.
     const hwRelays = Array.isArray(data?.hardware?.relays) ? data.hardware.relays : [];
-    for (const r of hwRelays) state.relayConfig[`${r.module}:${r.channel}`] = { name: r.name || "", role: r.role || "" };
+    if (settingsSnapshotIsFresh && !state.settingsDirty?.relays) {
+      state.relayConfig = {};
+      for (const r of hwRelays) state.relayConfig[`${r.module}:${r.channel}`] = { name: r.name || "", role: r.role || "" };
+    }
     const hwSensors = Array.isArray(data?.hardware?.sensors) ? data.hardware.sensors : [];
-    for (const s of hwSensors) state.sensorConfig[`${s.module}:${s.id}`] = { name: s.name || "" };
-    if (Array.isArray(data?.lightButtons)) {
+    if (settingsSnapshotIsFresh && !state.settingsDirty?.sensors) {
+      state.sensorConfig = {};
+      for (const s of hwSensors) state.sensorConfig[`${s.module}:${s.id}`] = { name: s.name || "" };
+    }
+    if (settingsSnapshotIsFresh && !state.settingsDirty?.lights && Array.isArray(data?.lightButtons)) {
       state.lightButtons = data.lightButtons.map((b) => {
         const moduleId = b.module || b.moduleId || "";
         const relayIndex = Number(b.relay ?? b.relayIndex ?? 0);
@@ -144,12 +192,42 @@ export async function statusLaden({ ruhig = true } = {}) {
           active: relayIndex > 0 ? Boolean(modules[moduleId]?.relays?.[relayIndex - 1]) : false
         };
       });
+    } else if (Array.isArray(state.lightButtons)) {
+      state.lightButtons.forEach((button) => {
+        const channel = Number(button.relayIndex || 0);
+        button.active = channel > 0 ? Boolean(modules[button.moduleId]?.relays?.[channel - 1]) : false;
+      });
     }
 
-    renderSidebarEspStatus();
-    renderCs3Tiles();
-    renderDashboardOverview();
-    renderTrackLightButtons();
+    const sidebarSignature = JSON.stringify(allModules.map((module) => ({
+      id: module.id, name: module.name, online: module.online, kind: module.kind, ip: module.ip
+    })));
+    if (sidebarSignature !== lastSidebarSignature) {
+      lastSidebarSignature = sidebarSignature;
+      renderSidebarEspStatus();
+    }
+
+    const controlsSignature = directControlSignature(state.layout);
+    if (controlsSignature !== lastDirectControlSignature) {
+      lastDirectControlSignature = controlsSignature;
+      renderCs3Tiles();
+    }
+
+    const lightSignature = JSON.stringify(state.lightButtons || []);
+    if (lightSignature !== lastLightButtonSignature) {
+      lastLightButtonSignature = lightSignature;
+      renderTrackLightButtons();
+    }
+
+    const dashboardSignature = JSON.stringify({
+      modules: allModules,
+      layout: state.layout,
+      events: state.events?.slice(0, 5)
+    });
+    if (dashboardSignature !== lastDashboardSignature) {
+      lastDashboardSignature = dashboardSignature;
+      renderDashboardOverview();
+    }
     refreshSettingsHardwareStatus();
   } catch (err) {
     setServerOnline(false);

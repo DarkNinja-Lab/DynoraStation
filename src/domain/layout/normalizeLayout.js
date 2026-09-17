@@ -6,7 +6,8 @@ const {
   validTrackCode,
   validXTrackCode,
   validCurveCode,
-  validSwitchCode
+  validSwitchCode,
+  validBumperCode
 } = require("../trackCatalog");
 const { defaultLayout } = require("../defaults");
 
@@ -14,11 +15,14 @@ function normalizeLayout(input) {
   const src = input && typeof input === "object" ? input : {};
   const out = defaultLayout();
 
-  out.version = 30;
+  out.version = 31;
   out.metadaten = {
     name: cleanText(src.metadaten?.name || "Meine Modellbahn", 120) || "Meine Modellbahn",
     massstab: cleanText(src.metadaten?.massstab || "H0", 20) || "H0",
-    raster: toInt(src.metadaten?.raster, 25)
+    raster: Math.max(2.5, Math.min(100, toNumber(src.metadaten?.raster, 12.5))),
+    rasterMm: Math.max(5, Math.min(200, toNumber(src.metadaten?.rasterMm, toNumber(src.metadaten?.raster, 12.5) * 2))),
+    plateWidthMm: Math.max(500, Math.min(20000, toInt(src.metadaten?.plateWidthMm, 3200))),
+    plateHeightMm: Math.max(500, Math.min(20000, toInt(src.metadaten?.plateHeightMm, 1800)))
   };
 
   const elementMap = new Map();
@@ -27,7 +31,7 @@ function normalizeLayout(input) {
     .filter((e) => e && e.typ !== "sensor")
     .forEach((e) => {
       const rawTyp = e.typ === "crossing" ? "xtrack" : e.typ === "espSignal" ? "ledSignal" : e.typ;
-      const typ = ["track", "xtrack", "curve", "switch", "signal", "transformer", "ledSignal"].includes(rawTyp) ? rawTyp : "track";
+      const typ = ["track", "xtrack", "curve", "switch", "bumper", "signal", "transformer", "ledSignal"].includes(rawTyp) ? rawTyp : "track";
       const id = String(e.id || makeId(typ));
       if (elementMap.has(id)) return;
 
@@ -35,6 +39,7 @@ function normalizeLayout(input) {
       const xTrackCode = typ === "xtrack" ? validXTrackCode(e.xTrackCode || e.code || e.catalogCode) : "";
       const curveCode = typ === "curve" ? validCurveCode(e.curveCode || e.code || e.catalogCode) : "";
       const switchCode = typ === "switch" ? validSwitchCode(e.switchCode || e.code || e.catalogCode) : "";
+      const bumperCode = typ === "bumper" ? validBumperCode(e.bumperCode || e.code || e.catalogCode) : "";
 
       elementMap.set(id, {
         id,
@@ -51,6 +56,7 @@ function normalizeLayout(input) {
         xTrackCode,
         curveCode,
         switchCode,
+        bumperCode,
 
         relay: validRelay(e.relay || 0),
         relayA: validRelay(e.relayA || 0),
@@ -78,10 +84,20 @@ function normalizeLayout(input) {
         ledChannelRed: validLedChannel(e.ledChannelRed || 0),
         ledChannelYellow: validLedChannel(e.ledChannelYellow || 0),
         ledChannelGreen: validLedChannel(e.ledChannelGreen || 0),
+        signalAspectMode: e.signalAspectMode === "rgy" || e.signalAspects === 3 ? "rgy" : "rg",
         ledState: ["halt", "warnung", "fahrt"].includes(e.ledState || e.espState) ? (e.ledState || e.espState) : "halt",
         defaultLedState: ["halt", "warnung", "fahrt"].includes(e.defaultLedState) ? e.defaultLedState : "halt"
       });
     });
+
+  for (const e of elementMap.values()) {
+    if (e.typ !== "ledSignal") continue;
+    if (e.signalAspectMode === "rg") {
+      e.ledChannelYellow = 0;
+      if (e.ledState === "warnung") e.ledState = "halt";
+      if (e.defaultLedState === "warnung") e.defaultLedState = "halt";
+    }
+  }
 
   for (const e of elementMap.values()) {
     if (e.typ === "track" || e.typ === "curve" || e.typ === "xtrack") {

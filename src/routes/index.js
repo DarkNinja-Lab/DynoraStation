@@ -18,12 +18,14 @@ function createRoutes(deps) {
 
   // Katalog-Endpoint
   router.get("/api/track-catalog", (req, res) => {
+    res.set("Cache-Control", "no-store");
     const catalogItems = Object.entries(TRACK_CATALOG).map(([code, item]) => ({ code, ...item }));
     res.json({
       tracks: catalogItems.filter(t => t.kind === "track"),
       curves: catalogItems.filter(t => t.kind === "curve"),
       switches: catalogItems.filter(t => t.kind === "switch"),
       crossings: catalogItems.filter(t => t.kind === "xtrack"),
+      bumpers: catalogItems.filter(t => t.kind === "bumper"),
       signals: [
         { id: "7039", label: "Hauptsignal 7039" }
       ],
@@ -31,7 +33,8 @@ function createRoutes(deps) {
         { id: "6631", label: "Märklin Transformator 6631" }
       ],
       espSignals: [
-        { id: "esp-signal", label: "ESP-Signalmast" }
+        { id: "esp-signal-rg", label: "ESP-Signalmast Rot / Grün", signalAspectMode: "rg" },
+        { id: "esp-signal-rgy", label: "ESP-Signalmast Rot / Gelb / Grün", signalAspectMode: "rgy" }
       ]
     });
   });

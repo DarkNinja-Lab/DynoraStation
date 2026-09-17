@@ -53,10 +53,14 @@ function setActivePage(page) {
   });
 
   setPageHeader(page);
+  all(".mobile-nav-button[data-page-link]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.pageLink === page);
+  });
 
   if (page === "settings") renderSettingsTab();
   if (page === "rules") renderRulesGrid();
   if (page === "track") renderTrackLayout();
+  if (page === "builder") document.dispatchEvent(new CustomEvent("dynora:builder-opened"));
 
   try {
     localStorage.setItem("dynora.activePage", page);
@@ -81,13 +85,38 @@ function bindNavigation() {
   });
 
   const mobileBtn = byId("mobileMenuButton");
+  const mobileMoreBtn = byId("mobileMoreButton");
   const sidebar = byId("sidebar");
   if (mobileBtn && sidebar) {
-    mobileBtn.addEventListener("click", () => sidebar.classList.toggle("open"));
+    const setSidebarOpen = (open) => {
+      document.body.classList.toggle("sidebar-open", open);
+      mobileBtn.setAttribute("aria-expanded", String(open));
+      mobileMoreBtn?.setAttribute("aria-expanded", String(open));
+    };
+    mobileBtn.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
+    mobileMoreBtn?.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
     all(".nav-button[data-page]").forEach((btn) => {
-      btn.addEventListener("click", () => sidebar.classList.remove("open"));
+      btn.addEventListener("click", () => setSidebarOpen(false));
+    });
+    document.addEventListener("click", (event) => {
+      if (!document.body.classList.contains("sidebar-open")) return;
+      if (sidebar.contains(event.target) || mobileBtn.contains(event.target) || mobileMoreBtn?.contains(event.target)) return;
+      setSidebarOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setSidebarOpen(false);
     });
   }
+
+  const builderLayout = document.querySelector(".builder-layout");
+  all("[data-builder-panel]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const panel = btn.dataset.builderPanel;
+      if (builderLayout) builderLayout.dataset.mobilePanel = panel;
+      all("[data-builder-panel]").forEach((item) => item.classList.toggle("active", item === btn));
+      if (panel === "canvas") requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    });
+  });
 
   setActivePage(restorePage());
 }
@@ -203,6 +232,15 @@ function renderModuleManagement() {
           <div><dt>Kanäle</dt><dd>${relays} Relais · ${leds} LEDs · ${sensors} Sensoren</dd></div>
           <div><dt>Zuletzt gesehen</dt><dd>${esc(seen)}</dd></div>
         </dl>
+        <div class="module-rename-row">
+          <label>
+            <span>Anzeigename</span>
+            <input data-field="moduleName" value="${esc(module.name || module.id)}" maxlength="80" autocomplete="off">
+          </label>
+          <button class="secondary-button" data-action="rename-module" data-module-id="${esc(module.id)}" type="button">
+            Namen speichern
+          </button>
+        </div>
         <button class="danger-button module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button">
           Modul löschen
         </button>
@@ -320,22 +358,57 @@ function renderLedGrid() {
   const host = byId("ledConfigGrid");
   if (!host) return;
 
-  const rows = [];
-  modules().forEach((m) => {
-    const leds = Array.isArray(m.leds) ? m.leds : [];
-    leds.forEach((l, idx) => rows.push({ m, idx, l }));
-  });
+  const availableModules = modules()
+    .filter((module) => hasCapability(module, "led") || (Array.isArray(module.leds) && module.leds.length > 0))
+    .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "de"));
+  if (!availableModules.some((module) => module.id === state.settingsLedModule)) {
+    state.settingsLedModule = availableModules[0]?.id || "";
+  }
+  const selectedModule = availableModules.find((module) => module.id === state.settingsLedModule);
+  const leds = Array.isArray(selectedModule?.leds) ? selectedModule.leds : [];
+  const colorOptions = [
+    ["rot", "Rot"], ["gelb", "Gelb"], ["gruen", "Grün"], ["weiss", "Weiß"],
+    ["warmweiss", "Warmweiß"], ["blau", "Blau"], ["orange", "Orange"]
+  ];
 
-  host.innerHTML = rows.length
-    ? rows.map((r) => `
-      <div class="light-config-card">
-        <h4>${r.m.name || r.m.id} • LED ${r.idx + 1}</h4>
-        <div>Status: <b>${r.l?.state ? "AN" : "AUS"}</b></div>
-        <div>Helligkeit: <b>${Number(r.l?.brightness || 0)}</b></div>
-        <div>Blinken: <b>${r.l?.blinking ? "Ja" : "Nein"}</b></div>
-      </div>
-    `).join("")
-    : `<div class="sidebar-esp-empty">Keine LEDs verfügbar.</div>`;
+  host.innerHTML = `
+    <div class="settings-module-picker led-module-picker">
+      <label for="ledModuleSelect">LED-ESP</label>
+      <select id="ledModuleSelect">
+        ${availableModules.map((module) => `<option value="${esc(module.id)}" ${module.id === state.settingsLedModule ? "selected" : ""}>${esc(module.name || module.id)} (${module.leds?.length || 0} LEDs)</option>`).join("")}
+      </select>
+    </div>
+    <div class="relay-module-summary">${selectedModule ? `${esc(selectedModule.name || selectedModule.id)} · ${selectedModule.online ? "online" : "offline"} · ${esc(selectedModule.ip || "keine aktuelle IP")}` : "Kein LED-ESP verfügbar"}</div>
+    <div class="led-channel-grid">
+      ${leds.length ? leds.map((led, idx) => {
+        const channel = idx + 1;
+        const key = `${selectedModule.id}:${channel}`;
+        const saved = state.ledConfig[key] || {};
+        const config = {
+          name: saved.name || `LED ${channel}`,
+          color: saved.color || "weiss",
+          brightness: Math.max(0, Math.min(255, Number(saved.brightness ?? 255)))
+        };
+        state.ledConfig[key] = config;
+        const isOn = Boolean(led?.state);
+        return `
+          <article class="led-channel-card" data-module-id="${esc(selectedModule.id)}" data-led-index="${channel}">
+            <div class="led-channel-head">
+              <span class="led-color-dot led-color-${esc(config.color)}"></span>
+              <div><strong>${esc(config.name)}</strong><small>Kanal ${channel}</small></div>
+              <span class="${isOn ? "badge-on" : "badge-off"}" data-led-status>${led?.blinking ? "BLINKT" : isOn ? "AN" : "AUS"}</span>
+            </div>
+            <label><span>Name</span><input data-field="ledName" value="${esc(config.name)}" maxlength="64" placeholder="z. B. Signal Rot"></label>
+            <label><span>Farbe</span><select data-field="ledColor">${colorOptions.map(([value, label]) => `<option value="${value}" ${config.color === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+            <label class="led-brightness-field"><span>Helligkeit <output>${config.brightness}</output></span><input data-field="ledBrightness" type="range" min="0" max="255" step="1" value="${config.brightness}"></label>
+            <div class="led-channel-live">Live: <b>${Number(led?.brightness || 0)}</b> / 255</div>
+            <div class="led-channel-actions">
+              <button class="secondary-button" data-action="toggle-led" type="button">${isOn ? "Ausschalten" : "Einschalten"}</button>
+              <button class="secondary-button" data-action="test-led" type="button">Blinktest</button>
+            </div>
+          </article>`;
+      }).join("") : `<div class="empty-state relay-empty-state"><strong>${selectedModule ? esc(selectedModule.name || selectedModule.id) : "Kein LED-ESP"} meldet keine LED-Kanäle.</strong><span>Der ESP muss im Heartbeat das Feld „leds“ senden. Nach dem nächsten Heartbeat erscheinen die Kanäle automatisch.</span></div>`}
+    </div>`;
 }
 
 export function refreshSettingsHardwareStatus() {
@@ -369,6 +442,28 @@ export function refreshSettingsHardwareStatus() {
       const badge = card.querySelector(".badge-on, .badge-off");
       if (badge) { badge.className = on ? "badge-on" : "badge-off"; badge.textContent = on ? "AN" : "AUS"; }
     });
+  }
+
+  const ledHost = byId("ledConfigGrid");
+  if (ledHost && !ledHost.contains(document.activeElement)) {
+    const selected = state.hardware.modules?.[state.settingsLedModule];
+    const current = ledHost.querySelectorAll("[data-led-index]").length;
+    const expected = Array.isArray(selected?.leds) ? selected.leds.length : 0;
+    if (current !== expected) {
+      renderLedGrid();
+    } else {
+      ledHost.querySelectorAll("[data-module-id][data-led-index]").forEach((card) => {
+        const module = state.hardware.modules?.[card.dataset.moduleId];
+        const led = module?.leds?.[Number(card.dataset.ledIndex) - 1];
+        const badge = card.querySelector("[data-led-status]");
+        if (badge) {
+          badge.className = led?.state ? "badge-on" : "badge-off";
+          badge.textContent = led?.blinking ? "BLINKT" : led?.state ? "AN" : "AUS";
+        }
+        const live = card.querySelector(".led-channel-live b");
+        if (live) live.textContent = String(Number(led?.brightness || 0));
+      });
+    }
   }
 }
 
@@ -408,9 +503,30 @@ async function saveSettingsSection(section) {
   if (!cfg) return;
   setSaveStatus(cfg.status, "Speichert …");
   try {
-    await apiCall("/control/settings", { method: "POST", body: cfg.body });
+    const result = await apiCall("/control/settings", { method: "POST", body: cfg.body });
+    const hardware = result?.hardware;
+    if (hardware && typeof hardware === "object") {
+      state.hardware = { ...(state.hardware || {}), ...hardware, modules: state.hardware?.modules || {} };
+      state.settingsPersistedAt = Math.max(Number(state.settingsPersistedAt || 0), Number(hardware.updatedAt || 0));
+      if (section === "lights" && Array.isArray(hardware.lightButtons)) {
+        state.lightButtons = hardware.lightButtons.map((button, index) => ({
+          id: button.id ?? index + 1,
+          name: button.name || `Licht ${index + 1}`,
+          moduleId: button.module || "",
+          relayIndex: Number(button.relay || 0),
+          active: false
+        }));
+      }
+    }
+    if (!state.settingsDirty) state.settingsDirty = {};
+    state.settingsDirty[section] = false;
+    if (section === "leds") state.ledConfigDirty = false;
     setSaveStatus(cfg.status, "Gespeichert", "saved");
     if (section === "lights") renderTrackLightButtons();
+    if (section === "leds") {
+      renderLedGrid();
+      document.dispatchEvent(new CustomEvent("dynora:modules-updated"));
+    }
     showToast(`${cfg.label} gespeichert`);
   } catch (e) {
     setSaveStatus(cfg.status, "Fehler", "error");
@@ -424,9 +540,15 @@ function bindSettingsInput() {
       ev.target.dispatchEvent(new Event("input", { bubbles: true }));
       return;
     }
-    if (ev.target.id !== "relayModuleSelect") return;
-    state.settingsRelayModule = ev.target.value;
-    renderRelayGrid();
+    if (ev.target.id === "relayModuleSelect") {
+      state.settingsRelayModule = ev.target.value;
+      renderRelayGrid();
+      return;
+    }
+    if (ev.target.id === "ledModuleSelect") {
+      state.settingsLedModule = ev.target.value;
+      renderLedGrid();
+    }
   });
 
   document.addEventListener("input", (ev) => {
@@ -440,6 +562,7 @@ function bindSettingsInput() {
         state.lightButtons[i].relayIndex = 0;
         renderLightConfig();
       }
+      state.settingsDirty.lights = true;
       setSaveStatus("saveLightStatus", "Ungespeichert");
       return;
     }
@@ -455,6 +578,7 @@ function bindSettingsInput() {
         state.defaults[i].action = defaultActionOptions(ev.target.value)[0]?.[0] || "";
         renderDefaultStates();
       }
+      state.settingsDirty.defaults = true;
       setSaveStatus("saveDefaultsStatus", "Ungespeichert");
       return;
     }
@@ -467,6 +591,7 @@ function bindSettingsInput() {
       if (!state.relayConfig[key]) state.relayConfig[key] = {};
       if (ev.target.dataset.field === "relayName") state.relayConfig[key].name = ev.target.value;
       if (ev.target.dataset.field === "relayRole") state.relayConfig[key].role = ev.target.value;
+      state.settingsDirty.relays = true;
       setSaveStatus("saveRelayStatus", "Ungespeichert");
       return;
     }
@@ -478,13 +603,60 @@ function bindSettingsInput() {
       const key = `${moduleId}:${sensorId}`;
       if (!state.sensorConfig[key]) state.sensorConfig[key] = {};
       state.sensorConfig[key].name = ev.target.value;
+      state.settingsDirty.sensors = true;
       setSaveStatus("saveSensorStatus", "Ungespeichert");
+      return;
+    }
+
+    const ledCard = ev.target.closest("[data-module-id][data-led-index]");
+    if (ledCard && ["ledName", "ledColor", "ledBrightness"].includes(ev.target.dataset.field)) {
+      const moduleId = ledCard.dataset.moduleId;
+      const channel = Number(ledCard.dataset.ledIndex);
+      const key = `${moduleId}:${channel}`;
+      if (!state.ledConfig[key]) state.ledConfig[key] = { name: `LED ${channel}`, color: "weiss", brightness: 255 };
+      if (ev.target.dataset.field === "ledName") state.ledConfig[key].name = ev.target.value;
+      if (ev.target.dataset.field === "ledColor") state.ledConfig[key].color = ev.target.value;
+      if (ev.target.dataset.field === "ledBrightness") {
+        state.ledConfig[key].brightness = Number(ev.target.value);
+        const output = ledCard.querySelector(".led-brightness-field output");
+        if (output) output.textContent = ev.target.value;
+      }
+      state.ledConfigDirty = true;
+      state.settingsDirty.leds = true;
+      setSaveStatus("saveLedStatus", "Ungespeichert");
     }
   });
 
   document.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
+
+    if (btn.id === "emergencyButton") {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = "STOPP …";
+      try {
+        const result = await apiCall("/emergency-stop", { method: "POST", body: {} });
+        modules().forEach((module) => {
+          if (Array.isArray(module.relays)) module.relays = module.relays.map(() => false);
+          if (Array.isArray(module.leds)) module.leds = module.leds.map(() => ({ state: false, brightness: 0, blinking: false }));
+        });
+        (state.layout?.elemente || []).forEach((element) => { element.powerState = false; });
+        (state.layout?.stromkreise || []).forEach((circuit) => { circuit.state = false; });
+        (state.lightButtons || []).forEach((light) => { light.active = false; });
+        renderTrackLayout();
+        renderCs3Tiles();
+        renderTrackLightButtons();
+        renderSidebarEspStatus();
+        showToast(`NOT-AUS aktiv · ${Number(result.modules || 0)} ESP-Modul(e)`);
+      } catch (error) {
+        showToast(`NOT-AUS fehlgeschlagen: ${error?.message || error}`, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "NOT-AUS";
+      }
+      return;
+    }
 
     if (btn.dataset.settingsView) {
       state.settingsView = btn.dataset.settingsView;
@@ -495,6 +667,63 @@ function bindSettingsInput() {
 
     if (btn.dataset.saveSection) {
       await saveSettingsSection(btn.dataset.saveSection);
+      return;
+    }
+
+    if (btn.dataset.action === "toggle-led" || btn.dataset.action === "test-led") {
+      const card = btn.closest("[data-module-id][data-led-index]");
+      const moduleId = card?.dataset.moduleId || "";
+      const channel = Number(card?.dataset.ledIndex || 0);
+      const module = state.hardware.modules?.[moduleId];
+      const led = module?.leds?.[channel - 1];
+      if (!moduleId || !channel || !led) return;
+      const config = state.ledConfig?.[`${moduleId}:${channel}`] || { brightness: 255 };
+      btn.disabled = true;
+      try {
+        const body = btn.dataset.action === "test-led"
+          ? { module: moduleId, channel, mode: "blink", onMs: 220, offMs: 220, durationMs: 1800 }
+          : { module: moduleId, channel, mode: "pwm", brightness: led.state ? 0 : Math.max(1, Number(config.brightness ?? 255)) };
+        const result = await apiCall("/led", { method: "POST", body });
+        if (result?.led) module.leds[channel - 1] = {
+          state: Boolean(result.led.state),
+          brightness: Number(result.led.brightness || 0),
+          blinking: Boolean(result.led.blinking)
+        };
+        renderLedGrid();
+        showToast(btn.dataset.action === "test-led" ? `LED ${channel}: Blinktest gestartet` : `LED ${channel} geschaltet`);
+      } catch (error) {
+        btn.disabled = false;
+        showToast(`LED ${channel} konnte nicht gesteuert werden: ${error?.message || error}`, "error");
+      }
+      return;
+    }
+
+    if (btn.dataset.action === "rename-module") {
+      const moduleId = btn.dataset.moduleId;
+      const card = btn.closest("[data-managed-module]");
+      const name = card?.querySelector('[data-field="moduleName"]')?.value.trim() || "";
+      if (!moduleId || !name) {
+        showToast("Bitte einen ESP-Namen eingeben", "error");
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const result = await apiCall("/module/rename", {
+          method: "POST",
+          body: { module: moduleId, name }
+        });
+        if (state.hardware.modules?.[moduleId]) {
+          state.hardware.modules[moduleId].name = result.name;
+          state.hardware.modules[moduleId].customName = true;
+        }
+        renderSettingsTab();
+        renderSidebarEspStatus();
+        renderCs3Tiles();
+        showToast(`ESP heißt jetzt „${result.name}“`);
+      } catch (error) {
+        btn.disabled = false;
+        showToast(`ESP konnte nicht umbenannt werden: ${error?.message || error}`, "error");
+      }
       return;
     }
 
@@ -532,6 +761,7 @@ function bindSettingsInput() {
     if (btn.dataset.action === "add-default") {
       if (!Array.isArray(state.defaults)) state.defaults = [];
       state.defaults.push({ targetType: "", targetId: "", action: "" });
+      state.settingsDirty.defaults = true;
       renderDefaultStates();
       setSaveStatus("saveDefaultsStatus", "Ungespeichert");
       return;
@@ -543,6 +773,7 @@ function bindSettingsInput() {
       const i = Number(row.dataset.defaultIndex);
       if (!Number.isNaN(i)) {
         state.defaults.splice(i, 1);
+        state.settingsDirty.defaults = true;
         renderDefaultStates();
         setSaveStatus("saveDefaultsStatus", "Ungespeichert");
       }
@@ -625,7 +856,9 @@ function bindTrackElementQuickToggle() {
       switch: ["/switch/control", element.switchState === "abzweig" ? "gerade" : "abzweig"],
       xtrack: ["/xtrack/control", element.xState === "abzweig" ? "gerade" : "abzweig"],
       signal: ["/signal/control", element.signalState === "fahrt" ? "halt" : "fahrt"],
-      espSignal: ["/esp-signal/control", ({ halt: "warnung", warnung: "fahrt", fahrt: "halt" })[element.ledState || element.espState || "halt"] || "halt"]
+      espSignal: ["/esp-signal/control", (element.signalAspectMode === "rgy"
+        ? ({ halt: "warnung", warnung: "fahrt", fahrt: "halt" })
+        : ({ halt: "fahrt", fahrt: "halt", warnung: "halt" }))[element.ledState || element.espState || "halt"] || "halt"]
     }[type];
     if (!config) return;
     btn.classList.add("busy");
@@ -654,3 +887,11 @@ export function eventsRegistrieren() {
   bindTrackLightsQuickToggle();
   bindTrackElementQuickToggle();
 }
+
+document.addEventListener("dynora:modules-updated", () => {
+  if (!document.getElementById("page-settings")?.classList.contains("active")) return;
+  const content = document.querySelector(".settings-content");
+  if (content?.contains(document.activeElement)) return;
+  if (Object.values(state.settingsDirty || {}).some(Boolean)) return;
+  renderSettingsTab();
+});

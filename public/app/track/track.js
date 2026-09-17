@@ -4,8 +4,8 @@ import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 import { showToast } from "../ui/toast.js";
 import {
-  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawCurveDual,
-  drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
+  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawCurveDual, drawPowerCurve,
+  drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort
 } from "../builder/shapes.js";
 
@@ -16,13 +16,13 @@ function uiType(type) {
 }
 
 function catalogItem(element, group) {
-  const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
+  const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
   return (state.catalog?.[group] || []).find((item) => String(item.code) === String(code)) || {};
 }
 
 function elementCatalogItem(element) {
   const type = uiType(element.typ);
-  const group = type === "track" ? "tracks" : type === "curve" ? "curves" : type === "switch" ? "switches" : type === "crossing" ? "crossings" : "";
+  const group = type === "track" ? "tracks" : type === "curve" ? "curves" : type === "switch" ? "switches" : type === "crossing" ? "crossings" : type === "bumper" ? "bumpers" : "";
   return group ? catalogItem(element, group) : {};
 }
 
@@ -71,20 +71,24 @@ function drawShape(group, element, occupied = false) {
   if (type === "track") {
     const half = Math.max(12, Number(catalogItem(element, "tracks").length || 180) * .25);
     drawDoubleRailLine(group, -half, 0, half, 0, occupied ? "#ff5f69" : "#d5dbe0", 8);
-    drawStateSegmentLine(group, -Math.min(half - 3, 20), 0, Math.min(half - 3, 20), 0, element.powerState ? "#f6b94c" : "#566675");
+    if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0, occupied ? "#ff5f69" : "#32f29a");
+    else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#566675");
   } else if (type === "curve") {
     const item = catalogItem(element, "curves");
-    drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), occupied ? "#ff5f69" : element.powerState ? "#d5dbe0" : "#89949d");
+    drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), occupied ? "#ff5f69" : "#89949d");
+    if (element.powerState) drawPowerCurve(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), occupied ? "#ff5f69" : "#32f29a");
   } else if (type === "switch") {
     const item = catalogItem(element, "switches");
     drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item, occupied);
   } else if (type === "crossing") {
     const item = catalogItem(element, "crossings");
     drawCrossingShape(group, item, element.xState || "gerade", occupied);
+  } else if (type === "bumper") {
+    drawBumperShape(group, catalogItem(element, "bumpers"), occupied);
   } else if (type === "signal") {
     drawSignalShape(group, element.signalState);
   } else if (type === "espSignal") {
-    drawEspSignalShape(group, element.espState || element.ledState);
+    drawEspSignalShape(group, element.espState || element.ledState, element.signalAspectMode);
   } else if (type === "transformer") {
     drawTransformerShape(group);
   }
@@ -109,7 +113,9 @@ async function controlElement(element, group) {
     nextState = element.signalState === "fahrt" ? "halt" : "fahrt";
   } else if (type === "espSignal") {
     path = "/esp-signal/control";
-    const cycle = { halt: "warnung", warnung: "fahrt", fahrt: "halt" };
+    const cycle = element.signalAspectMode === "rgy"
+      ? { halt: "warnung", warnung: "fahrt", fahrt: "halt" }
+      : { halt: "fahrt", fahrt: "halt", warnung: "halt" };
     nextState = cycle[element.espState || element.ledState || "halt"] || "halt";
   } else {
     return;
@@ -137,15 +143,15 @@ function fitTrackViewBox(svgRoot, elements) {
     svgRoot?.setAttribute("viewBox", "0 0 1600 900");
     return;
   }
-  const padding = 190;
+  const padding = 85;
   const xs = elements.map((e) => Number(e.x || 0));
   const ys = elements.map((e) => Number(e.y || 0));
   let minX = Math.min(...xs) - padding;
   let maxX = Math.max(...xs) + padding;
   let minY = Math.min(...ys) - padding;
   let maxY = Math.max(...ys) + padding;
-  let width = Math.max(760, maxX - minX);
-  let height = Math.max(430, maxY - minY);
+  let width = Math.max(360, maxX - minX);
+  let height = Math.max(240, maxY - minY);
   const rect = svgRoot.getBoundingClientRect();
   const aspect = rect.width > 0 && rect.height > 0 ? rect.width / rect.height : 16 / 9;
   const current = width / height;
@@ -159,9 +165,8 @@ function fitTrackViewBox(svgRoot, elements) {
     height = expanded;
   }
 
-  // Im Betriebs-Gleisbild bewusst etwas Luft lassen. Der Builder darf näher dran sein,
-  // die Bedienansicht soll aber den ganzen Plan ruhig und übersichtlich zeigen.
-  const zoomOut = 1.22;
+  // Nur wenig Sicherheitsrand: Das Gleisbild soll die verfügbare Fläche ausnutzen.
+  const zoomOut = 1.06;
   const extraW = width * (zoomOut - 1);
   const extraH = height * (zoomOut - 1);
   minX -= extraW / 2;
@@ -186,15 +191,16 @@ export function renderTrackLayout() {
 
   elements.forEach((element) => {
     const group = svg("g");
+    const interactive = uiType(element.typ) !== "bumper";
     const rotation = Number(element.rotation ?? element.winkel ?? 0);
     const occupied = isSensorTriggered(element);
-    group.classList.add("track-control-element");
+    if (interactive) group.classList.add("track-control-element");
     if (occupied) group.classList.add("sensor-triggered");
     group.dataset.id = element.id;
     group.setAttribute("transform", `translate(${Number(element.x || 0)}, ${Number(element.y || 0)}) rotate(${rotation})`);
-    group.setAttribute("role", "button");
-    group.setAttribute("tabindex", "0");
-    group.setAttribute("aria-label", `${element.name || uiType(element.typ)} schalten${occupied ? ", Sensor belegt" : ""}`);
+    group.setAttribute("role", interactive ? "button" : "img");
+    if (interactive) group.setAttribute("tabindex", "0");
+    group.setAttribute("aria-label", interactive ? `${element.name || uiType(element.typ)} schalten${occupied ? ", Sensor belegt" : ""}` : `${element.name || "Prellbock"} 5129`);
 
     const hitbox = svg("rect");
     attrs(hitbox, { x: -80, y: -55, width: 160, height: 115, fill: "transparent", "pointer-events": "all" });
@@ -202,8 +208,8 @@ export function renderTrackLayout() {
     drawShape(group, element, occupied);
     if (occupied) drawOccupancyBadge(group, rotation);
     drawLabel(group, element, rotation);
-    group.addEventListener("click", () => controlElement(element, group));
-    group.addEventListener("keydown", (event) => {
+    if (interactive) group.addEventListener("click", () => controlElement(element, group));
+    if (interactive) group.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       controlElement(element, group);

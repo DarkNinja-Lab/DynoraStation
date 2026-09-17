@@ -152,7 +152,6 @@ export async function rulesLaden() {
     state.rules = Array.isArray(data?.rules) ? data.rules : [];
   } catch { state.rules = []; }
   uiRules = state.rules.map(toUiRule);
-  if (!uiRules.length) uiRules = [defaultRule()];
 }
 
 export async function rulesSpeichern() {
@@ -222,7 +221,6 @@ function markRulesDirty() {
 export function renderRulesGrid() {
   const root = document.getElementById("rulesGrid");
   if (!root) return;
-  if (!uiRules.length) uiRules = [defaultRule()];
   const triggers = allTriggerOptions();
   const targets = targetOptions();
   const active = uiRules.filter((rule) => rule.enabled).length;
@@ -231,8 +229,8 @@ export function renderRulesGrid() {
     <div class="automation-stats"><div><strong>${uiRules.length}</strong><span>Automationen</span></div><div><strong>${active}</strong><span>Aktiv</span></div><div><strong>${incomplete}</strong><span>Unvollständig</span></div></div>
     <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-rule">＋ Automation anlegen</button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">Änderungen speichern</button></div>
   </div>
-  <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Automationen sind markiert." : "Alle Automationen sind vollständig konfiguriert."}</div>
-  <div class="automation-list">${uiRules.map((rule, index) => renderRow(rule, index, triggers, targets)).join("")}</div>`;
+  <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Automationen sind markiert." : uiRules.length ? "Alle Automationen sind vollständig konfiguriert." : "Noch keine Automation angelegt."}</div>
+  <div class="automation-list">${uiRules.length ? uiRules.map((rule, index) => renderRow(rule, index, triggers, targets)).join("") : `<div class="automation-empty"><span>＋</span><strong>Noch keine Wenn-Dann-Regel</strong><p>Lege erst über „Automation anlegen“ einen Ablauf an.</p></div>`}</div>`;
   if (bound) return;
   bound = true;
   root.addEventListener("change", (event) => {
@@ -261,7 +259,6 @@ export function renderRulesGrid() {
     if (button.dataset.action === "delete-rule") {
       const card = button.closest("[data-rule-index]");
       uiRules.splice(Number(card.dataset.ruleIndex), 1);
-      if (!uiRules.length) uiRules.push(defaultRule());
       rulesDirty = true;
     }
     if (button.dataset.action === "save-rules") {

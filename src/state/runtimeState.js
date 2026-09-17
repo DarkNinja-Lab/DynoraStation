@@ -2,7 +2,8 @@
 
 const path = require("path");
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const PROJECT_DIR = path.resolve(__dirname, "../..");
+const DATA_DIR = path.join(PROJECT_DIR, "data");
 const LAYOUT_FILE = path.join(DATA_DIR, "layout.json");
 const HARDWARE_FILE = path.join(DATA_DIR, "hardware.json");
 const RULES_FILE = path.join(DATA_DIR, "rules.json");
@@ -27,6 +28,7 @@ const runtimeState = {
   rateBuckets: new Map(),
 
   paths: {
+    PROJECT_DIR,
     DATA_DIR,
     LAYOUT_FILE,
     HARDWARE_FILE,

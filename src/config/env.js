@@ -4,6 +4,7 @@ const { toInt, parseState } = require("../utils/parse");
 
 const SERVER_IP = process.env.SERVER_IP || "127.0.0.1";
 const SERVER_PORT = toInt(process.env.SERVER_PORT, 8181);
+const NODE_ENV = String(process.env.NODE_ENV || "development").trim().toLowerCase();
 
 const MODULE_TIMEOUT = toInt(process.env.MODULE_TIMEOUT, 10000);
 const MAX_COMMANDS = toInt(process.env.MAX_COMMANDS, 500);
@@ -17,6 +18,7 @@ const TRUST_PROXY = parseState(process.env.TRUST_PROXY ?? "true");
 
 const ENABLE_DEBUG_ENDPOINTS = parseState(process.env.ENABLE_DEBUG_ENDPOINTS ?? "false");
 const ENABLE_SECURITY_HEADERS = parseState(process.env.ENABLE_SECURITY_HEADERS ?? "true");
+const REQUEST_LOGGING = parseState(process.env.REQUEST_LOGGING ?? "true");
 
 const CORS_ENABLED = parseState(process.env.CORS_ENABLED ?? "false");
 const CORS_ALLOWED_ORIGINS = String(process.env.CORS_ALLOWED_ORIGINS || "")
@@ -32,6 +34,7 @@ const RL_MODULE_MAX = toInt(process.env.RL_MODULE_MAX, 80);
 module.exports = {
   SERVER_IP,
   SERVER_PORT,
+  NODE_ENV,
   MODULE_TIMEOUT,
   MAX_COMMANDS,
   MAX_EVENTS,
@@ -42,6 +45,7 @@ module.exports = {
   TRUST_PROXY,
   ENABLE_DEBUG_ENDPOINTS,
   ENABLE_SECURITY_HEADERS,
+  REQUEST_LOGGING,
   CORS_ENABLED,
   CORS_ALLOWED_ORIGINS,
   RL_GLOBAL_WINDOW_MS,
