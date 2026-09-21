@@ -18,7 +18,9 @@ function createModuleRoutes({
   upsertRelay,
   upsertLed,
   upsertSensor,
-  updateElementsPowerByRelay
+  updateElementsPowerByRelay,
+  confirmedCommandApplier,
+  env
 }) {
   const router = express.Router();
 
@@ -32,7 +34,16 @@ function createModuleRoutes({
     module.lastHeartbeat = Date.now();
     module.ip = ipFromReq(req) || module.ip || "";
     const firmwareType = cleanText(req.body?.moduleType || "", 40);
+    const firmwareVersion = cleanText(req.body?.firmwareVersion || "", 40);
+    const protocolVersion = Number(req.body?.protocolVersion) || 0;
+    const hardwareType = cleanText(req.body?.hardwareType || "", 80);
+    module.firmwareVersion = firmwareVersion;
+    module.protocolVersion = protocolVersion;
+    module.hardwareType = hardwareType;
     const reportedName = cleanText(req.body?.moduleName || req.body?.name || "", 80);
+    const environmentInput = req.body?.environment && typeof req.body.environment === "object"
+      ? req.body.environment
+      : null;
     // Ein im Webinterface gesetzter Anzeigename darf nicht vom naechsten
     // Heartbeat der Firmware wieder ueberschrieben werden.
     if (!module.customName) {
@@ -42,21 +53,42 @@ function createModuleRoutes({
       console.log(`[ESP] online · ${module.name} · ID ${moduleId} · ${module.ip || "IP unbekannt"}`);
     }
 
+    const pendingModuleCommands = runtimeState.commandQueue.filter((command) => command.module === moduleId);
+    const pendingEmergency = pendingModuleCommands.some((command) => command.type === "NOT_AUS");
+    const pendingRelayChannels = new Set(pendingModuleCommands
+      .filter((command) => command.type === "RELAY_SET")
+      .map((command) => Number(command.data?.channel))
+      .filter((channel) => channel > 0));
+    const pendingLedChannels = new Set(pendingModuleCommands
+      .filter((command) => ["LED_SET", "LED_PWM", "LED_BLINK"].includes(command.type))
+      .map((command) => Number(command.data?.channel))
+      .filter((channel) => channel > 0));
+
     const relayStates = Array.isArray(req.body?.relays) ? req.body.relays : null;
     if (relayStates) {
-      module.relays = relayStates.map(Boolean);
+      const previousRelays = Array.isArray(module.relays) ? module.relays.slice() : [];
+      module.relays = relayStates.map((reportedState, index) => {
+        const channel = index + 1;
+        if (pendingEmergency || pendingRelayChannels.has(channel)) return Boolean(previousRelays[index]);
+        return Boolean(reportedState);
+      });
       runtimeState.hardware.relays = runtimeState.hardware.relays.filter(
         (relay) => relay.module !== moduleId || Number(relay.channel) <= relayStates.length
       );
-      relayStates.forEach((state, i) => {
+      module.relays.forEach((state, i) => {
         const channel = i + 1;
+        if (pendingEmergency || pendingRelayChannels.has(channel)) return;
         upsertRelay(runtimeState.hardware, moduleId, channel, Boolean(state));
         updateElementsPowerByRelay(runtimeState.layout, moduleId, channel, Boolean(state));
+        (runtimeState.hardware.lightButtons || []).forEach((button) => {
+          if ((button.moduleId || button.module) === moduleId && Number(button.relayIndex ?? button.relay) === channel) button.active = Boolean(state);
+        });
       });
     }
 
     const ledStates = Array.isArray(req.body?.leds) ? req.body.leds : null;
     if (ledStates) {
+      const previousLeds = Array.isArray(module.leds) ? module.leds.slice() : [];
       module.leds = [];
       const reportedLedChannels = new Set(ledStates
         .map((item, index) => validLedChannel(item?.channel ?? (index + 1)))
@@ -67,11 +99,15 @@ function createModuleRoutes({
       ledStates.forEach((x, i) => {
         const channel = validLedChannel(x?.channel ?? (i + 1));
         if (!channel) return;
-        const state = Boolean(x?.state);
-        const brightness = validBrightness(x?.brightness ?? (state ? 255 : 0));
-        const blinking = Boolean(x?.blinking);
+        const blockedByPendingAck = pendingEmergency || pendingLedChannels.has(channel);
+        const previous = previousLeds[channel - 1] || { state: false, brightness: 0, blinking: false };
+        const state = blockedByPendingAck ? Boolean(previous.state) : Boolean(x?.state);
+        const brightness = blockedByPendingAck
+          ? validBrightness(previous.brightness)
+          : validBrightness(x?.brightness ?? (state ? 255 : 0));
+        const blinking = blockedByPendingAck ? Boolean(previous.blinking) : Boolean(x?.blinking);
 
-        upsertLed(runtimeState.hardware, moduleId, channel, { state, brightness, blinking });
+        if (!blockedByPendingAck) upsertLed(runtimeState.hardware, moduleId, channel, { state, brightness, blinking });
 
         while (module.leds.length < channel) module.leds.push({ state: false, brightness: 0, blinking: false });
         module.leds[channel - 1] = { state, brightness, blinking };
@@ -137,6 +173,25 @@ function createModuleRoutes({
     if (declared.includes("relay") && !capabilities.includes("relay")) capabilities.push("relay");
     if (declared.includes("sensor") && !capabilities.includes("sensor")) capabilities.push("sensor");
     if ((declared.includes("led") || declared.includes("signal")) && !capabilities.includes("led")) capabilities.push("led");
+    if (environmentInput) {
+      const temperatureC = Number(environmentInput.temperatureC);
+      const humidityPct = Number(environmentInput.humidityPct);
+      const pressureHpa = Number(environmentInput.pressureHpa);
+      if (
+        Number.isFinite(temperatureC) && temperatureC >= -40 && temperatureC <= 85 &&
+        Number.isFinite(humidityPct) && humidityPct >= 0 && humidityPct <= 100 &&
+        Number.isFinite(pressureHpa) && pressureHpa >= 300 && pressureHpa <= 1100
+      ) {
+        module.environment = {
+          sensor: cleanText(environmentInput.sensor || "BME280", 24) || "BME280",
+          temperatureC: Math.round(temperatureC * 10) / 10,
+          humidityPct: Math.round(humidityPct * 10) / 10,
+          pressureHpa: Math.round(pressureHpa * 10) / 10,
+          updatedAt: Date.now()
+        };
+        capabilities.push("environment");
+      }
+    }
     if (capabilities.length) module.capabilities = capabilities;
     const hasLed = module.capabilities.includes("led");
     const hasRail = module.capabilities.includes("relay") || module.capabilities.includes("sensor");
@@ -154,14 +209,21 @@ function createModuleRoutes({
       kind: module.kind,
       capabilities: module.capabilities,
       ip: module.ip,
-      lastHeartbeat: module.lastHeartbeat
+      lastHeartbeat: module.lastHeartbeat,
+      firmwareVersion: module.firmwareVersion,
+      protocolVersion: module.protocolVersion,
+      hardwareType: module.hardwareType
     };
     runtimeState.hardware.updatedAt = Date.now();
     queueWriteHardware();
 
+    const compatibility = moduleRegistry.moduleCompatibility(module);
     res.json({
       ok: true,
       serverTime: Date.now(),
+      serverVersion: env.APP_VERSION,
+      protocolVersion: env.PROTOCOL_VERSION,
+      compatibility,
       accepted: {
         module: moduleId,
         relays: relayStates ? relayStates.length : 0,
@@ -193,7 +255,7 @@ function createModuleRoutes({
       customName: true
     };
     runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    await queueWriteHardware();
     addEvent("MODUL", moduleId, `ESP-Modul umbenannt: ${name}`);
 
     res.json({ ok: true, module: moduleId, name });
@@ -318,12 +380,10 @@ function createModuleRoutes({
       }
     });
 
-    runtimeState.commandQueue = runtimeState.commandQueue.filter((command) => command.module !== moduleId);
+    commandQueueApi.cancelCommandsForModule(moduleId, "Modul gelöscht");
     runtimeState.hardware.updatedAt = Date.now();
     runtimeState.rulesData.updatedAt = Date.now();
-    queueWriteHardware();
-    queueWriteLayout();
-    queueWriteRules();
+    await Promise.all([queueWriteHardware(), queueWriteLayout(), queueWriteRules()]);
     addEvent("MODUL", moduleId, `ESP-Modul ${moduleId} gelöscht`);
 
     res.json({
@@ -357,12 +417,27 @@ function createModuleRoutes({
     });
   });
 
-  router.post("/api/module/ack", (req, res, next) => {
+  router.post("/api/module/ack", wrap(async (req, res) => {
     const id = Number(req.body?.id);
-    if (!Number.isInteger(id)) return next(apiError(400, "BAD_COMMAND_ID", "Ungültige Befehls-ID"));
-    const removed = commandQueueApi.ackCommand(id);
-    res.json({ ok: true, bereitsBestaetigt: !removed });
-  });
+    if (!Number.isInteger(id)) throw apiError(400, "BAD_COMMAND_ID", "Ungültige Befehls-ID");
+    const moduleId = cleanText(req.body?.module || "", 48);
+    const success = req.body?.ok !== false;
+    const reason = cleanText(req.body?.error || req.body?.reason || "", 160);
+    const queued = runtimeState.commandQueue.find((item) => item.id === id);
+    if (queued && moduleId && queued.module !== moduleId) {
+      throw apiError(409, "COMMAND_MODULE_MISMATCH", "Befehl gehört zu einem anderen ESP-Modul");
+    }
+    const settled = commandQueueApi.ackCommand(id, { success, reason });
+    if (settled.command && success) await confirmedCommandApplier.apply(settled.command);
+    if (settled.command && !success) {
+      addEvent("COMMAND", `${settled.command.module}:${settled.command.type}`, `Befehl #${id} fehlgeschlagen: ${reason || "ESP-Fehler"}`);
+    }
+    res.json({
+      ok: true,
+      bereitsBestaetigt: Boolean(settled.alreadySettled),
+      commandStatus: settled.result?.status || "unknown"
+    });
+  }));
 
   return router;
 }

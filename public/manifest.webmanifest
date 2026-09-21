@@ -5,8 +5,8 @@
   "lang": "de",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#07131d",
-  "theme_color": "#07131d",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
   "icons": [
     {
       "src": "/assets/brand/dynora-logo-192.png",

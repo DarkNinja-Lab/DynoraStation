@@ -14,6 +14,7 @@ const runtimeState = {
   rulesData: null,
 
   commandQueue: [],
+  commandResults: [],
   events: [],
   nextCommandId: 1,
 

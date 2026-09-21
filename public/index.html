@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#17120c">
+  <meta name="theme-color" content="#0b0d12">
   <meta name="color-scheme" content="dark">
   <title>DynoraStation • H0 Modellbahnsteuerung</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/system-ui.css">
 </head>
 <body>
   <div class="app-shell">
@@ -17,19 +18,18 @@
       <div class="brand-bar">
         <div class="brand-icon"><img src="/assets/brand/dynora-logo-512.png" srcset="/assets/brand/dynora-logo-180.png 180w, /assets/brand/dynora-logo-192.png 192w, /assets/brand/dynora-logo-512.png 512w" sizes="40px" alt="Dynora Logo"></div>
         <div class="brand-text">
-          <span class="brand-works">DYNORA · STEAMWORKS</span>
+          <span class="brand-works">RAIL CONTROL SYSTEM</span>
           <strong>Dynora<span>Station</span></strong>
           <small>H0 · MODELLBAHNLEITSTELLE</small>
         </div>
       </div>
 
       <nav class="main-nav" aria-label="Hauptnavigation">
-        <button class="nav-button active" data-page="dashboard" type="button"><span>⌂</span><b>Übersicht</b></button>
-        <button class="nav-button" data-page="builder" type="button"><span>⌘</span><b>Gleisbild-Editor</b></button>
-        <button class="nav-button" data-page="track" type="button"><span>⌁</span><b>Gleisbild</b></button>
-        <button class="nav-button" data-page="settings" type="button"><span>⚙</span><b>Einstellungen</b></button>
-        <button class="nav-button" data-page="rules" type="button"><span>⇄</span><b>Regeln</b></button>
-        <button class="nav-button" data-page="events" type="button"><span>≡</span><b>Ereignisse</b></button>
+        <button class="nav-button active" data-page="dashboard" type="button"><span>01</span><b>Übersicht</b></button>
+        <button class="nav-button" data-page="builder" type="button"><span>02</span><b>Planung</b></button>
+        <button class="nav-button" data-page="track" type="button"><span>03</span><b>Betrieb</b></button>
+        <button class="nav-button" data-page="settings" type="button"><span>04</span><b>Einstellungen</b></button>
+        <button class="nav-button" data-page="events" type="button"><span>05</span><b>Protokoll</b></button>
       </nav>
 
       <div class="sidebar-status-box">
@@ -49,10 +49,10 @@
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>⌂</span><small>Start</small></button>
-      <button class="mobile-nav-button" data-page-link="track" type="button"><span>⌁</span><small>Gleisbild</small></button>
-      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>⌘</span><small>Builder</small></button>
-      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>⚙</span><small>Setup</small></button>
+      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>01</span><small>Start</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button"><span>03</span><small>Betrieb</small></button>
+      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>02</span><small>Planung</small></button>
+      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>04</span><small>Setup</small></button>
       <button id="mobileMoreButton" class="mobile-nav-button" type="button" aria-label="Weitere Bereiche öffnen" aria-controls="sidebar" aria-expanded="false"><span>•••</span><small>Mehr</small></button>
     </nav>
 
@@ -69,6 +69,7 @@
         </div>
 
         <div class="topbar-actions">
+          <span id="lastSyncStatus" class="last-sync">Synchronisierung läuft</span>
           <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
           <button id="emergencyButton" class="danger-button" type="button">NOT-AUS</button>
         </div>
@@ -77,14 +78,15 @@
       <section id="page-dashboard" class="page active">
         <section class="dashboard-commandbar">
           <div><span class="dashboard-live-dot"></span><div><strong>Betriebsübersicht</strong><small id="dashboardSummary">Systemstatus wird geladen …</small></div></div>
-          <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button">Anlage steuern</button><button class="secondary-button" data-page-link="builder" type="button">Plan bearbeiten</button><button class="secondary-button" data-page-link="settings" type="button">Hardware</button></div>
+          <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button">Anlage steuern</button><button class="secondary-button" data-page-link="builder" type="button">Plan bearbeiten</button><button class="secondary-button" data-page-link="settings" type="button">Einstellungen</button></div>
         </section>
 
         <div class="operations-grid">
-          <article class="operation-card server"><i aria-hidden="true">●</i><span>WebServer</span><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small></article>
-          <article class="operation-card"><i aria-hidden="true">⌁</i><span>ESP-Module</span><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small></article>
-          <article class="operation-card"><i aria-hidden="true">⇄</i><span>Relais</span><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small></article>
-          <article class="operation-card"><i aria-hidden="true">━</i><span>Gleisbild</span><strong id="elementCardStatus">0</strong><small>Elemente im Plan</small></article>
+          <article class="operation-card server"><i aria-hidden="true">SYS</i><span>WebServer</span><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small></article>
+          <article class="operation-card"><i aria-hidden="true">ESP</i><span>Module</span><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small></article>
+          <article class="operation-card"><i aria-hidden="true">I/O</i><span>Relais</span><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small></article>
+          <article class="operation-card"><i aria-hidden="true">PLN</i><span>Gleisbild</span><strong id="elementCardStatus">0</strong><small>Elemente im Plan</small></article>
+          <article class="operation-card temperature-card"><i aria-hidden="true">°C</i><span>Trafo</span><strong id="temperatureCardStatus">–</strong><small id="temperatureCardDetail">BME280 nicht gemeldet</small></article>
         </div>
 
         <div class="dashboard-workspace">
@@ -93,7 +95,7 @@
             <div class="dashboard-plan"><svg id="dashboardTrackSvg" viewBox="0 0 1600 900" aria-label="Vorschau des Gleisbilds"><g id="dashboardTrackElements"></g><text id="dashboardTrackEmpty" x="800" y="450" text-anchor="middle">Noch kein Gleisbild erstellt</text></svg></div>
           </section>
           <section class="panel dashboard-modules-panel">
-            <div class="panel-header"><div><div class="eyebrow">HARDWARE</div><h2>Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten →</button></div>
+            <div class="panel-header"><div><div class="eyebrow">SYSTEM</div><h2>Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten →</button></div>
             <div id="dashboardModuleList" class="dashboard-module-list"></div>
           </section>
           <section class="panel dashboard-events-panel">
@@ -323,15 +325,29 @@
       </section>
 
       <section id="page-settings" class="page">
+        <section class="hardware-center-head">
+          <div>
+            <div class="eyebrow">SYSTEM</div>
+            <h2>Einstellungen</h2>
+            <p>Module, Ein- und Ausgänge sowie das Verhalten beim Betriebsstart verwalten.</p>
+          </div>
+          <div class="hardware-health" id="settingsHealthStatus"><span></span>Systemstatus wird geprüft</div>
+        </section>
+        <div class="hardware-summary-grid" aria-label="System-Zusammenfassung">
+          <article><span>Module</span><strong id="settingsModulesSummary">0 / 0</strong><small>online / registriert</small></article>
+          <article><span>Ausgänge</span><strong id="settingsOutputsSummary">0</strong><small>Relais und LEDs</small></article>
+          <article><span>Eingänge</span><strong id="settingsSensorsSummary">0</strong><small>Sensoren erkannt</small></article>
+          <article><span>Konfiguration</span><strong id="settingsConfigSummary">0</strong><small>zugewiesene Kanäle</small></article>
+        </div>
         <div class="settings-workspace">
         <nav class="settings-tabs" aria-label="Einstellungsbereiche">
-          <div class="settings-nav-head"><span>KONFIGURATION</span><strong>Anlage & Hardware</strong><small>Bereich auswählen</small></div>
-          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon">▦</span><span><b>Module</b><small>ESP-Geräte verwalten</small></span></button>
-          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">◉</span><span><b>Licht</b><small>Bedienfelder zuweisen</small></span></button>
-          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">⇄</span><span><b>Relais</b><small>Ausgänge konfigurieren</small></span></button>
-          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">⌁</span><span><b>Sensoren</b><small>Eingänge und Namen</small></span></button>
-          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">●</span><span><b>LEDs</b><small>Kanäle einrichten und testen</small></span></button>
-          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">◇</span><span><b>Grundstellung</b><small>Startzustände festlegen</small></span></button>
+          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon">01</span><span><b>Module</b><small>ESP-Geräte</small></span></button>
+          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">02</span><span><b>Lichttasten</b><small>Bedienfelder</small></span></button>
+          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">03</span><span><b>Relais</b><small>Ausgänge</small></span></button>
+          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">04</span><span><b>Sensoren</b><small>Eingänge</small></span></button>
+          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">05</span><span><b>LEDs</b><small>Signalkanäle</small></span></button>
+          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon">06</span><span><b>Automationen</b><small>Wenn–Dann</small></span></button>
+          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">07</span><span><b>Grundstellung</b><small>Betriebsstart</small></span></button>
         </nav>
         <div class="settings-content">
 
@@ -411,12 +427,7 @@
           </div>
           <div id="ledConfigGrid" class="light-config-grid"></div>
         </section>
-        </div>
-        </div>
-      </section>
-
-      <section id="page-rules" class="page">
-        <section class="panel settings-panel compact rules-shell">
+        <section class="panel settings-panel compact settings-section rules-shell" data-settings-section="rules">
           <div class="panel-header">
             <div>
               <div class="eyebrow">AUTOMATISIERUNG</div>
@@ -426,6 +437,8 @@
           </div>
           <div id="rulesGrid" class="rules-grid"></div>
         </section>
+        </div>
+        </div>
       </section>
 
       <section id="page-events" class="page">
@@ -436,6 +449,11 @@
               <h2>Ereignisprotokoll</h2>
               <p>Sensor-, Relais- und Systemmeldungen.</p>
             </div>
+          </div>
+          <div class="event-toolbar">
+            <label><span>Suche</span><input id="eventSearch" type="search" placeholder="Meldung, Quelle oder Typ"></label>
+            <label><span>Typ</span><select id="eventTypeFilter"><option value="">Alle Ereignisse</option></select></label>
+            <span id="eventResultCount" class="event-result-count">0 Einträge</span>
           </div>
           <div id="eventList" class="event-list"></div>
         </section>

@@ -3,6 +3,7 @@
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 import { showToast } from "../ui/toast.js";
+import { commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
@@ -14,6 +15,8 @@ function uiType(type) {
   if (type === "ledSignal") return "espSignal";
   return type;
 }
+
+const pendingControlIds = new Set();
 
 function catalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
@@ -48,6 +51,41 @@ function drawOccupancyBadge(group, rotation) {
   attrs(label, { x: -12, y: 3.5, "font-size": 8, "font-weight": 850, "letter-spacing": .7 });
   label.textContent = "BELEGT";
   badge.append(background, dot, label);
+  group.appendChild(badge);
+}
+
+
+function drawCommandBadge(group, feedback, rotation, disabledReason = "") {
+  const text = disabledReason || commandStatusText(feedback);
+  if (!text) return;
+  const status = disabledReason ? "disabled" : (feedback?.status || "");
+  const badge = svg("g");
+  badge.classList.add("command-state-badge", `status-${status}`);
+  badge.setAttribute("transform", `translate(0 50) rotate(${-rotation})`);
+  const width = Math.max(94, Math.min(190, 24 + text.length * 5.4));
+  const background = svg("rect");
+  attrs(background, { x: -width / 2, y: -11, width, height: 22, rx: 6 });
+  const label = svg("text");
+  attrs(label, { x: 0, y: 3.5, "text-anchor": "middle", "font-size": 8.5, "font-weight": 800 });
+  label.textContent = text;
+  badge.append(background, label);
+  group.appendChild(badge);
+}
+
+function drawTransformerTemperature(group, element, rotation) {
+  if (uiType(element.typ) !== "transformer") return;
+  const module = state.hardware?.modules?.[String(element.module || "")];
+  const value = Number(module?.environment?.temperatureC);
+  if (!module?.online || !Number.isFinite(value)) return;
+  const badge = svg("g");
+  badge.classList.add("transformer-temperature");
+  badge.setAttribute("transform", `translate(0 -52) rotate(${-rotation})`);
+  const background = svg("rect");
+  attrs(background, { x: -31, y: -12, width: 62, height: 24, rx: 4 });
+  const label = svg("text");
+  attrs(label, { x: 0, y: 4, "text-anchor": "middle", "font-size": 11, "font-weight": 800 });
+  label.textContent = `${value.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`;
+  badge.append(background, label);
   group.appendChild(badge);
 }
 
@@ -95,6 +133,17 @@ function drawShape(group, element, occupied = false) {
 }
 
 async function controlElement(element, group) {
+  if (!element?.id || pendingControlIds.has(element.id)) return;
+  const control = moduleControlInfo(element.module);
+  const feedback = commandFeedbackForElement(element.id);
+  if (!control.enabled) {
+    showToast(control.reason || "ESP nicht schaltbereit", "warning");
+    return;
+  }
+  if (feedback?.status === "pending") {
+    showToast("Schaltvorgang läuft bereits", "warning");
+    return;
+  }
   const type = uiType(element.typ);
   let path = "";
   let nextState;
@@ -122,18 +171,21 @@ async function controlElement(element, group) {
   }
 
   group.classList.add("busy");
+  group.setAttribute("aria-disabled", "true");
+  pendingControlIds.add(element.id);
   try {
-    await apiCall(path, { method: "POST", body: { elementId: element.id, state: nextState } });
-    if (["track", "curve", "transformer"].includes(type)) element.powerState = nextState;
-    if (type === "switch") element.switchState = nextState;
-    if (type === "crossing") element.xState = nextState;
-    if (type === "signal") element.signalState = nextState;
-    if (type === "espSignal") element.espState = element.ledState = nextState;
-    renderTrackLayout();
+    const body = ["track", "curve", "transformer"].includes(type)
+      ? { elementId: element.id, toggle: true }
+      : { elementId: element.id, state: nextState };
+    const result = await apiCall(path, { method: "POST", body });
+    rememberPendingCommands(result);
   } catch (error) {
     showToast(error?.message || "Element konnte nicht geschaltet werden", "error");
   } finally {
+    pendingControlIds.delete(element.id);
     group.classList.remove("busy");
+    group.removeAttribute("aria-disabled");
+    renderTrackLayout();
   }
 }
 
@@ -191,16 +243,27 @@ export function renderTrackLayout() {
 
   elements.forEach((element) => {
     const group = svg("g");
-    const interactive = uiType(element.typ) !== "bumper";
+    const control = moduleControlInfo(element.module);
+    const feedback = commandFeedbackForElement(element.id);
+    const hardwareInteractive = uiType(element.typ) !== "bumper";
+    const interactive = hardwareInteractive && control.enabled && feedback?.status !== "pending";
     const rotation = Number(element.rotation ?? element.winkel ?? 0);
     const occupied = isSensorTriggered(element);
-    if (interactive) group.classList.add("track-control-element");
+    if (hardwareInteractive) group.classList.add("track-control-element");
+    if (!control.enabled && hardwareInteractive) group.classList.add("control-disabled", control.module?.online ? "incompatible" : "offline");
+    if (feedback?.status) group.classList.add(`command-${feedback.status}`);
+    if (pendingControlIds.has(element.id) || feedback?.status === "pending") group.classList.add("busy");
     if (occupied) group.classList.add("sensor-triggered");
     group.dataset.id = element.id;
     group.setAttribute("transform", `translate(${Number(element.x || 0)}, ${Number(element.y || 0)}) rotate(${rotation})`);
-    group.setAttribute("role", interactive ? "button" : "img");
-    if (interactive) group.setAttribute("tabindex", "0");
-    group.setAttribute("aria-label", interactive ? `${element.name || uiType(element.typ)} schalten${occupied ? ", Sensor belegt" : ""}` : `${element.name || "Prellbock"} 5129`);
+    group.setAttribute("role", hardwareInteractive ? "button" : "img");
+    if (hardwareInteractive) group.setAttribute("tabindex", interactive ? "0" : "-1");
+    if (hardwareInteractive && !interactive) group.setAttribute("aria-disabled", "true");
+    const feedbackText = commandStatusText(feedback);
+    const disabledText = !control.enabled && hardwareInteractive ? control.reason : "";
+    group.setAttribute("aria-label", hardwareInteractive
+      ? `${element.name || uiType(element.typ)}${occupied ? ", Sensor belegt" : ""}${disabledText ? `, ${disabledText}` : ""}${feedbackText ? `, ${feedbackText}` : ""}`
+      : `${element.name || "Prellbock"} 5129`);
 
     const hitbox = svg("rect");
     const is5141 = uiType(element.typ) === "switch" && elementCatalogItem(element).switchGeometry === "5141";
@@ -210,6 +273,8 @@ export function renderTrackLayout() {
     group.appendChild(hitbox);
     drawShape(group, element, occupied);
     if (occupied) drawOccupancyBadge(group, rotation);
+    drawTransformerTemperature(group, element, rotation);
+    if (hardwareInteractive) drawCommandBadge(group, feedback, rotation, !control.enabled && !feedback ? control.reason : "");
     drawLabel(group, element, rotation);
     if (interactive) group.addEventListener("click", () => controlElement(element, group));
     if (interactive) group.addEventListener("keydown", (event) => {

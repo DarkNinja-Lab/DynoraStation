@@ -79,7 +79,7 @@ function actionOptions(type) {
 }
 
 function defaultRule() {
-  return { id: `RULE_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: "Neue Automation", enabled: true, cooldownMs: 500, triggerType: "sensor", triggerRef: "", triggerState: "triggered", targetType: "relay", targetRef: "", action: "on" };
+  return { id: `RULE_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: "Neue Automation", enabled: true, cooldownMs: 5000, triggerType: "sensor", triggerRef: "", triggerState: "triggered", targetType: "relay", targetRef: "", action: "on" };
 }
 
 function toUiRule(rule) {
@@ -101,7 +101,7 @@ function toUiRule(rule) {
     id: rule.id,
     name: rule.name || "Automation",
     enabled: rule.enabled !== false,
-    cooldownMs: Number(rule.cooldownMs || 500),
+    cooldownMs: Number(rule.cooldownMs ?? 5000),
     triggerType,
     triggerRef,
     triggerState,
@@ -205,8 +205,8 @@ function renderRow(rule, index, triggers, targets) {
       </section>
     </div>
     <footer class="automation-card-footer">
-      <span>Wiederholschutz verhindert mehrfaches Auslösen in kurzer Folge.</span>
-      <label>Wiederholschutz <input data-field="cooldownMs" type="number" min="0" step="100" value="${rule.cooldownMs}"> ms</label>
+      <span>Nach einer Auslösung ignoriert diese Automation weitere Treffer bis zum Ablauf der Sperrzeit.</span>
+      <label>Sperrzeit <input data-field="cooldownSeconds" type="number" min="0" max="86400" step="0.5" value="${Math.round((rule.cooldownMs / 1000) * 10) / 10}"> Sekunden</label>
     </footer>
   </article>`;
 }
@@ -239,7 +239,9 @@ export function renderRulesGrid() {
     const rule = uiRules[Number(card.dataset.ruleIndex)];
     const field = event.target.dataset.field;
     if (!rule || !field) return;
-    rule[field] = field === "enabled" ? event.target.checked : field === "cooldownMs" ? Number(event.target.value) : event.target.value;
+    rule[field === "cooldownSeconds" ? "cooldownMs" : field] = field === "enabled"
+      ? event.target.checked
+      : field === "cooldownSeconds" ? Math.max(0, Number(event.target.value) || 0) * 1000 : event.target.value;
     markRulesDirty();
     if (field === "enabled") { renderRulesGrid(); return; }
     if (field === "targetType") { rule.targetRef = ""; rule.action = actionOptions(rule.targetType)[0][0]; renderRulesGrid(); }
@@ -248,8 +250,9 @@ export function renderRulesGrid() {
   root.addEventListener("input", (event) => {
     const card = event.target.closest("[data-rule-index]");
     const field = event.target.dataset.field;
-    if (!card || !["name", "cooldownMs"].includes(field)) return;
-    uiRules[Number(card.dataset.ruleIndex)][field] = field === "cooldownMs" ? Number(event.target.value) : event.target.value;
+    if (!card || !["name", "cooldownSeconds"].includes(field)) return;
+    if (field === "cooldownSeconds") uiRules[Number(card.dataset.ruleIndex)].cooldownMs = Math.max(0, Number(event.target.value) || 0) * 1000;
+    else uiRules[Number(card.dataset.ruleIndex)].name = event.target.value;
     markRulesDirty();
   });
   root.addEventListener("click", async (event) => {

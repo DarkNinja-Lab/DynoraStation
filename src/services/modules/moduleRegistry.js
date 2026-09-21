@@ -3,7 +3,29 @@
 const { cleanText, validBrightness } = require("../../utils/sanitize");
 const { toNumber } = require("../../utils/parse");
 
-function createModuleRegistry({ runtimeState, moduleTimeout }) {
+function createModuleRegistry({ runtimeState, moduleTimeout, protocolVersion = 2 }) {
+  function compatibilityFor(m) {
+    const reportedProtocol = Number(m?.protocolVersion);
+    if (!Number.isFinite(reportedProtocol) || reportedProtocol <= 0) {
+      return { compatible: false, status: "unknown", reason: "Protokollversion fehlt" };
+    }
+    if (reportedProtocol !== Number(protocolVersion)) {
+      return {
+        compatible: false,
+        status: "incompatible",
+        reason: `Protokoll ${reportedProtocol} ist nicht mit Server-Protokoll ${protocolVersion} kompatibel`
+      };
+    }
+    const missing = [];
+    if (!cleanText(m?.firmwareVersion || "", 40)) missing.push("Firmwareversion");
+    if (!cleanText(m?.hardwareType || "", 80)) missing.push("Hardwaretyp");
+    return {
+      compatible: true,
+      status: missing.length ? "warning" : "compatible",
+      reason: missing.length ? `${missing.join(" und ")} fehlt` : "Kompatibel"
+    };
+  }
+
   function getOrCreateModule(moduleId) {
     const id = cleanText(moduleId || "GLEIS_01", 48) || "GLEIS_01";
     if (!runtimeState.modules[id]) {
@@ -17,9 +39,13 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
         ip: "",
         online: false,
         lastHeartbeat: 0,
+        firmwareVersion: "",
+        protocolVersion: 0,
+        hardwareType: "",
         relays: [],
         sensors: [],
-        leds: []
+        leds: [],
+        environment: null
       };
     }
     return runtimeState.modules[id];
@@ -30,27 +56,43 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
     return hb > 0 && (Date.now() - hb) < moduleTimeout;
   }
 
+  function moduleCompatibility(m) {
+    return compatibilityFor(m);
+  }
+
+  function moduleCanControl(m) {
+    return moduleIsOnline(m) && compatibilityFor(m).compatible;
+  }
+
+  function statusObject(m) {
+    const online = moduleIsOnline(m);
+    const compatibility = compatibilityFor(m);
+    return {
+      id: m.id,
+      name: m.name,
+      customName: Boolean(m.customName),
+      type: m.type,
+      typ: m.type,
+      capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
+      kind: m.kind || "UNKNOWN",
+      ip: m.ip,
+      online,
+      firmwareVersion: cleanText(m.firmwareVersion || "", 40),
+      protocolVersion: Number(m.protocolVersion) || 0,
+      hardwareType: cleanText(m.hardwareType || "", 80),
+      compatibility,
+      relays: Array.isArray(m.relays) ? m.relays : [],
+      relais: Array.isArray(m.relays) ? m.relays : [],
+      sensors: Array.isArray(m.sensors) ? m.sensors : [],
+      sensoren: Array.isArray(m.sensors) ? m.sensors : [],
+      leds: Array.isArray(m.leds) ? m.leds : [],
+      environment: m.environment && typeof m.environment === "object" ? m.environment : null,
+      lastHeartbeat: Number(m.lastHeartbeat || 0)
+    };
+  }
+
   function listModulesStatus() {
-    return Object.values(runtimeState.modules).map((m) => {
-      const online = moduleIsOnline(m);
-      return {
-        id: m.id,
-        name: m.name,
-        customName: Boolean(m.customName),
-        type: m.type,
-        typ: m.type,
-        capabilities: Array.isArray(m.capabilities) ? m.capabilities : [],
-        kind: m.kind || "UNKNOWN",
-        ip: m.ip,
-        online,
-        relays: Array.isArray(m.relays) ? m.relays : [],
-        relais: Array.isArray(m.relays) ? m.relays : [],
-        sensors: Array.isArray(m.sensors) ? m.sensors : [],
-        sensoren: Array.isArray(m.sensors) ? m.sensors : [],
-        leds: Array.isArray(m.leds) ? m.leds : [],
-        lastHeartbeat: Number(m.lastHeartbeat || 0)
-      };
-    });
+    return Object.values(runtimeState.modules).map(statusObject);
   }
 
   function bootstrapModulesFromHardware(hardware) {
@@ -61,7 +103,6 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       const moduleId = cleanText(r?.module || "GLEIS_01", 48) || "GLEIS_01";
       const channel = toNumber(r?.channel, 0);
       if (channel <= 0) return;
-
       const m = getOrCreateModule(moduleId);
       if (!m.capabilities.includes("relay")) m.capabilities.push("relay");
       while (m.relays.length < channel) m.relays.push(false);
@@ -73,12 +114,9 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       const moduleId = cleanText(l?.module || "GLEIS_01", 48) || "GLEIS_01";
       const channel = toNumber(l?.channel, 0);
       if (channel <= 0) return;
-
       const m = getOrCreateModule(moduleId);
       if (!m.capabilities.includes("led")) m.capabilities.push("led");
-      while (m.leds.length < channel) {
-        m.leds.push({ state: false, brightness: 0, blinking: false });
-      }
+      while (m.leds.length < channel) m.leds.push({ state: false, brightness: 0, blinking: false });
       m.leds[channel - 1] = {
         state: Boolean(l?.state),
         brightness: validBrightness(l?.brightness),
@@ -91,41 +129,34 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
       const moduleId = cleanText(s?.module || "GLEIS_01", 48) || "GLEIS_01";
       const sensorId = cleanText(s?.id || "", 48);
       if (!sensorId) return;
-
       const m = getOrCreateModule(moduleId);
       if (!m.capabilities.includes("sensor")) m.capabilities.push("sensor");
       const idx = m.sensors.findIndex((x) => x.id === sensorId);
-      const sensorObj = {
-        id: sensorId,
-        name: s?.name || sensorId,
-        triggered: Boolean(s?.triggered),
-        lastEvent: Number(s?.lastEvent || 0)
-      };
-
+      const sensorObj = { id: sensorId, name: s?.name || sensorId, triggered: Boolean(s?.triggered), lastEvent: Number(s?.lastEvent || 0) };
       if (idx >= 0) m.sensors[idx] = sensorObj;
       else m.sensors.push(sensorObj);
     });
 
-    // FIX: modules (Plural) statt module
     const modulesMeta = safeHw.modules && typeof safeHw.modules === "object" ? safeHw.modules : {};
     Object.values(modulesMeta).forEach((mi) => {
       const moduleId = cleanText(mi?.id || "", 48);
       if (!moduleId) return;
-
       const m = getOrCreateModule(moduleId);
       m.name = cleanText(mi?.name || m.name, 80) || m.name;
       m.customName = Boolean(mi?.customName);
       m.type = cleanText(mi?.type || m.type, 40) || m.type;
       if (Array.isArray(mi?.capabilities) && mi.capabilities.length) {
-        m.capabilities = mi.capabilities.filter((x) => ["relay", "sensor", "led"].includes(x));
+        m.capabilities = mi.capabilities.filter((x) => ["relay", "sensor", "led", "environment"].includes(x));
       }
       m.kind = cleanText(mi?.kind || m.kind, 40) || m.kind;
       m.ip = cleanText(mi?.ip || m.ip, 80) || m.ip;
       m.lastHeartbeat = toNumber(mi?.lastHeartbeat, m.lastHeartbeat || 0);
+      m.firmwareVersion = cleanText(mi?.firmwareVersion || "", 40);
+      m.protocolVersion = toNumber(mi?.protocolVersion, 0);
+      m.hardwareType = cleanText(mi?.hardwareType || "", 80);
       m.online = moduleIsOnline(m);
     });
 
-    // Final konsistent setzen
     Object.values(runtimeState.modules).forEach((m) => {
       const hasLed = m.capabilities.includes("led");
       const hasRail = m.capabilities.includes("relay") || m.capabilities.includes("sensor");
@@ -138,6 +169,8 @@ function createModuleRegistry({ runtimeState, moduleTimeout }) {
   return {
     getOrCreateModule,
     moduleIsOnline,
+    moduleCompatibility,
+    moduleCanControl,
     listModulesStatus,
     bootstrapModulesFromHardware
   };

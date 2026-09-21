@@ -466,10 +466,10 @@ function escape(str) {
 }
 
 function getModuleOptions(selected, elementType = "track") {
-  const needed = elementType === "espSignal" ? "led" : "relay";
-  const list = Object.values(state.hardware?.modules || {}).filter((module) => moduleSupports(module, needed));
-  const emptyLabel = needed === "led" ? "Kein LED-ESP gewählt" : "Kein Modul";
-  const unavailable = list.length ? "" : `<option value="" disabled>Kein ${needed === "led" ? "LED-ESP" : "Relais-ESP"} erkannt</option>`;
+  const needed = elementType === "espSignal" ? "led" : "io";
+  const list = inventoryModules().filter((module) => moduleSupports(module, needed));
+  const emptyLabel = needed === "led" ? "Kein LED-ESP gewählt" : "Kein ESP-Modul gewählt";
+  const unavailable = list.length ? "" : `<option value="" disabled>Kein ${needed === "led" ? "LED-ESP" : "I/O-Modul"} erkannt</option>`;
   return `<option value="">${emptyLabel}</option>${unavailable}` + list.map((module) => {
     const label = moduleKindLabel(module);
     return `<option value="${escape(module.id)}" ${module.id === selected ? "selected" : ""}>${escape(module.name || module.id)} · ${label}</option>`;
@@ -477,8 +477,8 @@ function getModuleOptions(selected, elementType = "track") {
 }
 
 function getRelayOptions(module, selected) {
-  const count = Array.isArray(state.hardware?.modules?.[module]?.relays) ? state.hardware.modules[module].relays.length : 0;
-  return `<option value="0">Kein Relay</option>${Array.from({ length: count }, (_, i) => i + 1).map((channel) => {
+  const channels = relayChannelsForModule(module);
+  return `<option value="0">Kein Relais</option>${channels.map((channel) => {
     const configured = state.relayConfig?.[`${module}:${channel}`]?.name;
     const label = configured ? `${configured} (Relay ${channel})` : `Relay ${channel}`;
     return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${escape(label)}</option>`;
@@ -486,9 +486,9 @@ function getRelayOptions(module, selected) {
 }
 
 function getSensorOptions(module, selected) {
-  const sensors = Array.isArray(state.hardware?.modules?.[module]?.sensors) ? state.hardware.modules[module].sensors : [];
-  return `<option value="">Kein Sensor</option>${sensors.map((sensor, index) => {
-    const id = sensor?.id || `S${index + 1}`;
+  const sensors = sensorsForModule(module);
+  return `<option value="">Kein Sensor</option>${sensors.map((sensor) => {
+    const id = sensor.id;
     const configured = state.sensorConfig?.[`${module}:${id}`]?.name;
     const label = configured || sensor?.name || id;
     return `<option value="${escape(id)}" ${selected === id ? "selected" : ""}>${escape(label)}</option>`;
@@ -526,12 +526,60 @@ function ledChannelsForModule(moduleId) {
 
 function moduleSupports(module, capability) {
   const caps = Array.isArray(module?.capabilities) ? module.capabilities : [];
+  if (capability === "io") return moduleSupports(module, "relay") || moduleSupports(module, "sensor");
   if (caps.includes(capability)) return true;
-  if (capability === "relay" && Array.isArray(module?.relays) && module.relays.length > 0) return true;
+  if (capability === "relay" && relayChannelsForModule(module?.id).length > 0) return true;
+  if (capability === "sensor" && sensorsForModule(module?.id).length > 0) return true;
   if (capability === "led" && ledChannelsForModule(module?.id).length > 0) return true;
   if (capability === "relay" && (module?.kind === "RELAY_SENSOR" || module?.kind === "HYBRID")) return true;
+  if (capability === "sensor" && (module?.kind === "RELAY_SENSOR" || module?.kind === "HYBRID")) return true;
   if (capability === "led" && (module?.kind === "SIGNAL_LED" || module?.kind === "HYBRID")) return true;
   return module?.kind === "UNKNOWN";
+}
+
+function inventoryModules() {
+  const live = state.hardware?.modules || {};
+  const ids = new Set(Object.keys(live));
+  (state.hardware?.relays || []).forEach((item) => item?.module && ids.add(item.module));
+  (state.hardware?.sensors || []).forEach((item) => item?.module && ids.add(item.module));
+  (state.hardware?.leds || []).forEach((item) => item?.module && ids.add(item.module));
+  return Array.from(ids).map((id) => live[id] || { id, name: id, kind: "UNKNOWN", online: false });
+}
+
+function relayChannelsForModule(moduleId) {
+  if (!moduleId) return [];
+  const channels = new Set();
+  const live = state.hardware?.modules?.[moduleId]?.relays;
+  if (Array.isArray(live)) live.forEach((_, index) => channels.add(index + 1));
+  (state.hardware?.relays || []).forEach((item) => {
+    if (item?.module === moduleId && Number(item.channel) > 0) channels.add(Number(item.channel));
+  });
+  Object.keys(state.relayConfig || {}).forEach((key) => {
+    if (!key.startsWith(`${moduleId}:`)) return;
+    const channel = Number(key.slice(moduleId.length + 1));
+    if (Number.isInteger(channel) && channel > 0) channels.add(channel);
+  });
+  return Array.from(channels).sort((a, b) => a - b);
+}
+
+function sensorsForModule(moduleId) {
+  if (!moduleId) return [];
+  const sensors = new Map();
+  const add = (sensor, fallbackId = "") => {
+    const id = String(sensor?.id || fallbackId || "").trim();
+    if (!id) return;
+    sensors.set(id, { ...(sensors.get(id) || {}), ...sensor, id });
+  };
+  (state.hardware?.modules?.[moduleId]?.sensors || []).forEach((sensor, index) => add(sensor, `S${index + 1}`));
+  (state.hardware?.sensors || []).forEach((sensor) => {
+    if (sensor?.module === moduleId) add(sensor);
+  });
+  Object.keys(state.sensorConfig || {}).forEach((key) => {
+    if (!key.startsWith(`${moduleId}:`)) return;
+    const id = key.slice(moduleId.length + 1);
+    add({ id, name: state.sensorConfig[key]?.name || id });
+  });
+  return Array.from(sensors.values()).sort((a, b) => a.id.localeCompare(b.id, "de", { numeric: true }));
 }
 
 document.addEventListener("dynora:modules-updated", () => {

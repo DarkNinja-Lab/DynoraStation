@@ -8,6 +8,18 @@
 | GND | VSS |
 | D2 / GPIO4 | SDA |
 | D1 / GPIO5 | SCL |
+
+Der BME280 wird am selben I²C-Bus angeschlossen: `VIN/VCC → 3V3`, `GND → GND`, `SDA → D2`, `SCL → D1`. Die Firmware erwartet standardmäßig die Adresse `0x76`.
+
+## Sensoreingänge am NodeMCU
+
+| Sensor | NodeMCU | GPIO | Hinweis |
+| --- | --- | ---: | --- |
+| S1 | D5 | 14 | boot-sicher, interner Pull-up |
+| S2 | D6 | 12 | boot-sicher, interner Pull-up |
+| S3 | D7 | 13 | boot-sicher, interner Pull-up |
+
+Die Sensoren schalten jeweils gegen GND. D3/GPIO0, D4/GPIO2 und D8/GPIO15 werden bewusst nicht verwendet, weil falsche Pegel dort den Start des ESP8266 verhindern können. RX/TX bleiben für Diagnoseausgaben frei; D0/GPIO16 bleibt Reserve.
 | 3V3 über 10 kΩ | RESET |
 | GND | A0, A1 und A2 |
 
@@ -34,7 +46,7 @@ Nach erfolgreichem Start muss der serielle Monitor Folgendes anzeigen:
 
 ```text
 [MCP23017] Online: 16 Relais an Adresse 0x20
-[SERVER] Heartbeat OK: 16 Relais, 2 Sensoren
+[SERVER] Heartbeat OK: 16 Relais, 3 Sensoren
 ```
 
 Danach erscheinen die Kanäle 1–16 automatisch in DynoraStation.

@@ -37,11 +37,14 @@ function normalizeHardware(input) {
       customName: Boolean(value?.customName),
       type: cleanText(value?.type || value?.typ || "GLEISSTEUERUNG", 40) || "GLEISSTEUERUNG",
       capabilities: Array.isArray(value?.capabilities)
-        ? value.capabilities.filter((item) => ["relay", "sensor", "led"].includes(item))
+        ? value.capabilities.filter((item) => ["relay", "sensor", "led", "environment"].includes(item))
         : [],
       kind: cleanText(value?.kind || "UNKNOWN", 40) || "UNKNOWN",
       ip: cleanText(value?.ip || "", 80),
-      lastHeartbeat: toNumber(value?.lastHeartbeat, 0)
+      lastHeartbeat: toNumber(value?.lastHeartbeat, 0),
+      firmwareVersion: cleanText(value?.firmwareVersion || "", 40),
+      protocolVersion: toNumber(value?.protocolVersion, 0),
+      hardwareType: cleanText(value?.hardwareType || "", 80)
     };
   });
 

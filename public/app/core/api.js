@@ -20,9 +20,17 @@ export async function apiCall(path, options = {}) {
     ...(options.headers || {})
   };
 
+  const timeoutMs = Math.max(500, Number(options.timeoutMs) || 8000);
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), timeoutMs);
+  const abortFromCaller = () => timeoutController.abort();
+  if (options.signal?.aborted) timeoutController.abort();
+  else options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+
   const fetchOptions = {
     method,
     headers,
+    signal: timeoutController.signal,
     ...(method === "GET" ? { cache: "no-store" } : {})
   };
 
@@ -30,11 +38,25 @@ export async function apiCall(path, options = {}) {
     fetchOptions.body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
   }
 
-  const res = await fetch(url, fetchOptions);
+  let res;
+  try {
+    res = await fetch(url, fetchOptions);
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      const timeoutError = new Error(`Zeitüberschreitung nach ${timeoutMs} ms`);
+      timeoutError.code = "REQUEST_TIMEOUT";
+      throw timeoutError;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    options.signal?.removeEventListener("abort", abortFromCaller);
+  }
+
   const data = await parseJsonSafe(res);
 
   if (!res.ok) {
-    const msg = data?.message || `${res.status} ${res.statusText}`;
+    const msg = data?.message || data?.fehler || `${res.status} ${res.statusText}`;
     const err = new Error(msg);
     err.status = res.status;
     err.payload = data;

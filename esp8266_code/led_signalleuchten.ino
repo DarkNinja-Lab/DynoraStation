@@ -25,6 +25,9 @@ const uint16_t SERVER_PORT = 8181;
 
 // Muss zum Modul in deinem Server passen
 const char* MODULE_ID = "LEDMOD_01";
+const char* FIRMWARE_VERSION = "2.0.7";
+const uint16_t PROTOCOL_VERSION = 2;
+const char* HARDWARE_TYPE = "ESP8266_NODEMCU_LED_DIRECT";
 
 // Taktung
 const unsigned long HEARTBEAT_INTERVAL_MS    = 2000;
@@ -201,6 +204,9 @@ void sendHeartbeat() {
   DynamicJsonDocument doc(1600);
   doc["module"] = MODULE_ID;
   doc["moduleType"] = "LED_CONTROLLER";
+  doc["firmwareVersion"] = FIRMWARE_VERSION;
+  doc["protocolVersion"] = PROTOCOL_VERSION;
+  doc["hardwareType"] = HARDWARE_TYPE;
 
   JsonArray leds = doc.createNestedArray("leds");
   for (uint8_t i = 0; i < LED_COUNT; i++) {
@@ -221,9 +227,12 @@ void sendHeartbeat() {
   }
 }
 
-void ackCommand(int id) {
-  DynamicJsonDocument doc(128);
+void ackCommand(int id, bool ok = true, const char* error = "") {
+  DynamicJsonDocument doc(256);
   doc["id"] = id;
+  doc["module"] = MODULE_ID;
+  doc["ok"] = ok;
+  if (!ok && error && error[0] != '\0') doc["error"] = error;
 
   String payload;
   serializeJson(doc, payload);
@@ -283,38 +292,40 @@ void executeCommand(const JsonObject& cmd) {
   int channel = cmd["channel"] | 0;
 
   if (strcmp(type, "LED_SET") == 0) {
+    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     bool state = cmd["state"] | false;
-    if (validChannel(channel)) setLedDigital(channelToIdx(channel), state);
-    if (id > 0) ackCommand(id);
+    setLedDigital(channelToIdx(channel), state);
+    if (id > 0) ackCommand(id, true);
     return;
   }
 
   if (strcmp(type, "LED_PWM") == 0) {
+    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     int b = cmd["brightness"] | 0;
     if (b < 0) b = 0;
     if (b > 255) b = 255;
-    if (validChannel(channel)) setLedPwm(channelToIdx(channel), (uint8_t)b);
-    if (id > 0) ackCommand(id);
+    setLedPwm(channelToIdx(channel), (uint8_t)b);
+    if (id > 0) ackCommand(id, true);
     return;
   }
 
   if (strcmp(type, "LED_BLINK") == 0) {
+    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     unsigned long onMs = (unsigned long)(cmd["onMs"] | 300);
     unsigned long offMs = (unsigned long)(cmd["offMs"] | 300);
     unsigned long durationMs = (unsigned long)(cmd["durationMs"] | 0);
-    if (validChannel(channel)) startBlink(channelToIdx(channel), onMs, offMs, durationMs);
-    if (id > 0) ackCommand(id);
+    startBlink(channelToIdx(channel), onMs, offMs, durationMs);
+    if (id > 0) ackCommand(id, true);
     return;
   }
 
   if (strcmp(type, "NOT_AUS") == 0) {
     allLedsOff();
-    if (id > 0) ackCommand(id);
+    if (id > 0) ackCommand(id, true);
     return;
   }
 
-  // Unbekanntes Kommando trotzdem ack, damit Queue nicht hängt
-  if (id > 0) ackCommand(id);
+  if (id > 0) ackCommand(id, false, "Unbekannter Befehl");
 }
 
 void pollNextCommand() {

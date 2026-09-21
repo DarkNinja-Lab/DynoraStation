@@ -13,6 +13,36 @@ let baseUrl;
 const dataFiles = ["layout.json", "hardware.json", "rules.json"];
 const dataSnapshot = new Map();
 
+function compatibleHeartbeat(payload = {}) {
+  return { firmwareVersion: "2.0.7", protocolVersion: 2, hardwareType: "TEST_ESP8266", ...payload };
+}
+
+async function nextCommand(moduleId) {
+  return (await (await fetch(`${baseUrl}/api/module/next-command?module=${encodeURIComponent(moduleId)}`)).json()).command;
+}
+
+async function ackCommand(moduleId, command, ok = true, error = "") {
+  assert.ok(command?.id, `Kein Befehl für ${moduleId}`);
+  const response = await fetch(`${baseUrl}/api/module/ack`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id: command.id, module: moduleId, ok, error })
+  });
+  assert.equal(response.status, 200);
+  return response.json();
+}
+
+async function ackAll(moduleId) {
+  const commands = [];
+  while (true) {
+    const command = await nextCommand(moduleId);
+    if (!command) break;
+    commands.push(command);
+    await ackCommand(moduleId, command);
+  }
+  return commands;
+}
+
 test.before(async () => {
   for (const name of dataFiles) {
     const file = path.join(projectDir, "data", name);
@@ -38,11 +68,23 @@ test.after(async () => {
 });
 
 test("UI und Kern-API sind erreichbar", async () => {
-  const endpoints = ["/", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
+  const endpoints = ["/", "/style.css", "/system-ui.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
   for (const endpoint of endpoints) {
     const response = await fetch(`${baseUrl}${endpoint}`);
     assert.equal(response.status, 200, endpoint);
   }
+});
+
+test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", () => {
+  const html = fs.readFileSync(path.join(projectDir, "public", "index.html"), "utf8");
+  const systemCss = fs.readFileSync(path.join(projectDir, "public", "system-ui.css"), "utf8");
+  assert.match(html, /data-settings-view="rules"/);
+  assert.match(html, /data-settings-section="rules"/);
+  assert.doesNotMatch(html, /id="page-rules"/);
+  assert.match(systemCss, /#page-dashboard\.active/);
+  assert.match(systemCss, /#page-builder\.active/);
+  assert.match(systemCss, /#page-track\.active/);
+  assert.match(systemCss, /grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
 
 test("alle Gleisbilder werden vollständig ausgeliefert", async () => {
@@ -70,6 +112,98 @@ test("fehlerhafte API-Payloads werden kontrolliert abgewiesen", async () => {
   const body = await response.json();
   assert.equal(body.ok, false);
   assert.equal(body.code, "BAD_RULES");
+});
+
+test("ESP-Polling verbraucht nicht das Browser-Rate-Limit", async () => {
+  const headers = { "content-type": "application/json" };
+  const moduleIds = ["ESP8266-RATE-A", "ESP8266-RATE-B"];
+  for (const moduleId of moduleIds) {
+    const heartbeat = await fetch(`${baseUrl}/api/module/heartbeat`, {
+      method: "POST", headers,
+      body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false] }))
+    });
+    assert.equal(heartbeat.status, 200);
+  }
+
+  for (let index = 0; index < 70; index += 1) {
+    for (const moduleId of moduleIds) {
+      const poll = await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`);
+      assert.equal(poll.status, 200, `${moduleId} Poll ${index + 1}`);
+    }
+  }
+
+  for (let index = 0; index < 30; index += 1) {
+    const status = await fetch(`${baseUrl}/api/status`);
+    assert.equal(status.status, 200, `Browser-Status ${index + 1}`);
+  }
+
+  for (const moduleId of moduleIds) {
+    await fetch(`${baseUrl}/api/module/delete`, {
+      method: "POST", headers, body: JSON.stringify({ module: moduleId })
+    });
+  }
+});
+
+test("BME280-Telemetrie wird validiert und im Status bereitgestellt", async () => {
+  const moduleId = "ESP8266-BME280";
+  const headers = { "content-type": "application/json" };
+  const heartbeat = await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      module: moduleId,
+      moduleType: "RELAY_SENSOR_CONTROLLER",
+      relays: Array(16).fill(false),
+      sensorInventory: ["S1", "S2", "S3"],
+      environment: { sensor: "BME280", temperatureC: 42.36, humidityPct: 51.24, pressureHpa: 1008.76 }
+    })
+  });
+  assert.equal(heartbeat.status, 200);
+
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  const module = status.hardware.modules[moduleId];
+  assert.ok(module.capabilities.includes("environment"));
+  assert.equal(module.environment.sensor, "BME280");
+  assert.equal(module.environment.temperatureC, 42.4);
+  assert.equal(module.environment.humidityPct, 51.2);
+  assert.equal(module.environment.pressureHpa, 1008.8);
+  assert.equal(module.sensors.length, 3);
+
+  await fetch(`${baseUrl}/api/module/delete`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId })
+  });
+});
+
+test("Automations-Sperrzeit blockiert erneute Sensortrigger", async () => {
+  const moduleId = "ESP8266-COOLDOWN";
+  const headers = { "content-type": "application/json" };
+  await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, relays: [false], sensorInventory: ["S1"], sensors: [{ id: "S1", triggered: false }] }))
+  });
+  const saveRules = await fetch(`${baseUrl}/api/rules`, {
+    method: "POST", headers,
+    body: JSON.stringify({ rules: [{
+      id: "RULE_COOLDOWN_TEST",
+      name: "Cooldown Test",
+      enabled: true,
+      cooldownMs: 5000,
+      condition: { kind: "sensor", module: moduleId, sensorId: "S1", triggered: true },
+      actions: [{ kind: "relay", module: moduleId, channel: 1, state: "on" }]
+    }] })
+  });
+  assert.equal(saveRules.status, 200);
+
+  const trigger = () => fetch(`${baseUrl}/api/module/sensor`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: moduleId, sensor: "S1", triggered: true })
+  });
+  const first = await (await trigger()).json();
+  const second = await (await trigger()).json();
+  assert.equal(first.automations.executed, 1);
+  assert.equal(second.automations.executed, 0);
+
+  await fetch(`${baseUrl}/api/rules`, { method: "POST", headers, body: JSON.stringify({ rules: [] }) });
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
 
 test("ESP-Anzeigename kann geaendert werden, ohne die technische ID zu verlieren", async () => {
@@ -106,12 +240,12 @@ test("ESP-Anzeigename kann geaendert werden, ohne die technische ID zu verlieren
 test("LED-ESP wird erkannt und LED-Konfiguration ueberlebt weitere Heartbeats", async () => {
   const moduleId = "ESP8266-LEDTEST";
   const headers = { "content-type": "application/json" };
-  const heartbeatBody = {
+  const heartbeatBody = compatibleHeartbeat({
     module: moduleId,
     moduleName: "LED Bahnhof",
     moduleType: "LED_CONTROLLER",
     leds: Array.from({ length: 3 }, (_, index) => ({ channel: index + 1, state: false, brightness: 0, blinking: false }))
-  };
+  });
   await fetch(`${baseUrl}/api/module/heartbeat`, { method: "POST", headers, body: JSON.stringify(heartbeatBody) });
   await fetch(`${baseUrl}/api/control/settings`, {
     method: "POST", headers,
@@ -213,16 +347,41 @@ test("Anlagenplattenmasse und Raster werden sofort persistent gespeichert", asyn
   assert.equal(persisted.elemente[0].showInDirectControl, false);
 });
 
+test("Relais-Grundstellungen werden angewendet und als Befehl ausgeliefert", async () => {
+  const moduleId = "ESP8266-DEFAULT-RELAY";
+  const headers = { "content-type": "application/json" };
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false] }))
+  })).status, 200);
+
+  const response = await fetch(`${baseUrl}/api/control/defaults/apply`, {
+    method: "POST", headers,
+    body: JSON.stringify({ defaults: [{ targetType: "relay", targetId: `${moduleId}:1`, action: "on" }] })
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).applied.length, 1);
+
+  const command = await (await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`)).json();
+  assert.equal(command.command.type, "RELAY_SET");
+  assert.equal(command.command.channel, 1);
+  assert.equal(command.command.state, true);
+
+  await fetch(`${baseUrl}/api/module/delete`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId })
+  });
+});
+
 test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfehler", async () => {
   const moduleId = "ESP8266-SIGNALTEST";
   const headers = { "content-type": "application/json" };
   await fetch(`${baseUrl}/api/module/heartbeat`, {
     method: "POST", headers,
-    body: JSON.stringify({
+    body: JSON.stringify(compatibleHeartbeat({
       module: moduleId,
       moduleType: "LED_CONTROLLER",
       leds: [1, 2, 3].map((channel) => ({ channel, state: false, brightness: 0 }))
-    })
+    }))
   });
   const baseElement = { id: "signal-test", typ: "espSignal", x: 200, y: 200, module: moduleId, ledChannelRed: 1, ledChannelGreen: 2, ledState: "halt" };
 
@@ -233,6 +392,7 @@ test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfeh
   assert.equal(response.status, 200);
   response = await fetch(`${baseUrl}/api/esp-signal/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "signal-test", state: "fahrt" }) });
   assert.equal(response.status, 200);
+  await ackAll(moduleId);
   response = await fetch(`${baseUrl}/api/esp-signal/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "signal-test", state: "warnung" }) });
   assert.equal(response.status, 400);
 
@@ -285,16 +445,17 @@ test("5141 stellt drei klar getrennte und korrekt ausgerichtete Anschluesse bere
   assert.notEqual(ports[1].x, ports[2].x);
 });
 
-test("Direktsteuerungs-Endpunkte schalten Gleis, Weiche, Kreuzung und Signal konsistent", async () => {
+test("Direktsteuerungs-Endpunkte übernehmen Zustände erst nach ESP-Bestätigung", async () => {
   const moduleId = "ESP8266-CONTROL-AUDIT";
   const headers = { "content-type": "application/json" };
   assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
     method: "POST", headers,
-    body: JSON.stringify({ module: moduleId, moduleType: "HYBRID", relays: Array(8).fill(false), leds: [{ channel: 1 }, { channel: 2 }] })
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "HYBRID", relays: Array(8).fill(false), leds: [{ channel: 1 }, { channel: 2 }] }))
   })).status, 200);
 
   const elements = [
     { id: "audit-track", typ: "track", module: moduleId, relay: 7 },
+    { id: "audit-track-shared", typ: "curve", module: moduleId, relay: 7 },
     { id: "audit-switch", typ: "switch", module: moduleId, switchCode: "5141", relayStraight: 1, relayBranch: 2 },
     { id: "audit-crossing", typ: "crossing", module: moduleId, xTrackCode: "5128", relayA: 3, relayB: 4 },
     { id: "audit-signal", typ: "signal", module: moduleId, relayHp0: 5, relayHp1: 6 }
@@ -303,33 +464,75 @@ test("Direktsteuerungs-Endpunkte schalten Gleis, Weiche, Kreuzung und Signal kon
     method: "POST", headers, body: JSON.stringify({ metadaten: {}, elemente: elements, verbindungen: [], stromkreise: [] })
   })).status, 200);
 
-  const commands = [
-    ["/api/track/control", { elementId: "audit-track", state: true }, true],
-    ["/api/switch/control", { elementId: "audit-switch", state: "abzweig" }, "abzweig"],
-    ["/api/xtrack/control", { elementId: "audit-crossing", state: "abzweig" }, "abzweig"],
-    ["/api/signal/control", { elementId: "audit-signal", state: "fahrt" }, "fahrt"]
+  const trackResponse = await fetch(`${baseUrl}/api/track/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "audit-track", state: true }) });
+  assert.equal(trackResponse.status, 200);
+  const trackBody = await trackResponse.json();
+  assert.equal(trackBody.commandStatus, "pending");
+  assert.deepEqual(new Set(trackBody.affectedElementIds), new Set(["audit-track", "audit-track-shared"]));
+
+  let status = await (await fetch(`${baseUrl}/api/status`)).json();
+  let byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+  assert.equal(byId.get("audit-track").powerState, false);
+  assert.equal(byId.get("audit-track-shared").powerState, false);
+  assert.equal(status.commands.find((item) => item.id === trackBody.befehl.id).status, "pending");
+
+  const trackCommand = await nextCommand(moduleId);
+  assert.equal(trackCommand.type, "RELAY_SET");
+  await ackCommand(moduleId, trackCommand);
+
+  status = await (await fetch(`${baseUrl}/api/status`)).json();
+  byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+  assert.equal(byId.get("audit-track").powerState, true);
+  assert.equal(byId.get("audit-track-shared").powerState, true);
+  assert.equal(status.hardware.modules[moduleId].relays[6], true);
+  assert.equal(status.commands.find((item) => item.id === trackBody.befehl.id).status, "confirmed");
+
+  const logicalCommands = [
+    ["/api/switch/control", { elementId: "audit-switch", state: "abzweig" }, "audit-switch", "switchState", "abzweig"],
+    ["/api/xtrack/control", { elementId: "audit-crossing", state: "abzweig" }, "audit-crossing", "xState", "abzweig"],
+    ["/api/signal/control", { elementId: "audit-signal", state: "fahrt" }, "audit-signal", "signalState", "fahrt"]
   ];
-  for (const [endpoint, payload, expectedState] of commands) {
+  for (const [endpoint, payload, elementId, field, expected] of logicalCommands) {
     const response = await fetch(`${baseUrl}${endpoint}`, { method: "POST", headers, body: JSON.stringify(payload) });
     assert.equal(response.status, 200);
-    assert.equal((await response.json()).state, expectedState);
+    status = await (await fetch(`${baseUrl}/api/status`)).json();
+    byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+    assert.notEqual(byId.get(elementId)[field], expected);
+    const command = await nextCommand(moduleId);
+    assert.equal(command.type, "RELAY_PULSE");
+    await ackCommand(moduleId, command);
+    status = await (await fetch(`${baseUrl}/api/status`)).json();
+    byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+    assert.equal(byId.get(elementId)[field], expected);
   }
 
-  const status = await (await fetch(`${baseUrl}/api/status`)).json();
-  const byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+  // Ein Heartbeat mit einem alten physischen Zustand ist die Ist-Meldung und
+  // darf nicht durch einen noch nicht bestätigten Sollzustand überschrieben werden.
+  const pendingOff = await fetch(`${baseUrl}/api/track/control`, {
+    method: "POST", headers, body: JSON.stringify({ elementId: "audit-track", state: false })
+  });
+  assert.equal(pendingOff.status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "HYBRID", relays: [false, false, false, false, false, false, true, false], leds: [{ channel: 1 }, { channel: 2 }] }))
+  })).status, 200);
+  status = await (await fetch(`${baseUrl}/api/status`)).json();
+  byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
   assert.equal(byId.get("audit-track").powerState, true);
-  assert.equal(byId.get("audit-switch").switchState, "abzweig");
-  assert.equal(byId.get("audit-crossing").xState, "abzweig");
-  assert.equal(byId.get("audit-signal").signalState, "fahrt");
+  await ackCommand(moduleId, await nextCommand(moduleId));
+  status = await (await fetch(`${baseUrl}/api/status`)).json();
+  byId = new Map(status.layout.elemente.map((element) => [element.id, element]));
+  assert.equal(byId.get("audit-track").powerState, false);
+
   await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
 
-test("NOT-AUS schaltet Live-Zustaende ab und verwirft alte Schaltbefehle", async () => {
+test("NOT-AUS übernimmt Live-Zustände erst nach ESP-Bestätigung und verwirft alte Befehle", async () => {
   const moduleId = "ESP8266-EMERGENCY";
   const headers = { "content-type": "application/json" };
   assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
     method: "POST", headers,
-    body: JSON.stringify({ module: moduleId, moduleName: "Not-Aus-Test", relays: [true, true] })
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleName: "Not-Aus-Test", relays: [true, true] }))
   })).status, 200);
 
   assert.equal((await fetch(`${baseUrl}/api/control/relay`, {
@@ -339,18 +542,113 @@ test("NOT-AUS schaltet Live-Zustaende ab und verwirft alte Schaltbefehle", async
 
   const emergency = await fetch(`${baseUrl}/api/emergency-stop`, { method: "POST", headers, body: "{}" });
   assert.equal(emergency.status, 200);
-  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  const emergencyBody = await emergency.json();
+  assert.equal(emergencyBody.commands.length, 1);
+
+  let status = await (await fetch(`${baseUrl}/api/status`)).json();
+  assert.deepEqual(status.hardware.modules[moduleId].relays, [true, true]);
+
+  const first = await nextCommand(moduleId);
+  assert.equal(first.type, "NOT_AUS");
+  await ackCommand(moduleId, first);
+  status = await (await fetch(`${baseUrl}/api/status`)).json();
   assert.deepEqual(status.hardware.modules[moduleId].relays, [false, false]);
 
-  const first = await (await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`)).json();
-  assert.equal(first.command.type, "NOT_AUS");
-  await fetch(`${baseUrl}/api/module/ack`, {
-    method: "POST", headers, body: JSON.stringify({ id: first.command.id })
-  });
-  const second = await (await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`)).json();
-  assert.equal(second.command, null);
+  const second = await nextCommand(moduleId);
+  assert.equal(second, null);
 
   await fetch(`${baseUrl}/api/module/delete`, {
     method: "POST", headers, body: JSON.stringify({ module: moduleId })
   });
 });
+test("Offline- und inkompatible ESP-Module werden serverseitig vom Schalten ausgeschlossen", async () => {
+  const headers = { "content-type": "application/json" };
+  const offlineId = "ESP-OFFLINE-GUARD";
+  let response = await fetch(`${baseUrl}/api/control/relay`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: offlineId, channel: 1, state: true })
+  });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "MODULE_OFFLINE");
+
+  const incompatibleId = "ESP-INCOMPATIBLE-GUARD";
+  response = await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      module: incompatibleId,
+      moduleType: "RELAY_CONTROLLER",
+      firmwareVersion: "9.0.0",
+      protocolVersion: 99,
+      hardwareType: "TEST_ESP8266",
+      relays: [false]
+    })
+  });
+  assert.equal(response.status, 200);
+  const heartbeat = await response.json();
+  assert.equal(heartbeat.compatibility.compatible, false);
+
+  response = await fetch(`${baseUrl}/api/control/relay`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: incompatibleId, channel: 1, state: true })
+  });
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "MODULE_INCOMPATIBLE");
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: incompatibleId }) });
+});
+
+test("Fehlgeschlagene ESP-Bestätigung ändert den bestätigten Relaiszustand nicht", async () => {
+  const moduleId = "ESP-ACK-FAIL";
+  const headers = { "content-type": "application/json" };
+  await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false] }))
+  });
+  const control = await fetch(`${baseUrl}/api/control/relay`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: moduleId, channel: 1, state: true })
+  });
+  assert.equal(control.status, 200);
+  const command = await nextCommand(moduleId);
+  await ackCommand(moduleId, command, false, "Treiberfehler");
+
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  assert.equal(status.hardware.modules[moduleId].relays[0], false);
+  const result = status.commands.find((item) => item.id === command.id);
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "Treiberfehler");
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
+test("Layout-API meldet Relais-Konflikte und akzeptiert explizite gemeinsame Stromkreise", async () => {
+  const headers = { "content-type": "application/json" };
+  let response = await fetch(`${baseUrl}/api/layout`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      metadaten: {}, stromkreise: [], verbindungen: [],
+      elemente: [
+        { id: "conflict-a", typ: "track", module: "ESP-CONFLICT", relay: 4 },
+        { id: "conflict-b", typ: "curve", module: "ESP-CONFLICT", relay: 4 }
+      ]
+    })
+  });
+  assert.equal(response.status, 200);
+  let body = await response.json();
+  assert.equal(body.warnings.relayConflicts.length, 1);
+
+  response = await fetch(`${baseUrl}/api/layout`, {
+    method: "POST", headers,
+    body: JSON.stringify({
+      metadaten: {},
+      stromkreise: [{ id: "shared", name: "Gemeinsam", module: "ESP-CONFLICT", relay: 4 }],
+      verbindungen: [],
+      elemente: [
+        { id: "shared-a", typ: "track", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" },
+        { id: "shared-b", typ: "curve", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" }
+      ]
+    })
+  });
+  assert.equal(response.status, 200);
+  body = await response.json();
+  assert.deepEqual(body.warnings.relayConflicts, []);
+});
+

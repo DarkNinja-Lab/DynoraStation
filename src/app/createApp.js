@@ -15,6 +15,7 @@ const {
 const { addEventFactory } = require("../services/events/eventBus");
 const { createCommandQueue } = require("../services/commandQueue/commandQueue");
 const { createModuleRegistry } = require("../services/modules/moduleRegistry");
+const { createConfirmedCommandApplier } = require("../domain/hardware/applyConfirmedCommand");
 
 const { rateLimitFactory } = require("./middleware/rateLimit");
 const { errorHandler } = require("./middleware/errorHandler");
@@ -50,10 +51,24 @@ function createApp() {
 
   const moduleRegistry = createModuleRegistry({
     runtimeState,
-    moduleTimeout: env.MODULE_TIMEOUT
+    moduleTimeout: env.MODULE_TIMEOUT,
+    protocolVersion: env.PROTOCOL_VERSION
   });
 
   moduleRegistry.bootstrapModulesFromHardware(runtimeState.hardware);
+
+  const confirmedCommandApplier = createConfirmedCommandApplier({
+    runtimeState,
+    moduleRegistry,
+    commandQueueApi,
+    upsertRelay,
+    upsertLed,
+    updateElementsPowerByRelay,
+    queueWriteHardware,
+    queueWriteLayout,
+    queueWriteRules,
+    addEvent
+  });
 
   app.set("trust proxy", env.TRUST_PROXY);
   app.use(express.json({ limit: env.JSON_LIMIT }));
@@ -107,13 +122,17 @@ function createApp() {
   app.use(rateLimit({
     keyPrefix: "global",
     windowMs: env.RL_GLOBAL_WINDOW_MS,
-    max: env.RL_GLOBAL_MAX
+    max: env.RL_GLOBAL_MAX,
+    // ESPs pollen deutlich häufiger als Browser. Ihr eigener, modulbezogener
+    // Limiter greift darunter; sie dürfen das Browser-Budget nicht aufbrauchen.
+    skip: (req) => req.path === "/api/module" || req.path.startsWith("/api/module/")
   }));
 
   app.use("/api/module", rateLimit({
     keyPrefix: "module",
     windowMs: env.RL_MODULE_WINDOW_MS,
-    max: env.RL_MODULE_MAX
+    max: env.RL_MODULE_MAX,
+    key: (req, ip) => req.body?.module || req.query?.module || ip
   }));
 
   app.get("/", (req, res) => {
@@ -138,6 +157,7 @@ function createApp() {
     upsertSensor,
     updateElementsPowerByRelay,
     syncAllElementStatesFromRelaysAndLeds,
+    confirmedCommandApplier,
     enableDebugEndpoints: env.ENABLE_DEBUG_ENDPOINTS
   };
 

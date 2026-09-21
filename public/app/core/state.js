@@ -8,6 +8,8 @@ export const state = {
   hardware: {
     modules: {}
   },
+  commands: [],
+  relayConflicts: [],
 
   // Regeln
   rules: [],

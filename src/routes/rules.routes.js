@@ -22,7 +22,7 @@ function createRulesRoutes({ runtimeState, queueWriteRules, addEvent }) {
     });
 
     runtimeState.rulesData.updatedAt = Date.now();
-    queueWriteRules();
+    await queueWriteRules();
 
     addEvent("RULE", "SYSTEM", "Regeln gespeichert");
     res.json({ ok: true, rules: runtimeState.rulesData.rules });

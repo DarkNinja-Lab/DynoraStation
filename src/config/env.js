@@ -5,6 +5,8 @@ const { toInt, parseState } = require("../utils/parse");
 const SERVER_IP = process.env.SERVER_IP || "127.0.0.1";
 const SERVER_PORT = toInt(process.env.SERVER_PORT, 8181);
 const NODE_ENV = String(process.env.NODE_ENV || "development").trim().toLowerCase();
+const APP_VERSION = require("../../package.json").version;
+const PROTOCOL_VERSION = toInt(process.env.PROTOCOL_VERSION, 2);
 
 const MODULE_TIMEOUT = toInt(process.env.MODULE_TIMEOUT, 10000);
 const MAX_COMMANDS = toInt(process.env.MAX_COMMANDS, 500);
@@ -35,6 +37,8 @@ module.exports = {
   SERVER_IP,
   SERVER_PORT,
   NODE_ENV,
+  APP_VERSION,
+  PROTOCOL_VERSION,
   MODULE_TIMEOUT,
   MAX_COMMANDS,
   MAX_EVENTS,

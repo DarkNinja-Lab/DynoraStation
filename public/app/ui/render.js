@@ -1,6 +1,7 @@
 "use strict";
 
 import { state } from "../core/state.js";
+import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js";
 import { svg, drawDoubleRailLine, drawPowerLine, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js";
 
 function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
@@ -42,15 +43,23 @@ export function renderSidebarEspStatus() {
     return;
   }
 
-  espList.innerHTML = Object.values(state.hardware.modules).map(m => `
-    <div class="sidebar-esp-item ${m.online ? "online" : "offline"}">
-      <div class="esp-status-dot"></div>
-      <div>
-        <strong>${m.name || m.id}</strong>
-        <small>${m.kind === "SIGNAL_LED" ? "Signal/LED" : m.kind === "RELAY_SENSOR" ? "Relay/Sensor" : m.kind === "HYBRID" ? "Hybrid" : "Typ wird erkannt"} · ${m.ip || (m.online ? "verbunden" : "keine aktuelle IP")}</small>
+  espList.innerHTML = Object.values(state.hardware.modules).map(m => {
+    const incompatible = m.compatibility?.compatible === false;
+    const metadataWarning = !incompatible && m.compatibility?.status === "warning";
+    const kind = m.kind === "SIGNAL_LED" ? "Signal/LED" : m.kind === "RELAY_SENSOR" ? "Relay/Sensor" : m.kind === "HYBRID" ? "Hybrid" : "Typ wird erkannt";
+    const version = `FW ${m.firmwareVersion || "?"} · P${m.protocolVersion ?? "?"} · ${m.hardwareType || kind}`;
+    const status = !m.online ? "OFFLINE" : incompatible ? "INKOMPATIBEL" : metadataWarning ? "WARNUNG" : "ONLINE";
+    return `
+    <div class="sidebar-esp-item ${m.online ? "online" : "offline"} ${incompatible ? "incompatible" : metadataWarning ? "compat-warning" : ""}">
+      <div class="esp-status-dot" aria-hidden="true"></div>
+      <div class="esp-status-copy">
+        <strong>${esc(m.name || m.id)}</strong>
+        <small>${esc(version)} · ${esc(m.ip || (m.online ? "verbunden" : "keine aktuelle IP"))}</small>
+        ${incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(m.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}
       </div>
-    </div>
-  `).join("");
+      <span class="esp-connection-state">${status}</span>
+    </div>`;
+  }).join("");
 }
 
 function controlTileVisual(element) {
@@ -138,10 +147,16 @@ export function renderCs3Tiles() {
     const stateText = readableControlState(element);
     const stateClass = stateText.toLowerCase().replaceAll(" ", "-");
     const active = ["Fahrt", "Abzweig", "Warnung"].includes(stateText);
-    return `<button class="cs3-tile ${active ? "active" : ""} state-${stateClass}" data-element-id="${esc(element.id)}" type="button" aria-label="${esc(element.name || type)} schalten, aktuell ${esc(stateText)}">
+    const control = moduleControlInfo(element.module);
+    const feedback = commandFeedbackForElement(element.id);
+    const commandText = commandStatusText(feedback);
+    const pending = feedback?.status === "pending";
+    const disabled = !control.enabled || pending;
+    const secondary = commandText || (!control.enabled ? control.reason : "Schalten");
+    return `<button class="cs3-tile ${active ? "active" : ""} state-${stateClass} ${!control.enabled ? "control-disabled" : ""} ${control.module && !control.module.online ? "offline" : ""} ${control.module?.compatibility?.compatible === false ? "incompatible" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-element-id="${esc(element.id)}" type="button" ${disabled ? "disabled" : ""} aria-label="${esc(element.name || type)}: ${esc(stateText)}. ${esc(secondary)}">
       <span class="cs3-tile-heading"><b>${esc(element.name || type)}</b><small>${esc(type)}</small></span>
       <span class="cs3-tile-visual">${controlTileVisual(element)}</span>
-      <span class="cs3-tile-state"><i></i><span>${esc(stateText)}</span><b>Schalten</b></span>
+      <span class="cs3-tile-state"><i></i><span>${esc(stateText)}</span><b>${esc(secondary)}</b></span>
     </button>`;
   }).join("");
 
@@ -154,7 +169,7 @@ export function renderTrackLightButtons() {
 
   const buttons = (state.lightButtons || []).map((btn, idx) => `
     <button class="light-toggle-btn ${btn.active ? "active" : ""}" data-light-index="${idx}" type="button">
-      ${btn.name || `Licht ${idx + 1}`}
+      ${esc(btn.name || `Licht ${idx + 1}`)}
     </button>
   `).join("");
 
@@ -168,12 +183,16 @@ export function renderTrackLightButtons() {
 
 export function renderDashboardOverview() {
   const modules = Object.values(state.hardware?.modules || {});
+  renderHardwareOverview(modules);
   const moduleHost = document.getElementById("dashboardModuleList");
   if (moduleHost) {
     moduleHost.innerHTML = modules.length ? modules.slice(0, 6).map((module) => {
       const kind = module.kind === "SIGNAL_LED" ? "Signal/LED" : module.kind === "RELAY_SENSOR" ? "Relay/Sensor" : module.kind === "HYBRID" ? "Hybrid" : "Noch nicht erkannt";
       const channels = `${module.relays?.length || 0} R · ${module.sensors?.length || 0} S · ${module.leds?.length || 0} LED`;
-      return `<article class="dashboard-module-row"><span class="module-health-dot ${module.online ? "online" : "offline"}"></span><div><strong>${esc(module.name || module.id)}</strong><small>${kind} · ${channels}</small></div><b>${module.online ? "Online" : "Offline"}</b></article>`;
+      const incompatible = module.compatibility?.compatible === false;
+      const metadataWarning = !incompatible && module.compatibility?.status === "warning";
+      const version = `FW ${module.firmwareVersion || "?"} · P${module.protocolVersion ?? "?"} · ${module.hardwareType || kind}`;
+      return `<article class="dashboard-module-row ${incompatible ? "incompatible" : metadataWarning ? "compat-warning" : ""}"><span class="module-health-dot ${module.online && !incompatible ? "online" : "offline"}"></span><div><strong>${esc(module.name || module.id)}</strong><small>${esc(version)} · ${channels}</small>${incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div><b>${!module.online ? "Offline" : incompatible ? "Inkompatibel" : metadataWarning ? "Warnung" : "Online"}</b></article>`;
     }).join("") : '<div class="empty-state">Noch keine ESP-Module registriert.</div>';
   }
 
@@ -187,6 +206,34 @@ export function renderDashboardOverview() {
   }
 
   renderDashboardTrack();
+}
+
+function renderHardwareOverview(modules) {
+  const online = modules.filter((module) => module.online).length;
+  const relays = modules.reduce((sum, module) => sum + (module.relays?.length || 0), 0);
+  const leds = modules.reduce((sum, module) => sum + (module.leds?.length || 0), 0);
+  const sensors = modules.reduce((sum, module) => sum + (module.sensors?.length || 0), 0);
+  const assigned = (state.hardware?.relays || []).filter((item) => item.name || item.role).length
+    + (state.hardware?.sensors || []).filter((item) => item.name && item.name !== item.id).length
+    + Object.keys(state.ledConfig || {}).length;
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setText("settingsModulesSummary", `${online} / ${modules.length}`);
+  setText("settingsOutputsSummary", String(relays + leds));
+  setText("settingsSensorsSummary", String(sensors));
+  setText("settingsConfigSummary", String(assigned));
+  const health = document.getElementById("settingsHealthStatus");
+  if (health) {
+    const incompatible = modules.filter((module) => module.compatibility?.compatible === false).length;
+    const conflicts = Array.isArray(state.relayConflicts) ? state.relayConflicts.length : 0;
+    const healthy = modules.length > 0 && online === modules.length && incompatible === 0 && conflicts === 0;
+    health.classList.toggle("healthy", healthy);
+    health.classList.toggle("warning", !healthy);
+    health.lastChild.textContent = modules.length === 0
+      ? "Noch keine Module registriert"
+      : conflicts > 0 ? `${conflicts} Relais-Konflikt(e) erkannt`
+      : incompatible > 0 ? `${incompatible} inkompatible(s) Modul(e)`
+      : healthy ? "Alle Module erreichbar und kompatibel" : `${modules.length - online} Modul(e) nicht erreichbar`;
+  }
 }
 
 function renderDashboardTrack() {

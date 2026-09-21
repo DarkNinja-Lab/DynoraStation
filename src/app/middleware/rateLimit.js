@@ -4,10 +4,12 @@ const { ipFromReq } = require("../../utils/network");
 const { apiError } = require("../../utils/errors");
 
 function rateLimitFactory(rateBuckets) {
-  return function rateLimit({ keyPrefix, windowMs, max }) {
+  return function rateLimit({ keyPrefix, windowMs, max, skip, key: keyFactory }) {
     return (req, res, next) => {
+      if (typeof skip === "function" && skip(req)) return next();
       const ip = ipFromReq(req) || "unknown";
-      const key = `${keyPrefix}:${ip}`;
+      const identity = typeof keyFactory === "function" ? String(keyFactory(req, ip) || ip) : ip;
+      const key = `${keyPrefix}:${identity}`;
       const now = Date.now();
 
       let bucket = rateBuckets.get(key);

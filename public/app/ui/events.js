@@ -7,6 +7,7 @@ import { renderRulesGrid } from "../rules/rules.js";
 import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js";
 import { renderTrackLayout } from "../track/track.js";
 import { showToast } from "./toast.js";
+import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -27,7 +28,6 @@ const PAGE_META = {
   builder: { title: "Gleisbild-Editor", subtitle: "Planen, verbinden, speichern" },
   track: { title: "Gleisbild", subtitle: "Betrieb und Schalten" },
   settings: { title: "Einstellungen", subtitle: "Module, Relais, Sensoren, Standards" },
-  rules: { title: "Regeln", subtitle: "Wenn-Dann Automationen" },
   events: { title: "Ereignisse", subtitle: "System- und Sensorprotokoll" }
 };
 
@@ -58,7 +58,6 @@ function setActivePage(page) {
   });
 
   if (page === "settings") renderSettingsTab();
-  if (page === "rules") renderRulesGrid();
   if (page === "track") renderTrackLayout();
   if (page === "builder") document.dispatchEvent(new CustomEvent("dynora:builder-opened"));
 
@@ -123,7 +122,7 @@ function bindNavigation() {
 
 function modOptions(selected = "") {
   return [`<option value="">Modul wählen…</option>`]
-    .concat(modules().filter((module) => hasCapability(module, "relay")).map((m) => `<option value="${m.id}" ${m.id === selected ? "selected" : ""}>${m.name || m.id}</option>`))
+    .concat(modules().filter((module) => hasCapability(module, "relay")).map((m) => `<option value="${esc(m.id)}" ${m.id === selected ? "selected" : ""}>${esc(m.name || m.id)}</option>`))
     .join("");
 }
 
@@ -210,7 +209,10 @@ function renderModuleManagement() {
     Number(Boolean(b.online)) - Number(Boolean(a.online)) ||
     String(a.name || a.id).localeCompare(String(b.name || b.id), "de")
   );
-  host.innerHTML = list.length ? list.map((module) => {
+  host.innerHTML = list.length ? `<div class="module-table">
+    <div class="module-table-head" aria-hidden="true">
+      <span>Modul</span><span>Status</span><span>Typ / Adresse</span><span>Kanäle</span><span>Zuletzt gesehen</span><span>Verwaltung</span>
+    </div>${list.map((module) => {
     const relays = Array.isArray(module.relays) ? module.relays.length : 0;
     const leds = Array.isArray(module.leds) ? module.leds.length : 0;
     const sensors = Array.isArray(module.sensors) ? module.sensors.length : 0;
@@ -218,35 +220,20 @@ function renderModuleManagement() {
       ? new Date(Number(module.lastHeartbeat)).toLocaleString("de-DE")
       : "noch kein Heartbeat";
     return `
-      <article class="module-management-card ${module.online ? "online" : "offline"}" data-managed-module="${esc(module.id)}">
-        <div class="module-management-head">
-          <div>
-            <strong>${esc(module.name || module.id)}</strong>
-            <small>${esc(module.id)}</small>
-          </div>
-          <span class="module-state-badge ${module.online ? "online" : "offline"}">${module.online ? "Online" : "Offline"}</span>
+      <article class="module-management-card ${module.online ? "online" : "offline"} ${module.compatibility?.compatible === false ? "incompatible" : module.compatibility?.status === "warning" ? "compat-warning" : ""}" data-managed-module="${esc(module.id)}">
+        <div class="module-identity"><strong>${esc(module.name || module.id)}</strong><small>${esc(module.id)}</small></div>
+        <span class="module-state-badge ${module.online && module.compatibility?.compatible !== false ? "online" : "offline"}">${!module.online ? "OFFLINE" : module.compatibility?.compatible === false ? "INKOMPATIBEL" : module.compatibility?.status === "warning" ? "WARNUNG" : "ONLINE"}</span>
+        <div class="module-endpoint"><strong>${esc(module.hardwareType || module.type || "ESP-Modul")}</strong><small>FW ${esc(module.firmwareVersion || "?")} · Protokoll ${esc(module.protocolVersion ?? "?")} · ${esc(module.ip || "keine aktuelle IP")}</small>${module.compatibility?.compatible === false || module.compatibility?.status === "warning" ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div>
+        <div class="module-channel-count"><b>${relays}</b> R&nbsp;&nbsp;<b>${leds}</b> LED&nbsp;&nbsp;<b>${sensors}</b> S${module.environment ? "&nbsp;&nbsp;<b>BME</b>" : ""}</div>
+        <time>${esc(seen)}</time>
+        <div class="module-row-actions">
+          <input aria-label="Anzeigename" data-field="moduleName" value="${esc(module.name || module.id)}" maxlength="80" autocomplete="off">
+          <button class="secondary-button" data-action="rename-module" data-module-id="${esc(module.id)}" type="button">Speichern</button>
+          <button class="module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button" aria-label="Modul löschen">Löschen</button>
         </div>
-        <dl class="module-facts">
-          <div><dt>Typ</dt><dd>${esc(module.type || "ESP-Modul")}</dd></div>
-          <div><dt>IP</dt><dd>${esc(module.ip || "keine aktuelle IP")}</dd></div>
-          <div><dt>Kanäle</dt><dd>${relays} Relais · ${leds} LEDs · ${sensors} Sensoren</dd></div>
-          <div><dt>Zuletzt gesehen</dt><dd>${esc(seen)}</dd></div>
-        </dl>
-        <div class="module-rename-row">
-          <label>
-            <span>Anzeigename</span>
-            <input data-field="moduleName" value="${esc(module.name || module.id)}" maxlength="80" autocomplete="off">
-          </label>
-          <button class="secondary-button" data-action="rename-module" data-module-id="${esc(module.id)}" type="button">
-            Namen speichern
-          </button>
-        </div>
-        <button class="danger-button module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button">
-          Modul löschen
-        </button>
       </article>
     `;
-  }).join("") : '<div class="empty-state">Noch keine ESP-Module registriert.</div>';
+  }).join("")}</div>` : '<div class="empty-state">Noch keine ESP-Module registriert.</div>';
 }
 
 function renderDefaultStates() {
@@ -305,18 +292,25 @@ function renderRelayGrid() {
     ${rows.length ? rows.map((r) => {
         const key = `${r.m.id}:${r.idx + 1}`;
         const cfg = state.relayConfig[key] || {};
+        const control = moduleControlInfo(r.m.id);
+        const feedback = commandFeedbackForRelay(r.m.id, r.idx + 1);
+        const commandText = commandStatusText(feedback) || (!control.enabled ? control.reason : "");
+        const conflict = (state.relayConflicts || []).find((item) => item.module === r.m.id && Number(item.channel) === r.idx + 1);
+        const disabled = !control.enabled || feedback?.status === "pending";
         return `
-          <div class="relay-item" data-module-id="${r.m.id}" data-relay-index="${r.idx + 1}">
-            <div><b>${r.m.name || r.m.id}</b> • ${esc(cfg.name || `Relay ${r.idx + 1}`)}</div>
+          <div class="relay-item ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${r.m.id}" data-relay-index="${r.idx + 1}">
+            <div><b>${esc(r.m.name || r.m.id)}</b> • ${esc(cfg.name || `Relay ${r.idx + 1}`)}</div>
             <div class="${r.on ? "badge-on" : "badge-off"}">${r.on ? "AN" : "AUS"}</div>
 
             <label>Name</label>
-            <input data-field="relayName" value="${cfg.name || ""}" placeholder="z. B. Bahnhof Licht">
+            <input data-field="relayName" value="${esc(cfg.name || "")}" placeholder="z. B. Bahnhof Licht">
 
             <label>Rolle</label>
-            <input data-field="relayRole" value="${cfg.role || ""}" placeholder="z. B. Beleuchtung">
+            <input data-field="relayRole" value="${esc(cfg.role || "")}" placeholder="z. B. Beleuchtung">
 
-            <button class="secondary-button" data-action="toggle-relay" type="button">
+            ${conflict ? `<div class="relay-conflict-warning">Warnung: Relay mehrfach belegt (${conflict.assignments?.length || 2} Zuweisungen)</div>` : ""}
+            ${commandText ? `<div class="command-inline-status status-${feedback?.status || "disabled"}">${esc(commandText)}</div>` : ""}
+            <button class="secondary-button" data-action="toggle-relay" type="button" ${disabled ? "disabled" : ""}>
               ${r.on ? "Ausschalten" : "Einschalten"}
             </button>
           </div>
@@ -342,12 +336,12 @@ function renderSensorGrid() {
         const key = `${r.m.id}:${sensorId}`;
         const cfg = state.sensorConfig[key] || {};
         return `
-          <div class="sensor-item" data-module-id="${r.m.id}" data-sensor-id="${sensorId}">
-            <div><b>${r.m.name || r.m.id}</b> • ${esc(cfg.name || r.s.name || sensorId)}</div>
+          <div class="sensor-item" data-module-id="${esc(r.m.id)}" data-sensor-id="${esc(sensorId)}">
+            <div><b>${esc(r.m.name || r.m.id)}</b> • ${esc(cfg.name || r.s.name || sensorId)}</div>
             <div class="${r.s.triggered ? "badge-on" : "badge-off"}">${r.s.triggered ? "AKTIV" : "RUHE"}</div>
 
             <label>Name</label>
-            <input data-field="sensorName" value="${cfg.name || r.s.name || ""}" placeholder="z. B. Einfahrt Gleis 1">
+            <input data-field="sensorName" value="${esc(cfg.name || r.s.name || "")}" placeholder="z. B. Einfahrt Gleis 1">
           </div>
         `;
       }).join("")
@@ -391,8 +385,12 @@ function renderLedGrid() {
         };
         state.ledConfig[key] = config;
         const isOn = Boolean(led?.state);
+        const control = moduleControlInfo(selectedModule.id);
+        const feedback = commandFeedbackForLed(selectedModule.id, channel);
+        const commandText = commandStatusText(feedback) || (!control.enabled ? control.reason : "");
+        const disabled = !control.enabled || feedback?.status === "pending";
         return `
-          <article class="led-channel-card" data-module-id="${esc(selectedModule.id)}" data-led-index="${channel}">
+          <article class="led-channel-card ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${esc(selectedModule.id)}" data-led-index="${channel}">
             <div class="led-channel-head">
               <span class="led-color-dot led-color-${esc(config.color)}"></span>
               <div><strong>${esc(config.name)}</strong><small>Kanal ${channel}</small></div>
@@ -402,9 +400,10 @@ function renderLedGrid() {
             <label><span>Farbe</span><select data-field="ledColor">${colorOptions.map(([value, label]) => `<option value="${value}" ${config.color === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
             <label class="led-brightness-field"><span>Helligkeit <output>${config.brightness}</output></span><input data-field="ledBrightness" type="range" min="0" max="255" step="1" value="${config.brightness}"></label>
             <div class="led-channel-live">Live: <b>${Number(led?.brightness || 0)}</b> / 255</div>
+            ${commandText ? `<div class="command-inline-status status-${feedback?.status || "disabled"}">${esc(commandText)}</div>` : ""}
             <div class="led-channel-actions">
-              <button class="secondary-button" data-action="toggle-led" type="button">${isOn ? "Ausschalten" : "Einschalten"}</button>
-              <button class="secondary-button" data-action="test-led" type="button">Blinktest</button>
+              <button class="secondary-button" data-action="toggle-led" type="button" ${disabled ? "disabled" : ""}>${isOn ? "Ausschalten" : "Einschalten"}</button>
+              <button class="secondary-button" data-action="test-led" type="button" ${disabled ? "disabled" : ""}>Blinktest</button>
             </div>
           </article>`;
       }).join("") : `<div class="empty-state relay-empty-state"><strong>${selectedModule ? esc(selectedModule.name || selectedModule.id) : "Kein LED-ESP"} meldet keine LED-Kanäle.</strong><span>Der ESP muss im Heartbeat das Feld „leds“ senden. Nach dem nächsten Heartbeat erscheinen die Kanäle automatisch.</span></div>`}
@@ -434,37 +433,10 @@ export function refreshSettingsHardwareStatus() {
   }
 
   const relayHost = byId("relayGrid");
-  if (relayHost && !relayHost.contains(document.activeElement)) {
-    relayHost.querySelectorAll("[data-module-id][data-relay-index]").forEach((card) => {
-      const module = state.hardware.modules?.[card.dataset.moduleId];
-      const index = Number(card.dataset.relayIndex);
-      const on = Boolean(module?.relays?.[index - 1]);
-      const badge = card.querySelector(".badge-on, .badge-off");
-      if (badge) { badge.className = on ? "badge-on" : "badge-off"; badge.textContent = on ? "AN" : "AUS"; }
-    });
-  }
+  if (relayHost && !relayHost.contains(document.activeElement)) renderRelayGrid();
 
   const ledHost = byId("ledConfigGrid");
-  if (ledHost && !ledHost.contains(document.activeElement)) {
-    const selected = state.hardware.modules?.[state.settingsLedModule];
-    const current = ledHost.querySelectorAll("[data-led-index]").length;
-    const expected = Array.isArray(selected?.leds) ? selected.leds.length : 0;
-    if (current !== expected) {
-      renderLedGrid();
-    } else {
-      ledHost.querySelectorAll("[data-module-id][data-led-index]").forEach((card) => {
-        const module = state.hardware.modules?.[card.dataset.moduleId];
-        const led = module?.leds?.[Number(card.dataset.ledIndex) - 1];
-        const badge = card.querySelector("[data-led-status]");
-        if (badge) {
-          badge.className = led?.state ? "badge-on" : "badge-off";
-          badge.textContent = led?.blinking ? "BLINKT" : led?.state ? "AN" : "AUS";
-        }
-        const live = card.querySelector(".led-channel-live b");
-        if (live) live.textContent = String(Number(led?.brightness || 0));
-      });
-    }
-  }
+  if (ledHost && !ledHost.contains(document.activeElement)) renderLedGrid();
 }
 
 export function renderSettingsTab() {
@@ -481,6 +453,7 @@ function applySettingsView() {
   const view = state.settingsView || "modules";
   all("[data-settings-view]").forEach((button) => button.classList.toggle("active", button.dataset.settingsView === view));
   all("[data-settings-section]").forEach((section) => section.classList.toggle("active", section.dataset.settingsSection === view));
+  if (view === "rules") renderRulesGrid();
 }
 
 function setSaveStatus(id, text, kind = "") {
@@ -637,18 +610,12 @@ function bindSettingsInput() {
       btn.textContent = "STOPP …";
       try {
         const result = await apiCall("/emergency-stop", { method: "POST", body: {} });
-        modules().forEach((module) => {
-          if (Array.isArray(module.relays)) module.relays = module.relays.map(() => false);
-          if (Array.isArray(module.leds)) module.leds = module.leds.map(() => ({ state: false, brightness: 0, blinking: false }));
-        });
-        (state.layout?.elemente || []).forEach((element) => { element.powerState = false; });
-        (state.layout?.stromkreise || []).forEach((circuit) => { circuit.state = false; });
-        (state.lightButtons || []).forEach((light) => { light.active = false; });
+        rememberPendingCommands(result);
         renderTrackLayout();
         renderCs3Tiles();
         renderTrackLightButtons();
         renderSidebarEspStatus();
-        showToast(`NOT-AUS aktiv · ${Number(result.modules || 0)} ESP-Modul(e)`);
+        showToast(`NOT-AUS gesendet · ${Number(result.commands?.length || 0)} ESP-Modul(e) warten auf Bestätigung${result.skippedOffline?.length ? ` · ${result.skippedOffline.length} offline` : ""}`);
       } catch (error) {
         showToast(`NOT-AUS fehlgeschlagen: ${error?.message || error}`, "error");
       } finally {
@@ -678,19 +645,18 @@ function bindSettingsInput() {
       const led = module?.leds?.[channel - 1];
       if (!moduleId || !channel || !led) return;
       const config = state.ledConfig?.[`${moduleId}:${channel}`] || { brightness: 255 };
+      const control = moduleControlInfo(moduleId);
+      if (!control.enabled) { showToast(control.reason, "warning"); return; }
+      if (commandFeedbackForLed(moduleId, channel)?.status === "pending") { showToast("Schaltvorgang läuft bereits", "warning"); return; }
       btn.disabled = true;
       try {
         const body = btn.dataset.action === "test-led"
           ? { module: moduleId, channel, mode: "blink", onMs: 220, offMs: 220, durationMs: 1800 }
           : { module: moduleId, channel, mode: "pwm", brightness: led.state ? 0 : Math.max(1, Number(config.brightness ?? 255)) };
         const result = await apiCall("/led", { method: "POST", body });
-        if (result?.led) module.leds[channel - 1] = {
-          state: Boolean(result.led.state),
-          brightness: Number(result.led.brightness || 0),
-          blinking: Boolean(result.led.blinking)
-        };
+        rememberPendingCommands(result);
         renderLedGrid();
-        showToast(btn.dataset.action === "test-led" ? `LED ${channel}: Blinktest gestartet` : `LED ${channel} geschaltet`);
+        showToast(`LED ${channel}: Wird geschaltet …`);
       } catch (error) {
         btn.disabled = false;
         showToast(`LED ${channel} konnte nicht gesteuert werden: ${error?.message || error}`, "error");
@@ -787,15 +753,18 @@ function bindSettingsInput() {
       const relayIndex = Number(row.dataset.relayIndex);
       const module = state.hardware.modules?.[moduleId];
       const isOn = Boolean(module?.relays?.[relayIndex - 1]);
+      const control = moduleControlInfo(moduleId);
+      if (!control.enabled) { showToast(control.reason, "warning"); return; }
+      if (commandFeedbackForRelay(moduleId, relayIndex)?.status === "pending") { showToast("Schaltvorgang läuft bereits", "warning"); return; }
       btn.classList.add("busy");
       try {
         const result = await apiCall("/control/relay", {
           method: "POST",
           body: { module: moduleId, channel: relayIndex, state: !isOn }
         });
-        if (module && Array.isArray(result?.relays)) module.relays = result.relays.map(Boolean);
+        rememberPendingCommands(result);
         renderRelayGrid();
-        showToast(`Relay ${relayIndex} ${!isOn ? "eingeschaltet" : "ausgeschaltet"}`);
+        showToast(`Relay ${relayIndex}: Wird geschaltet …`);
       } catch (e) {
         showToast(`Relay konnte nicht geschaltet werden: ${e?.message || e}`, "error");
       } finally {
@@ -806,8 +775,9 @@ function bindSettingsInput() {
 
     if (btn.id === "applyDefaultsButton") {
       try {
-        await apiCall("/control/defaults/apply", { method: "POST", body: { defaults: state.defaults || [] } });
-        showToast("Standardzustände angewendet");
+        const result = await apiCall("/control/defaults/apply", { method: "POST", body: { defaults: state.defaults || [] } });
+        rememberPendingCommands(result);
+        showToast("Standardzustände werden geschaltet …");
       } catch (e) {
         showToast(`Standardzustände konnten nicht angewendet werden: ${e?.message || e}`, "error");
       }
@@ -828,8 +798,11 @@ function bindTrackLightsQuickToggle() {
       showToast("Licht-Button ist noch keinem Modul/Relay zugewiesen", "warning");
       return;
     }
+    const control = moduleControlInfo(cfg.moduleId);
+    if (!control.enabled) { showToast(control.reason, "warning"); return; }
+    if (commandFeedbackForRelay(cfg.moduleId, channel)?.status === "pending") { showToast("Schaltvorgang läuft bereits", "warning"); return; }
     try {
-      await apiCall("/control/relay", {
+      const result = await apiCall("/control/relay", {
         method: "POST",
         body: {
           module: cfg.moduleId,
@@ -837,10 +810,10 @@ function bindTrackLightsQuickToggle() {
           state: !cfg.active
         }
       });
-      cfg.active = !cfg.active;
+      rememberPendingCommands(result);
       renderTrackLightButtons();
     } catch (e) {
-      console.warn("Lichtschaltung fehlgeschlagen:", e?.message || e);
+      showToast(`Lichtschaltung fehlgeschlagen: ${e?.message || e}`, "error");
     }
   });
 }
@@ -861,13 +834,13 @@ function bindTrackElementQuickToggle() {
         : ({ halt: "fahrt", fahrt: "halt", warnung: "halt" }))[element.ledState || element.espState || "halt"] || "halt"]
     }[type];
     if (!config) return;
+    const control = moduleControlInfo(element.module);
+    if (!control.enabled) { showToast(control.reason, "warning"); return; }
+    if (commandFeedbackForElement(element.id)?.status === "pending") { showToast("Schaltvorgang läuft bereits", "warning"); return; }
     btn.classList.add("busy");
     try {
       const result = await apiCall(config[0], { method: "POST", body: { elementId: element.id, state: config[1] } });
-      if (type === "switch") element.switchState = result.state;
-      if (type === "xtrack") element.xState = result.state;
-      if (type === "signal") element.signalState = result.state;
-      if (type === "espSignal") element.ledState = element.espState = result.state;
+      rememberPendingCommands(result);
       renderSidebarEspStatus();
       renderCs3Tiles();
       renderTrackLayout();
@@ -880,7 +853,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
-    if (["modules", "lights", "relays", "sensors", "leds", "defaults"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
+    if (["modules", "lights", "relays", "sensors", "leds", "rules", "defaults"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
   bindSettingsInput();

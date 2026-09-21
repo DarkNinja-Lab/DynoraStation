@@ -58,5 +58,7 @@ export function layoutNormalisieren() {
 }
 
 export async function layoutSpeichern() {
-  await apiCall("/layout", { method: "POST", body: state.layout });
+  const result = await apiCall("/layout", { method: "POST", body: state.layout });
+  state.relayConflicts = Array.isArray(result?.warnings?.relayConflicts) ? result.warnings.relayConflicts : [];
+  return result;
 }

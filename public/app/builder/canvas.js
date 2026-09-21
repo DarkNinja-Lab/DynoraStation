@@ -42,13 +42,19 @@ export function setupBuilderButtons() {
     saveBtn.addEventListener("click", async () => {
       console.log("💾 Saving layout...");
       try {
-        await apiCall("/layout", {
+        const result = await apiCall("/layout", {
           method: "POST",
           body: state.layout
         });
+        state.relayConflicts = Array.isArray(result?.warnings?.relayConflicts) ? result.warnings.relayConflicts : [];
         state.layoutDirty = false;
         try { localStorage.removeItem("dynora.layoutDraft"); } catch {}
-        showToast("✅ Layout gespeichert!");
+        if (state.relayConflicts.length) {
+          const first = state.relayConflicts[0];
+          showToast(`Layout gespeichert · Warnung: ${state.relayConflicts.length} Relais-Konflikt(e), z. B. ${first.module}: Relais ${first.channel}`, "warning");
+        } else {
+          showToast("Layout gespeichert");
+        }
       } catch (e) {
         console.error(e);
         showToast("❌ Fehler beim Speichern!", "error");

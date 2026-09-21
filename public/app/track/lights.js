@@ -2,6 +2,7 @@
 
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
+import { commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
 
 export async function lightButtonsLaden() {
   try {
@@ -41,8 +42,11 @@ export async function lightButtonToggle(index) {
   const channel = Number(btn.relayIndex || 0);
   if (!btn.moduleId || channel < 1) return;
 
+  const control = moduleControlInfo(btn.moduleId);
+  const feedback = commandFeedbackForRelay(btn.moduleId, channel);
+  if (!control.enabled || feedback?.status === "pending") return;
   try {
-    await apiCall("/control/relay", {
+    const result = await apiCall("/control/relay", {
       method: "POST",
       body: {
         module: btn.moduleId,
@@ -50,7 +54,7 @@ export async function lightButtonToggle(index) {
         state: !btn.active
       }
     });
-    btn.active = !btn.active;
+    rememberPendingCommands(result);
   } catch (err) {
     console.warn("Licht schalten fehlgeschlagen:", err?.message || err);
   }
@@ -61,11 +65,18 @@ export function renderTrackLightButtons() {
   if (!grid) return;
 
   const src = Array.isArray(state.lightButtons) ? state.lightButtons : [];
-  const html = src.map((btn, idx) => `
-    <button class="light-toggle-btn ${btn?.active ? "active" : ""}" data-light-index="${idx}" type="button">
-      ${btn?.name || `Licht ${idx + 1}`}
-    </button>
-  `).join("");
+  const html = src.map((btn, idx) => {
+    const channel = Number(btn?.relayIndex || 0);
+    const configured = Boolean(btn?.moduleId && channel > 0);
+    const control = configured ? moduleControlInfo(btn.moduleId) : { enabled: false, reason: "Nicht zugewiesen" };
+    const feedback = configured ? commandFeedbackForRelay(btn.moduleId, channel) : null;
+    const statusText = commandStatusText(feedback) || (!control.enabled ? control.reason : "");
+    const disabled = !control.enabled || feedback?.status === "pending";
+    return `
+    <button class="light-toggle-btn ${btn?.active ? "active" : ""} ${!configured ? "unconfigured" : ""} ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-light-index="${idx}" type="button" ${disabled ? "disabled" : ""} title="${statusText || "Schalten"}">
+      <span>${btn?.name || `Licht ${idx + 1}`}</span>${statusText ? `<small>${statusText}</small>` : ""}
+    </button>`;
+  }).join("");
 
   grid.innerHTML = html || `
     <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>

@@ -50,7 +50,7 @@ function normalizeRules(input) {
       id: cleanText(r?.id || makeId("RULE"), 120) || `RULE_${i + 1}`,
       name: cleanText(r?.name || `Regel ${i + 1}`, 120) || `Regel ${i + 1}`,
       enabled: r?.enabled !== false,
-      cooldownMs: Math.max(0, toInt(r?.cooldownMs, 500)),
+      cooldownMs: Math.max(0, Math.min(86400000, toInt(r?.cooldownMs, 5000))),
       lastRun: toNumber(r?.lastRun, 0),
       condition: normalizeRuleCondition(r?.condition),
       actions: (Array.isArray(r?.actions) ? r.actions : []).map(normalizeRuleAction).slice(0, 10)

@@ -9,11 +9,6 @@ function executeRulesForTrigger({
   moduleRegistry,
   commandQueueApi,
   addEvent,
-  upsertRelay,
-  upsertLed,
-  updateElementsPowerByRelay,
-  queueWriteHardware,
-  queueWriteLayout,
   queueWriteRules,
   trigger
 }) {
@@ -23,8 +18,6 @@ function executeRulesForTrigger({
   const now = Date.now();
   let matched = 0;
   let executed = 0;
-  let hardwareChanged = false;
-  let layoutChanged = false;
   let rulesChanged = false;
 
   function emit(type, key, message) {
@@ -35,110 +28,72 @@ function executeRulesForTrigger({
     return String(rule?.name || rule?.id || "Regel");
   }
 
+  function operationId(prefix) {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function controllable(moduleId, rule) {
+    const module = runtimeState.modules?.[moduleId] || moduleRegistry.getOrCreateModule(moduleId);
+    if (moduleRegistry.moduleCanControl(module)) return true;
+    const compatibility = moduleRegistry.moduleCompatibility(module);
+    const reason = !moduleRegistry.moduleIsOnline(module) ? "offline" : compatibility.reason;
+    emit("REGEL-WARNUNG", moduleId, `${getRuleName(rule)}: Aktion übersprungen (${reason})`);
+    return false;
+  }
+
   function applyAction(rule, action) {
     const kind = String(action?.kind || "").toLowerCase();
 
     if (kind === "relay") {
       const channel = validRelay(action?.channel);
-      if (!channel) return false;
-
       const moduleId = cleanText(action?.module || "", 48);
-      if (!moduleId) return false;
+      if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
       const state = parseState(action?.state);
-      const module = moduleRegistry.getOrCreateModule(moduleId);
-
-      upsertRelay(runtimeState.hardware, moduleId, channel, state);
-      while (module.relays.length < channel) module.relays.push(false);
-      module.relays[channel - 1] = state;
-      updateElementsPowerByRelay(runtimeState.layout, moduleId, channel, state);
-
-      commandQueueApi.createCommand("RELAY_SET", { channel, state, ruleId: rule.id }, moduleId);
-      emit("REGEL-AKTION", `${moduleId}:RELAY_${channel}`, `${getRuleName(rule)}: Relais ${channel} ${state ? "ein" : "aus"}`);
-
-      hardwareChanged = true;
+      commandQueueApi.createCommand("RELAY_SET", {
+        channel, state, ruleId: rule.id, operationId: operationId("RULE_RELAY")
+      }, moduleId);
+      emit("REGEL-AKTION", `${moduleId}:RELAY_${channel}`, `${getRuleName(rule)}: Relais ${channel} wird ${state ? "ein" : "aus"} geschaltet`);
       return true;
     }
 
     if (kind === "led") {
       const channel = validLedChannel(action?.channel);
-      if (!channel) return false;
-
       const moduleId = cleanText(action?.module || "", 48);
-      if (!moduleId) return false;
+      if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
       const state = parseState(action?.state);
-      const module = moduleRegistry.getOrCreateModule(moduleId);
-
-      upsertLed(runtimeState.hardware, moduleId, channel, { state, brightness: state ? 255 : 0, blinking: false });
-      while (module.leds.length < channel) module.leds.push({ state: false, brightness: 0, blinking: false });
-      module.leds[channel - 1] = { state, brightness: state ? 255 : 0, blinking: false };
-
-      commandQueueApi.createCommand("LED_SET", { channel, state, ruleId: rule.id }, moduleId);
-      emit("REGEL-AKTION", `${moduleId}:LED_${channel}`, `${getRuleName(rule)}: LED ${channel} ${state ? "ein" : "aus"}`);
-
-      hardwareChanged = true;
+      commandQueueApi.createCommand("LED_SET", {
+        channel, state, ruleId: rule.id, operationId: operationId("RULE_LED")
+      }, moduleId);
+      emit("REGEL-AKTION", `${moduleId}:LED_${channel}`, `${getRuleName(rule)}: LED ${channel} wird ${state ? "ein" : "aus"} geschaltet`);
       return true;
     }
 
-    if (kind === "switch") {
+    if (["switch", "signal", "xtrack"].includes(kind)) {
       const elementId = String(action?.elementId || "");
-      const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === "switch");
+      const expectedType = kind === "switch" ? "switch" : kind === "signal" ? "signal" : "xtrack";
+      const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === expectedType);
       if (!element) return false;
-
-      const state = action?.state === "gerade" ? "gerade" : "abzweig";
-      const channel = state === "gerade" ? validRelay(element.relayStraight) : validRelay(element.relayBranch);
-      if (!channel) return false;
-
       const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId) return false;
-      moduleRegistry.getOrCreateModule(moduleId);
+      if (!moduleId || !controllable(moduleId, rule)) return false;
 
-      element.switchState = state;
-      commandQueueApi.createCommand("RELAY_PULSE", { channel, duration: 220, state, elementId: element.id, ruleId: rule.id }, moduleId);
-      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state}`);
-
-      layoutChanged = true;
-      return true;
-    }
-
-    if (kind === "signal") {
-      const elementId = String(action?.elementId || "");
-      const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === "signal");
-      if (!element) return false;
-
-      const state = action?.state === "fahrt" ? "fahrt" : "halt";
-      const channel = state === "halt" ? validRelay(element.relayHp0) : validRelay(element.relayHp1);
+      let state;
+      let channel;
+      if (kind === "switch") {
+        state = action?.state === "gerade" ? "gerade" : "abzweig";
+        channel = validRelay(state === "gerade" ? element.relayStraight : element.relayBranch);
+      } else if (kind === "signal") {
+        state = action?.state === "fahrt" ? "fahrt" : "halt";
+        channel = validRelay(state === "halt" ? element.relayHp0 : element.relayHp1);
+      } else {
+        state = action?.state === "gerade" ? "gerade" : "abzweig";
+        channel = validRelay(state === "gerade" ? element.relayA : element.relayB);
+      }
       if (!channel) return false;
-
-      const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId) return false;
-      moduleRegistry.getOrCreateModule(moduleId);
-
-      element.signalState = state;
-      commandQueueApi.createCommand("RELAY_PULSE", { channel, duration: 220, state, elementId: element.id, ruleId: rule.id }, moduleId);
-      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state.toUpperCase()}`);
-
-      layoutChanged = true;
-      return true;
-    }
-
-    if (kind === "xtrack") {
-      const elementId = String(action?.elementId || "");
-      const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === "xtrack");
-      if (!element) return false;
-
-      const state = action?.state === "gerade" ? "gerade" : "abzweig";
-      const channel = state === "gerade" ? validRelay(element.relayA) : validRelay(element.relayB);
-      if (!channel) return false;
-
-      const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId) return false;
-      moduleRegistry.getOrCreateModule(moduleId);
-
-      element.xState = state;
-      commandQueueApi.createCommand("RELAY_PULSE", { channel, duration: 220, state, elementId: element.id, ruleId: rule.id }, moduleId);
-      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state}`);
-
-      layoutChanged = true;
+      commandQueueApi.createCommand("RELAY_PULSE", {
+        channel, duration: 220, state, elementId: element.id, ruleId: rule.id,
+        operationId: operationId(`RULE_${kind.toUpperCase()}`)
+      }, moduleId);
+      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} wird auf ${state} geschaltet`);
       return true;
     }
 
@@ -148,27 +103,21 @@ function executeRulesForTrigger({
       if (!element) return false;
       const state = ["halt", "warnung", "fahrt"].includes(action?.state) ? action.state : "halt";
       const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId) return false;
+      if (!moduleId || !controllable(moduleId, rule)) return false;
       const channels = {
         halt: validLedChannel(element.ledChannelRed),
         warnung: validLedChannel(element.ledChannelYellow),
         fahrt: validLedChannel(element.ledChannelGreen)
       };
       if (!channels[state]) return false;
-      const module = moduleRegistry.getOrCreateModule(moduleId);
+      const opId = operationId("RULE_LED_SIGNAL");
       for (const [aspect, channel] of Object.entries(channels)) {
         if (!channel) continue;
-        const on = aspect === state;
-        upsertLed(runtimeState.hardware, moduleId, channel, { state: on, brightness: on ? 255 : 0, blinking: false });
-        while (module.leds.length < channel) module.leds.push({ state: false, brightness: 0, blinking: false });
-        module.leds[channel - 1] = { state: on, brightness: on ? 255 : 0, blinking: false };
-        commandQueueApi.createCommand("LED_SET", { channel, state: on, elementId, ruleId: rule.id }, moduleId);
+        commandQueueApi.createCommand("LED_SET", {
+          channel, state: aspect === state, logicalState: state, elementId, ruleId: rule.id, operationId: opId
+        }, moduleId);
       }
-      element.ledState = state;
-      element.powerState = true;
-      hardwareChanged = true;
-      layoutChanged = true;
-      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} auf ${state}`);
+      emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} wird auf ${state} geschaltet`);
       return true;
     }
 
@@ -198,15 +147,6 @@ function executeRulesForTrigger({
       rulesChanged = true;
       emit("REGEL", rule.id || "RULE", `${getRuleName(rule)} ausgelöst`);
     }
-  }
-
-  if (hardwareChanged) {
-    runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
-  }
-
-  if (layoutChanged) {
-    queueWriteLayout();
   }
 
   if (rulesChanged) {

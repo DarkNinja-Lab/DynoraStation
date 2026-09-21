@@ -2,7 +2,7 @@
 
 Webbasierte Steuerzentrale für eine H0-Modellbahn mit mehreren ESP8266-Modulen. DynoraStation kombiniert Gleisbild-Editor, Live-Betrieb, Hardwareverwaltung und Wenn-Dann-Automationen.
 
-Aktuelle Version: **1.7.4**. Die Bogenweiche 5141 verwendet nun zwei mathematisch exakte 30°-Kreisbögen: innen R360 wie 5100 und außen R437,4 wie 5200, ergänzt um Weichenzunge und Herzstück. Die Direktsteuerung verwendet für normale und ESP-Signale einen gemeinsamen, getesteten Zustandsweg, sodass Lampenbild und Textzustand synchron umschalten.
+Aktuelle Version: **2.0.7**. Die Oberfläche verwendet ein neutrales, dunkles Systemdesign mit klarer Navigation und kompakten Statusflächen. Übersicht, Planung und Betrieb arbeiten auf Desktop und Mobilgeräten als feste, nicht scrollende Arbeitsbereiche; lange Teilinhalte scrollen nur innerhalb ihres Panels. Die Einstellungen besitzen eine eigene seitliche Bereichsnavigation und enthalten jetzt auch die Automationen. Das Schalten von Gleisrelais erfolgt atomisch auf dem Server, schützt vor Mehrfachklicks und bleibt auch während überlappender ESP-Heartbeats konsistent. Der Gleisbild-Editor kombiniert Live- und gespeicherte Relais-/Sensorbestände, damit Zuweisungen auch für registrierte Offline-Module sichtbar bleiben. Die MCP23017-Firmware liefert zusätzlich BME280-Telemetrie; die Trafo-Temperatur erscheint auf dem Dashboard und direkt im Betriebsplan. Automationen besitzen eine frei einstellbare Sperrzeit in Sekunden.
 
 ## Eigenes Dynora-Logo einsetzen
 
@@ -22,7 +22,7 @@ Für das beste Ergebnis sollte das Logo quadratisch sein, einen transparenten Hi
 
 ## Funktionen
 
-- Professionelle Betriebsübersicht im Industrial-/Steampunk-Design mit DB-roten Akzenten
+- Professionelle, reduzierte Leitstellenoberfläche mit klarer Statushierarchie und responsivem Hardware-Center
 - Visueller Gleisbild-Editor mit physischem Millimeter-Raster, magnetischen Gleisenden, Zoom und Undo/Redo
 - Märklin-M-Gleiskatalog mit Geraden, Kurven, Weichen und Kreuzungsweiche
 - Weichen 5118 (links), 5119 (rechts), 5141 (Bogenweiche links mit R1/R2-Doppelbogen) und Prellbock 5129
@@ -35,6 +35,10 @@ Für das beste Ergebnis sollte das Logo quadratisch sein, einen transparenten Hi
 - Grundstellungen für den Betriebsstart
 - Wenn-Dann-Automationen für Sensoren, Relais, LEDs, Weichen und Signale
 - Persistenz von Layout, Hardwarekonfiguration und Regeln unter `data/`
+- Durchsuchbares und nach Ereignistyp filterbares Systemprotokoll
+- Warnung vor dem Schließen der Anwendung bei ungespeicherten Layout- oder Einstellungsänderungen
+- BME280-Telemetrie für Temperatur, Luftfeuchtigkeit und Luftdruck
+- Pro Automation konfigurierbare Sperrzeit gegen wiederholte Sensortrigger
 
 ## Voraussetzungen
 
@@ -84,7 +88,7 @@ Die Datei `.env` wird beim Start durch `dotenv` geladen und überschreibt die St
 
 Die Firmware liegt unter `esp8266_code/`:
 
-- `relays_und_sensoren.ino` wahlweise für 16 Relais über MCP23017 oder vier direkt angeschlossene Relais sowie zwei Rückmelder
+- `relays_und_sensoren.ino` für 16 Relais über MCP23017, drei boot-sichere Rückmelder und einen BME280 im Trafo-Gehäuse
 - `led_signalleuchten.ino` für LED- und Signalmasten
 
 Vor dem Flashen WLAN, `SERVER_HOST`, `SERVER_PORT`, `MODULE_NAME`, Pinbelegung und aktive Logik anpassen. Die technische Modul-ID wird automatisch aus der eindeutigen ESP8266-Chip-ID erzeugt. Der Anzeigename kann später unter **Einstellungen → ESP-Module** beliebig geändert werden; Relais-, Sensor-, Gleisbild- und Regelzuordnungen bleiben dabei erhalten.
@@ -102,15 +106,13 @@ Die Relais-Firmware verwendet den MCP23017 direkt über `Wire`; eine zusätzlich
 
 `GPA0` bis `GPA7` steuern Relais 1–8, `GPB0` bis `GPB7` Relais 9–16. Die Ausgänge dürfen nur an die Logikeingänge eines Relaisboards mit eigener Treiberstufe angeschlossen werden, niemals direkt an Relaisspulen. Falls das verwendete Board aktiv-HIGH schaltet, in `relays_und_sensoren.ino` den Wert `RELAY_ACTIVE_LOW` auf `false` setzen.
 
-### Relaisboard direkt am ESP8266
+### BME280 und Sensoreingänge
 
-Im gleichen Sketch kann ohne MCP23017 gearbeitet werden:
+Der BME280 teilt sich den I²C-Bus mit dem MCP23017 und wird standardmäßig unter Adresse `0x76` angesprochen. Temperatur, relative Luftfeuchte und Luftdruck werden mit jedem Heartbeat übertragen. Die Temperatur erscheint auf dem Dashboard sowie direkt am zugewiesenen Trafo im Betriebs-Gleisbild.
 
-```cpp
-const bool USE_MCP23017 = false;
-```
+Für Rückmelder werden ausschließlich D5/GPIO14, D6/GPIO12 und D7/GPIO13 verwendet. Die bootkritischen Pins D3/GPIO0, D4/GPIO2 und D8/GPIO15 bleiben frei. RX/TX bleiben für die serielle Diagnose verfügbar; D0/GPIO16 bleibt Reserve.
 
-Standardmäßig werden dann vier Relais über `D1`, `D2`, `D5` und `D6` gesteuert. Die vom ESP gemeldete Kanalzahl passt sich automatisch an; am Webserver ist keine weitere Umstellung nötig. Das Relaisboard braucht weiterhin eine passende eigene Versorgung und eine gemeinsame Masse mit dem NodeMCU.
+Zusätzlich zu ArduinoJson und den ESP8266-Bibliotheken benötigt die Firmware `Adafruit BME280 Library` und `Adafruit Unified Sensor`.
 
 ### Not-Aus und Live-Synchronisierung
 
@@ -211,6 +213,14 @@ DynoraStation/
 ├── package.json
 └── README.md
 ```
+
+## Schaltsicherheit und ESP-Kompatibilität (v2.0.7)
+
+Schaltzustände werden erst nach einer expliziten ESP-Bestätigung übernommen. Die Oberfläche unterscheidet „Wird geschaltet …“, „Erfolgreich bestätigt“ und „Fehlgeschlagen / Zeitüberschreitung“. Offline- oder protokollinkompatible Module werden serverseitig und in der Bedienoberfläche gesperrt.
+
+Jeder ESP meldet im Heartbeat `firmwareVersion`, `protocolVersion` und `hardwareType`. Die erwartete Protokollversion wird serverseitig über `PROTOCOL_VERSION` konfiguriert. Eine abweichende Protokollversion wird als inkompatibel markiert.
+
+Beim Speichern des Gleisbilds prüft der Server Mehrfachbelegungen derselben Modul-/Relaiskombination. Unabhängige Elemente erzeugen eine Warnung; mehrere Elemente desselben explizit zugewiesenen Stromkreises sind davon ausgenommen.
 
 ## Diagnose
 

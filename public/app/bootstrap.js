@@ -18,6 +18,12 @@ export async function startApp() {
   console.log("=== START APP ===");
 
   eventsRegistrieren();
+  window.addEventListener("beforeunload", (event) => {
+    const hasUnsavedChanges = state.layoutDirty || Object.values(state.settingsDirty || {}).some(Boolean);
+    if (!hasUnsavedChanges) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   ensureCanvasGeometry();
 
   await katalogLaden();

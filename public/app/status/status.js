@@ -16,12 +16,35 @@ function renderEvents() {
   const host = document.getElementById("eventList");
   if (!host) return;
   const events = Array.isArray(state.events) ? state.events : [];
-  host.innerHTML = events.length ? events.map((event) => {
+  const search = String(document.getElementById("eventSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
+  const typeFilter = String(document.getElementById("eventTypeFilter")?.value || "");
+  const typeSelect = document.getElementById("eventTypeFilter");
+  if (typeSelect) {
+    const selected = typeSelect.value;
+    const types = Array.from(new Set(events.map((event) => String(event.type || "SYSTEM")))).sort((a, b) => a.localeCompare(b, "de"));
+    const signature = types.join("\u0000");
+    if (typeSelect.dataset.signature !== signature) {
+      typeSelect.dataset.signature = signature;
+      typeSelect.replaceChildren(new Option("Alle Ereignisse", ""), ...types.map((type) => new Option(type, type)));
+      typeSelect.value = types.includes(selected) ? selected : "";
+    }
+  }
+  const filtered = events.filter((event) => {
+    if (typeFilter && String(event.type || "SYSTEM") !== typeFilter) return false;
+    if (!search) return true;
+    return [event.type, event.text, event.source].some((value) => String(value || "").toLocaleLowerCase("de-DE").includes(search));
+  });
+  const count = document.getElementById("eventResultCount");
+  if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? "Eintrag" : "Einträge"}`;
+  host.innerHTML = filtered.length ? filtered.map((event) => {
     const timeValue = event.timestamp || event.time;
     const time = timeValue ? new Date(timeValue).toLocaleTimeString("de-DE") : "–";
     return `<div class="event-row"><strong>${escapeHtml(event.type || "SYSTEM")}</strong><span>${escapeHtml(event.text || "")}</span><small>${escapeHtml(event.source || "")} · ${time}</small></div>`;
-  }).join("") : '<div class="empty-state">Noch keine Ereignisse vorhanden.</div>';
+  }).join("") : `<div class="empty-state">${events.length ? "Keine passenden Ereignisse gefunden." : "Noch keine Ereignisse vorhanden."}</div>`;
 }
+
+document.getElementById("eventSearch")?.addEventListener("input", renderEvents);
+document.getElementById("eventTypeFilter")?.addEventListener("change", renderEvents);
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -47,6 +70,15 @@ function setServerOnline(online) {
     sidebar.closest(".sidebar-status-box")?.classList.toggle("offline", !online);
   }
   if (card) card.textContent = online ? "ONLINE" : "OFFLINE";
+}
+
+function setLastSync(online) {
+  const el = document.getElementById("lastSyncStatus");
+  if (!el) return;
+  el.textContent = online
+    ? `Synchronisiert · ${new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+    : "Verbindung unterbrochen";
+  el.classList.toggle("offline", !online);
 }
 
 function normalizeModules(rawModules) {
@@ -79,13 +111,17 @@ function trackRenderSignature(layout, modules) {
       id: sensor?.id,
       triggered: Boolean(sensor?.triggered ?? sensor?.active ?? sensor?.state)
     })),
-    leds: module.leds
+    leds: module.leds,
+    environment: module.environment,
+    online: module.online,
+    compatibility: module.compatibility
   }));
-  return JSON.stringify({ layout, liveStates });
+  return JSON.stringify({ layout, liveStates, commands: state.commands || [] });
 }
 
-function directControlSignature(layout) {
-  return JSON.stringify((layout?.elemente || [])
+function directControlSignature(layout, modules) {
+  return JSON.stringify({
+    elements: (layout?.elemente || [])
     .filter((element) => element.showInDirectControl !== false && ["switch", "xtrack", "crossing", "signal", "ledSignal", "espSignal"].includes(element.typ))
     .map((element) => ({
       id: element.id,
@@ -96,16 +132,21 @@ function directControlSignature(layout) {
       xState: element.xState,
       signalState: element.signalState,
       ledState: element.ledState,
-      espState: element.espState
-    })));
+      espState: element.espState,
+      module: element.module
+    })),
+    modules: Object.values(modules || {}).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility })),
+    commands: state.commands || []
+  });
 }
 
 export async function statusLaden({ ruhig = true } = {}) {
   try {
-    const data = await apiCall("/status");
+    const data = await apiCall("/status", { timeoutMs: 3500 });
     state.statusPollMs = Math.max(250, Number(data?.uiStatusIntervalMs) || 400);
 
     setServerOnline(true);
+    setLastSync(true);
 
     const modules = normalizeModules(data?.hardware?.modules ?? data?.modules);
     state.hardware = {
@@ -113,6 +154,8 @@ export async function statusLaden({ ruhig = true } = {}) {
       ...(data?.hardware && typeof data.hardware === "object" ? data.hardware : {}),
       modules
     };
+    if (Array.isArray(data?.commands)) state.commands = data.commands;
+    state.relayConflicts = Array.isArray(data?.warnings?.relayConflicts) ? data.warnings.relayConflicts : [];
     const settingsSnapshotIsFresh = Number(data?.hardware?.updatedAt || 0) >= Number(state.settingsPersistedAt || 0);
     if (settingsSnapshotIsFresh && !state.settingsDirty?.leds && !state.ledConfigDirty && data?.ledConfig && typeof data.ledConfig === "object") state.ledConfig = data.ledConfig;
 
@@ -125,6 +168,10 @@ export async function statusLaden({ ruhig = true } = {}) {
         name: module.name,
         capabilities: module.capabilities,
         kind: module.kind,
+        firmwareVersion: module.firmwareVersion,
+        protocolVersion: module.protocolVersion,
+        hardwareType: module.hardwareType,
+        compatibility: module.compatibility,
         relayCount: module.relays?.length || 0,
         sensorIds: (module.sensors || []).map((sensor) => sensor?.id),
         ledCount: module.leds?.length || 0
@@ -136,8 +183,15 @@ export async function statusLaden({ ruhig = true } = {}) {
       document.dispatchEvent(new CustomEvent("dynora:modules-updated"));
     }
 
+    const incompatibleModules = allModules.filter((module) => module.compatibility?.compatible === false).length;
     setText("moduleCardStatus", `${onlineModules} / ${allModules.length}`);
-    setText("dashboardSummary", onlineModules === allModules.length && allModules.length ? "Alle Systeme betriebsbereit" : allModules.length ? `${allModules.length - onlineModules} Modul(e) offline` : "Noch keine Module registriert");
+    setText("dashboardSummary", state.relayConflicts.length
+      ? `${state.relayConflicts.length} Relais-Konflikt(e) erkannt`
+      : incompatibleModules
+        ? `${incompatibleModules} inkompatible(s) Modul(e)`
+        : onlineModules === allModules.length && allModules.length
+          ? "Alle Systeme betriebsbereit"
+          : allModules.length ? `${allModules.length - onlineModules} Modul(e) offline` : "Noch keine Module registriert");
 
     let relayTotal = 0;
     let relayActive = 0;
@@ -150,6 +204,22 @@ export async function statusLaden({ ruhig = true } = {}) {
 
     const elementCount = Array.isArray(state?.layout?.elemente) ? state.layout.elemente.length : 0;
     setText("elementCardStatus", String(elementCount));
+
+    const transformerModuleIds = (state.layout?.elemente || [])
+      .filter((element) => element.typ === "transformer" && element.module)
+      .map((element) => element.module);
+    const environmentModule = transformerModuleIds
+      .map((moduleId) => modules[moduleId])
+      .find((module) => Number.isFinite(Number(module?.environment?.temperatureC)))
+      || allModules.find((module) => Number.isFinite(Number(module?.environment?.temperatureC)));
+    if (environmentModule?.online) {
+      const environment = environmentModule.environment;
+      setText("temperatureCardStatus", `${Number(environment.temperatureC).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`);
+      setText("temperatureCardDetail", `${Number(environment.humidityPct).toLocaleString("de-DE", { maximumFractionDigits: 1 })} % rF · ${Number(environment.pressureHpa).toLocaleString("de-DE", { maximumFractionDigits: 0 })} hPa`);
+    } else {
+      setText("temperatureCardStatus", "–");
+      setText("temperatureCardDetail", environmentModule ? "BME280-Modul offline" : "BME280 nicht gemeldet");
+    }
 
     if (Array.isArray(data?.cs3Tiles)) state.cs3Tiles = data.cs3Tiles;
     const editorOpen = document.getElementById("page-builder")?.classList.contains("active");
@@ -201,20 +271,25 @@ export async function statusLaden({ ruhig = true } = {}) {
     }
 
     const sidebarSignature = JSON.stringify(allModules.map((module) => ({
-      id: module.id, name: module.name, online: module.online, kind: module.kind, ip: module.ip
+      id: module.id, name: module.name, online: module.online, kind: module.kind, ip: module.ip,
+      firmwareVersion: module.firmwareVersion, protocolVersion: module.protocolVersion, hardwareType: module.hardwareType, compatibility: module.compatibility
     })));
     if (sidebarSignature !== lastSidebarSignature) {
       lastSidebarSignature = sidebarSignature;
       renderSidebarEspStatus();
     }
 
-    const controlsSignature = directControlSignature(state.layout);
+    const controlsSignature = directControlSignature(state.layout, modules);
     if (controlsSignature !== lastDirectControlSignature) {
       lastDirectControlSignature = controlsSignature;
       renderCs3Tiles();
     }
 
-    const lightSignature = JSON.stringify(state.lightButtons || []);
+    const lightSignature = JSON.stringify({
+      lights: state.lightButtons || [],
+      modules: Object.values(modules).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility })),
+      commands: state.commands || []
+    });
     if (lightSignature !== lastLightButtonSignature) {
       lastLightButtonSignature = lightSignature;
       renderTrackLightButtons();
@@ -223,7 +298,8 @@ export async function statusLaden({ ruhig = true } = {}) {
     const dashboardSignature = JSON.stringify({
       modules: allModules,
       layout: state.layout,
-      events: state.events?.slice(0, 5)
+      events: state.events?.slice(0, 5),
+      relayConflicts: state.relayConflicts
     });
     if (dashboardSignature !== lastDashboardSignature) {
       lastDashboardSignature = dashboardSignature;
@@ -232,6 +308,7 @@ export async function statusLaden({ ruhig = true } = {}) {
     refreshSettingsHardwareStatus();
   } catch (err) {
     setServerOnline(false);
+    setLastSync(false);
     if (!ruhig) {
       console.warn("Status laden fehlgeschlagen:", err?.message || err);
     }
