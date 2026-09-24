@@ -200,7 +200,7 @@ function fitTrackViewBox(svgRoot, elements) {
     svgRoot?.setAttribute("viewBox", "0 0 1600 900");
     return;
   }
-  const padding = 85;
+  const padding = 48;
   const xs = elements.map((e) => Number(e.x || 0));
   const ys = elements.map((e) => Number(e.y || 0));
   let minX = Math.min(...xs) - padding;
@@ -223,7 +223,7 @@ function fitTrackViewBox(svgRoot, elements) {
   }
 
   // Nur wenig Sicherheitsrand: Das Gleisbild soll die verfügbare Fläche ausnutzen.
-  const zoomOut = 1.06;
+  const zoomOut = 1.02;
   const extraW = width * (zoomOut - 1);
   const extraH = height * (zoomOut - 1);
   minX -= extraW / 2;

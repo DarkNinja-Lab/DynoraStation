@@ -605,3 +605,148 @@ textarea:focus { border-color: #68728f; box-shadow: 0 0 0 3px rgba(148,171,237,.
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* 3.2 UI normalization: one scale, clearer analog signal-box workspace */
+:root { --app-header-h: 76px; --space: clamp(10px, 1.1vw, 18px); }
+html { font-size: 16px; }
+.app-shell { grid-template-rows: var(--app-header-h) minmax(0,1fr); }
+.global-header { min-height: var(--app-header-h); grid-template-columns: minmax(210px,260px) minmax(0,1fr) max-content; gap: clamp(10px,1.5vw,24px); padding-inline: clamp(12px,2vw,28px); }
+.brand-bar { grid-template-columns: 42px minmax(0,1fr); }
+.brand-icon { width:42px; height:42px; }
+.brand-text strong { font-size:18px; }
+.brand-text small { display:block; font-size:10px; white-space:nowrap; }
+.brand-text small::after { content:" · Analog-Stellwerk"; color:#d4b46d; }
+.main-nav { gap:6px; overflow:visible; }
+.nav-button { flex:0 1 auto; min-width:max-content; min-height:44px; padding:0 clamp(10px,1vw,15px); gap:9px; }
+.nav-button .nav-icon { width:21px; height:21px; flex:0 0 21px; }
+.nav-button .nav-icon svg { width:20px; height:20px; }
+.nav-copy b { font-size:13px; line-height:1; overflow:visible; }
+.global-actions { flex-wrap:nowrap; }
+.main-area { padding:var(--space); }
+.topbar { min-height:64px; margin-bottom:var(--space); padding:0 2px 12px; }
+.page.active { min-width:0; }
+.panel { min-width:0; }
+
+/* Dashboard: prevent cards from colliding and let both columns shrink safely. */
+#page-dashboard.active { overflow:auto; }
+.dashboard-workspace { grid-template-columns:minmax(0,1.65fr) minmax(300px,.72fr); gap:var(--space); height:auto; min-height:520px; }
+.dashboard-plan-panel, .dashboard-control-stack, .operations-grid, .operation-card { min-width:0; }
+.operations-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dashboard-command-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.dashboard-command-actions button { min-width:0; white-space:normal; }
+.dashboard-lower { gap:var(--space); }
+
+/* Planner: conventional library | large canvas | inspector layout. */
+#page-builder .builder-shell { border:1px solid var(--line); }
+.builder-layout { grid-template-columns:280px minmax(420px,1fr) 300px; }
+.builder-sidebar { grid-column:1; grid-row:1; border-right:1px solid var(--line); }
+.builder-canvas-area { grid-column:2; grid-row:1; min-width:0; }
+.inspector { grid-column:3; grid-row:1; border-left:1px solid var(--line); }
+.canvas-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 10px; }
+.canvas-toolbar .toolbar-group { flex-wrap:wrap; }
+.canvas-viewport { min-height:420px; }
+#builderSvg { width:100%; height:100%; touch-action:none; }
+.builder-header { min-height:66px; }
+.builder-header-actions { flex-wrap:wrap; justify-content:flex-end; }
+
+/* Betrieb: the track diagram is the primary instrument, controls stay compact. */
+#page-track.active > .panel { grid-template-rows:auto auto auto minmax(360px,1fr) auto; padding:12px; }
+#page-track .track-light-panel { margin-bottom:6px; padding:6px 8px; }
+#page-track .cs3-tile-panel { margin-bottom:6px; padding:6px 8px; max-height:128px; overflow:auto; }
+#page-track .track-system-notice { min-height:44px; margin:4px 0 6px; padding:7px 10px; }
+.track-plan-wrapper { min-height:360px !important; }
+#page-track #trackSvg { display:block; }
+
+/* Settings: stable left navigation instead of a long horizontal strip. */
+.settings-workspace { display:grid; grid-template-columns:220px minmax(0,1fr); gap:12px; align-items:start; }
+.settings-tabs { position:sticky; top:0; display:grid; grid-template-columns:1fr; gap:4px; overflow:visible; padding:7px; }
+.settings-tab { width:100%; min-height:52px; flex:none; justify-content:flex-start; }
+.settings-content { min-width:0; }
+.hardware-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+#page-settings .module-management-grid { grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); }
+
+@media (max-width: 1280px) {
+  .global-header { grid-template-columns:190px minmax(0,1fr) max-content; padding-inline:12px; }
+  .brand-text small::after { content:" · Stellwerk"; }
+  .nav-button { padding-inline:9px; gap:6px; }
+  .nav-copy b { font-size:12px; }
+  .global-actions .last-sync { display:none; }
+  .builder-layout { grid-template-columns:240px minmax(360px,1fr) 270px; }
+}
+
+@media (max-width: 1050px) {
+  .global-actions .status-pill { display:none; }
+  .dashboard-workspace { grid-template-columns:1fr; }
+  .dashboard-control-stack { display:grid; grid-template-columns:minmax(260px,.65fr) minmax(0,1fr); grid-template-rows:none; }
+  .settings-workspace { grid-template-columns:190px minmax(0,1fr); }
+}
+
+@media (max-width: 900px) {
+  :root { --app-header-h:60px; }
+  html, body { overflow:hidden; }
+  .global-header { grid-template-columns:minmax(0,1fr) auto; min-height:60px; }
+  .brand-text small { display:block; font-size:9px; }
+  .brand-text small::after { content:" · Analog"; }
+  .global-actions .module-center-button { display:none; }
+  .global-actions .danger-button { min-height:38px; padding:6px 10px; }
+  .main-area { padding:8px 8px calc(76px + env(safe-area-inset-bottom)); overflow:hidden; }
+  .topbar { min-height:52px; margin-bottom:7px; padding-bottom:7px; }
+  #pageTitle { font-size:21px; }
+  #pageSubtitle { font-size:11px; }
+  .page.active { overflow:auto; overscroll-behavior:contain; }
+  .mobile-bottom-nav { padding-bottom:env(safe-area-inset-bottom); }
+  .dashboard-workspace, .dashboard-control-stack { display:flex; flex-direction:column; min-height:0; }
+  .dashboard-plan-panel { min-height:440px; }
+  .dashboard-plan { min-height:330px; }
+  .operations-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #page-builder.active { overflow:hidden; }
+  #page-builder .builder-shell { height:100%; }
+  #page-builder .builder-layout { display:block; }
+  #page-builder .builder-layout > .builder-sidebar,
+  #page-builder .builder-layout > .builder-canvas-area,
+  #page-builder .builder-layout > .inspector { width:100%; height:100%; }
+  #page-builder .builder-layout[data-mobile-panel="canvas"] > .builder-sidebar,
+  #page-builder .builder-layout[data-mobile-panel="canvas"] > .inspector,
+  #page-builder .builder-layout[data-mobile-panel="library"] > .builder-canvas-area,
+  #page-builder .builder-layout[data-mobile-panel="library"] > .inspector,
+  #page-builder .builder-layout[data-mobile-panel="inspector"] > .builder-canvas-area,
+  #page-builder .builder-layout[data-mobile-panel="inspector"] > .builder-sidebar { display:none; }
+  #page-builder .builder-layout[data-mobile-panel="library"] > .builder-sidebar,
+  #page-builder .builder-layout[data-mobile-panel="inspector"] > .inspector { display:block; overflow:auto; }
+  .canvas-toolbar .pan-hint, .builder-hint { display:none; }
+  #page-track.active { overflow:auto; }
+  #page-track.active > .panel { display:flex; flex-direction:column; height:auto; min-height:100%; padding:7px; }
+  #page-track .track-plan-wrapper { order:2; height:58dvh; min-height:420px !important; flex:none; }
+  #page-track .track-system-notice { order:1; }
+  #page-track .track-light-panel { order:3; }
+  #page-track .cs3-tile-panel { order:4; max-height:none; }
+  #page-track #trackMessage { order:5; }
+  .hardware-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .settings-workspace { display:block; }
+  .settings-tabs { position:sticky; top:0; z-index:5; display:flex; gap:5px; margin-bottom:8px; overflow-x:auto; }
+  .settings-tab { flex:0 0 150px; width:auto; }
+  #page-settings .settings-section > .panel-header { gap:10px; flex-direction:column; }
+}
+
+@media (max-width: 560px) {
+  .brand-icon { width:34px; height:34px; }
+  .brand-text strong { font-size:14px; }
+  .brand-text small { font-size:8px; }
+  .global-actions .danger-button { font-size:10px; }
+  .page-context-actions { display:none !important; }
+  .topbar { min-height:46px; }
+  #pageSubtitle { display:none; }
+  .dashboard-plan-panel { min-height:390px; }
+  .dashboard-plan { min-height:300px; }
+  .operations-grid, .hardware-summary-grid { grid-template-columns:1fr 1fr; }
+  .dashboard-lower { display:block; }
+  .dashboard-lower > * + * { margin-top:8px; }
+  .builder-header { padding:8px; }
+  .builder-header-actions .secondary-button { display:none; }
+  .canvas-toolbar { padding:6px; }
+  .canvas-toolbar .icon-button { min-width:40px; }
+  #page-track .track-plan-wrapper { height:54dvh; min-height:360px !important; }
+  .hardware-center-head h2 { font-size:20px; }
+  .hardware-center-head p { font-size:11px; }
+  .hardware-summary-grid > article { min-height:82px; padding:10px; }
+}
