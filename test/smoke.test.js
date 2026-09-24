@@ -258,8 +258,9 @@ test("Heartbeat liefert wartende Relaisbefehle als redundanten Zustellweg", asyn
 
 test("Relais-Firmware bestätigt Befehle auch bei Hardwarefehlern eindeutig", () => {
   const firmware = fs.readFileSync(path.join(projectDir, "esp8266_code", "relays_und_sensoren.ino"), "utf8");
-  assert.match(firmware, /FIRMWARE_VERSION = "2\.4\.0"/);
-  assert.match(firmware, /RELAY_ACTIVE_LOW = false/);
+  assert.match(firmware, /FIRMWARE_VERSION = "2\.5\.0"/);
+  assert.match(firmware, /RELAY_ACTIVE_LOW = true/);
+  assert.match(firmware, /RELAY_DRIVE_MODE = "OPEN_DRAIN_IODIR"/);
   assert.match(firmware, /mcpWriteAndVerify/);
   assert.match(firmware, /reply\["command"\]/);
   assert.match(firmware, /MCP23017 nicht bereit oder Schreibfehler/);
