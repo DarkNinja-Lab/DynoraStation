@@ -15,16 +15,6 @@ function isUncoupler(element) {
   return element?.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112";
 }
 
-export function builderRender() {
-  // Render builder canvas
-  console.log("Builder render called");
-}
-
-export function trackRender() {
-  // Render track display
-  console.log("Track render called");
-}
-
 export function inspectorLeer() {
   const inspector = document.getElementById("inspector");
   if (inspector) {

@@ -88,7 +88,6 @@ function bindKeyboardShortcuts() {
 }
 
 export function initializeTools() {
-  console.log("🔧 Initialize Tools...");
   state.zoom = Number(state.zoom) || 1;
   state.panX = Number(state.panX) || 0;
   state.panY = Number(state.panY) || 0;
@@ -100,7 +99,6 @@ export function initializeTools() {
       cancelPlacement();
       state.selectedTool = "select";
       updateToolButtons();
-      console.log("✅ Select Tool aktiv");
     });
   }
 
@@ -111,7 +109,6 @@ export function initializeTools() {
       cancelPlacement();
       state.selectedTool = "connect";
       updateToolButtons();
-      console.log("✅ Connect Tool aktiv");
     });
   }
 
@@ -179,7 +176,6 @@ export function initializeTools() {
   if (snapCheckbox) {
     snapCheckbox.addEventListener("change", (e) => {
       state.snapToGrid = e.target.checked;
-      console.log(`Snap to Grid: ${e.target.checked}`);
     });
   }
 
@@ -242,7 +238,6 @@ export function initializeTools() {
   bindKeyboardShortcuts();
   bindCanvasNavigation();
   updateZoom();
-  console.log("✅ Tools initialized");
 }
 
 function updateToolButtons() {

@@ -17,7 +17,6 @@ export function ensureCanvasGeometry() {
 }
 
 export function setupBuilderButtons() {
-  console.log("🔧 Setup Builder Buttons...");
 
   if (!state.layout.elemente) {
     state.layout.elemente = [];
@@ -51,7 +50,6 @@ export function setupBuilderButtons() {
   const saveBtn = document.getElementById("saveLayoutButton");
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      console.log("💾 Saving layout...");
       try {
         const result = await apiCall("/layout", {
           method: "POST",
@@ -105,7 +103,6 @@ export function setupBuilderButtons() {
     renderCanvas(); inspectorLeer(); showToast("Änderung wiederhergestellt");
   });
 
-  console.log("✅ Builder Buttons ready");
 }
 
 const PLACEABLE_TYPES = ["track", "curve", "switch", "crossing", "bumper", "signal", "espSignal", "transformer"];

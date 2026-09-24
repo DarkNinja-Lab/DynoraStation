@@ -73,7 +73,7 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
     <div class="custom-select" data-catalog-select="${selectId}">
       <button class="custom-select-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
         <span class="custom-select-value">
-          ${imageMarkup(first, "custom-select-thumb hidden", true)}
+          ${imageMarkup(first, "custom-select-thumb", false)}
           <span class="custom-select-symbol" aria-hidden="true">${itemSymbol(kind, first)}</span>
           <span>
             <span class="custom-select-title">${first.label}</span>
@@ -116,17 +116,18 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
     }, { once: true });
   });
 
+  function loadCatalogImages() {
+    list.querySelectorAll("img[data-src]").forEach((image) => {
+      image.src = image.dataset.src;
+      image.removeAttribute("data-src");
+    });
+  }
+
   button.addEventListener("click", () => {
     const open = list.classList.toggle("hidden") === false;
     root.classList.toggle("open", open);
     button.setAttribute("aria-expanded", String(open));
-  });
-
-  list.addEventListener("pointerover", (event) => {
-    const image = event.target.closest(".custom-select-item")?.querySelector("img[data-src]");
-    if (!image) return;
-    image.src = image.dataset.src;
-    image.removeAttribute("data-src");
+    if (open) loadCatalogImages();
   });
 
   list.addEventListener("click", (event) => {

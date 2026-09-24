@@ -9,15 +9,13 @@ import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js";
 import { renderTrackLayout } from "./track/track.js";
 import { layoutLaden, layoutNormalisieren } from "./layout/layout.js";
 import { rulesLaden, renderRulesGrid } from "./rules/rules.js";
-import { builderRender, trackRender, renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js";
 import { statusLaden } from "./status/status.js";
 import { renderCanvas, inspectorLeer } from "./builder/render.js";
 import { resetHistory } from "./builder/history.js";
 import { setupPlanValidation } from "./builder/validation.js";
 
 export async function startApp() {
-  console.log("=== START APP ===");
-
   eventsRegistrieren();
   window.addEventListener("beforeunload", (event) => {
     const hasUnsavedChanges = state.layoutDirty || Object.values(state.settingsDirty || {}).some(Boolean);
@@ -38,8 +36,6 @@ export async function startApp() {
 
   await rulesLaden();
 
-  builderRender();
-  trackRender();
   renderTrackLayout();
   renderCanvas();
   inspectorLeer();
@@ -62,6 +58,4 @@ export async function startApp() {
     state.statusTimer = setTimeout(refreshStatus, state.statusPollMs);
   };
   state.statusTimer = setTimeout(refreshStatus, state.statusPollMs);
-
-  console.log("=== APP READY ===");
 }

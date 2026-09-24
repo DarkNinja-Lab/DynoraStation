@@ -68,7 +68,7 @@ test.after(async () => {
 });
 
 test("UI und Kern-API sind erreichbar", async () => {
-  const endpoints = ["/", "/style.css", "/station-v4.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
+  const endpoints = ["/", "/style.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
   for (const endpoint of endpoints) {
     const response = await fetch(`${baseUrl}${endpoint}`);
     assert.equal(response.status, 200, endpoint);
@@ -77,7 +77,7 @@ test("UI und Kern-API sind erreichbar", async () => {
 
 test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", () => {
   const html = fs.readFileSync(path.join(projectDir, "public", "index.html"), "utf8");
-  const workspaceCss = fs.readFileSync(path.join(projectDir, "public", "station-v4.css"), "utf8");
+  const workspaceCss = fs.readFileSync(path.join(projectDir, "public", "style.css"), "utf8");
   assert.match(html, /data-settings-view="rules"/);
   assert.match(html, /data-settings-section="rules"/);
   assert.doesNotMatch(html, /id="page-rules"/);
