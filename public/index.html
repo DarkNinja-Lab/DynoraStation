@@ -3,103 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0d12">
+  <meta name="theme-color" content="#0b0c0f">
   <meta name="color-scheme" content="dark">
-  <title>DynoraStation • H0 Modellbahnsteuerung</title>
+  <title>DynoraStation • Märklin M-Gleis Steuerung</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/system-ui.css">
+  <link rel="stylesheet" href="/station-v4.css">
 </head>
 <body>
   <div class="app-shell">
-    <aside class="left-rail" id="sidebar">
+    <header class="global-header">
       <div class="brand-bar">
-        <div class="brand-icon"><img src="/assets/brand/dynora-logo-512.png" srcset="/assets/brand/dynora-logo-180.png 180w, /assets/brand/dynora-logo-192.png 192w, /assets/brand/dynora-logo-512.png 512w" sizes="40px" alt="Dynora Logo"></div>
+        <div class="brand-icon"><img src="/assets/brand/dynora-logo.png" alt="Dynora Logo"></div>
         <div class="brand-text">
-          <span class="brand-works">RAIL CONTROL SYSTEM</span>
           <strong>Dynora<span>Station</span></strong>
-          <small>H0 · MODELLBAHNLEITSTELLE</small>
+          <small>Märklin M-Gleis · H0</small>
         </div>
       </div>
 
       <nav class="main-nav" aria-label="Hauptnavigation">
-        <button class="nav-button active" data-page="dashboard" type="button"><span>01</span><b>Übersicht</b></button>
-        <button class="nav-button" data-page="builder" type="button"><span>02</span><b>Planung</b></button>
-        <button class="nav-button" data-page="track" type="button"><span>03</span><b>Betrieb</b></button>
-        <button class="nav-button" data-page="settings" type="button"><span>04</span><b>Einstellungen</b></button>
-        <button class="nav-button" data-page="events" type="button"><span>05</span><b>Protokoll</b></button>
+        <button class="nav-button active" data-page="dashboard" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg></span><span class="nav-copy"><b>Übersicht</b></span></button>
+        <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M5 8h14M5 16h14M9 8l6 8m0-8-6 8"/></svg></span><span class="nav-copy"><b>Betrieb</b></span></button>
+        <button class="nav-button" data-page="builder" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16l5-9 3 5 2-3 3 7M8 4h.01M18 4h.01"/></svg></span><span class="nav-copy"><b>Planung</b></span></button>
+        <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08H10l-.04-.08a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04V10L4 9.96a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.86-2.86.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08H14l.04.08a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 9c.08.38.3.72.6 1l.08.04V14L20 14.04c-.3.28-.52.62-.6.96Z"/></svg></span><span class="nav-copy"><b>System</b></span></button>
+        <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12M6 10h12M6 15h8M6 20h5"/></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
       </nav>
 
-      <div class="sidebar-status-box">
-        <span class="status-dot" aria-hidden="true"></span>
-        <div>
-          <strong id="sidebarServerStatus">WebServer wird geladen</strong>
-          <small>API / Backend</small>
-        </div>
+      <div class="global-actions">
+        <span id="lastSyncStatus" class="last-sync"><i aria-hidden="true"></i> Synchronisierung läuft</span>
+        <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
+        <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span> Geräte</button>
+        <button id="emergencyButton" class="danger-button" type="button"><span aria-hidden="true">■</span> NOT-AUS</button>
       </div>
+    </header>
 
-      <div class="sidebar-esp-box">
-        <div class="sidebar-esp-title">ESP-Module</div>
-        <div id="sidebarEspList" class="sidebar-esp-list">
-          <div class="sidebar-esp-empty">Noch kein ESP verbunden.</div>
-        </div>
-      </div>
+    <aside class="system-drawer" id="sidebar" aria-label="Gerätecenter">
+      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar aria-label="Gerätecenter schließen">×</button></div>
+      <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">WebServer wird geladen</strong><small>Systemverbindung</small></div></div>
+      <div class="sidebar-esp-box"><div class="sidebar-esp-title"><span>ESP-Module</span><small>Live</small></div><div id="sidebarEspList" class="sidebar-esp-list"><div class="sidebar-esp-empty">Noch kein ESP verbunden.</div></div></div>
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>01</span><small>Start</small></button>
-      <button class="mobile-nav-button" data-page-link="track" type="button"><span>03</span><small>Betrieb</small></button>
-      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>02</span><small>Planung</small></button>
-      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>04</span><small>Setup</small></button>
+      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>01</span><small>Übersicht</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button"><span>02</span><small>Betrieb</small></button>
+      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>03</span><small>Planung</small></button>
+      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>04</span><small>System</small></button>
       <button id="mobileMoreButton" class="mobile-nav-button" type="button" aria-label="Weitere Bereiche öffnen" aria-controls="sidebar" aria-expanded="false"><span>•••</span><small>Mehr</small></button>
     </nav>
 
     <main class="main-area">
       <header class="topbar">
         <div class="topbar-left">
-          <button id="mobileMenuButton" class="icon-button mobile-menu-btn" type="button" aria-label="Menü öffnen" aria-controls="sidebar" aria-expanded="false">☰</button>
-          <div class="topbar-brand-mark" aria-hidden="true"><img src="/assets/brand/dynora-logo-512.png" srcset="/assets/brand/dynora-logo-180.png 180w, /assets/brand/dynora-logo-192.png 192w, /assets/brand/dynora-logo-512.png 512w" sizes="38px" alt=""></div>
-          <div>
-            <div class="eyebrow">DYNORASTATION</div>
+          <div class="topbar-title-group">
+            <div class="eyebrow"><span>DynoraStation</span><i aria-hidden="true"></i><span id="topbarSection">Betrieb</span></div>
             <h1 id="pageTitle">Übersicht</h1>
-            <p id="pageSubtitle">Status, Betrieb und Gleisbild</p>
+            <p id="pageSubtitle">Betriebsbild, Systemzustand und letzte Aktivitäten</p>
           </div>
         </div>
-
-        <div class="topbar-actions">
-          <span id="lastSyncStatus" class="last-sync">Synchronisierung läuft</span>
-          <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
-          <button id="emergencyButton" class="danger-button" type="button">NOT-AUS</button>
-        </div>
+        <div class="page-context-actions"><button class="secondary-button" data-page-link="builder" type="button">Plan öffnen</button><button class="primary-button" data-page-link="track" type="button">In den Betrieb</button></div>
       </header>
 
       <section id="page-dashboard" class="page active">
-        <section class="dashboard-commandbar">
-          <div><span class="dashboard-live-dot"></span><div><strong>Betriebsübersicht</strong><small id="dashboardSummary">Systemstatus wird geladen …</small></div></div>
-          <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button">Anlage steuern</button><button class="secondary-button" data-page-link="builder" type="button">Plan bearbeiten</button><button class="secondary-button" data-page-link="settings" type="button">Einstellungen</button></div>
-        </section>
-
-        <div class="operations-grid">
-          <article class="operation-card server"><i aria-hidden="true">SYS</i><span>WebServer</span><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small></article>
-          <article class="operation-card"><i aria-hidden="true">ESP</i><span>Module</span><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small></article>
-          <article class="operation-card"><i aria-hidden="true">I/O</i><span>Relais</span><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small></article>
-          <article class="operation-card"><i aria-hidden="true">PLN</i><span>Gleisbild</span><strong id="elementCardStatus">0</strong><small>Elemente im Plan</small></article>
-          <article class="operation-card temperature-card"><i aria-hidden="true">°C</i><span>Trafo</span><strong id="temperatureCardStatus">–</strong><small id="temperatureCardDetail">BME280 nicht gemeldet</small></article>
-        </div>
-
         <div class="dashboard-workspace">
           <section class="panel dashboard-plan-panel">
-            <div class="panel-header"><div><div class="eyebrow">ANLAGE</div><h2>Gleisbild-Vorschau</h2></div><button class="text-button" data-page-link="track" type="button">Öffnen →</button></div>
+            <div class="panel-header"><div><div class="eyebrow">MÄRKLIN M-GLEIS · LIVE-ANLAGE</div><h2>Betriebsbild</h2><p>Fahrwege, Rückmelder und Schaltzustände auf einen Blick.</p></div><button class="text-button" data-page-link="track" type="button">Öffnen <span>→</span></button></div>
             <div class="dashboard-plan"><svg id="dashboardTrackSvg" viewBox="0 0 1600 900" aria-label="Vorschau des Gleisbilds"><g id="dashboardTrackElements"></g><text id="dashboardTrackEmpty" x="800" y="450" text-anchor="middle">Noch kein Gleisbild erstellt</text></svg></div>
           </section>
+          <aside class="dashboard-control-stack">
+            <section class="dashboard-commandbar">
+              <div class="commandbar-status"><span class="dashboard-live-dot"></span><div><span class="commandbar-kicker">ANLAGENSTATUS</span><strong>Betriebszentrale</strong><small id="dashboardSummary">Systemstatus wird geladen …</small></div></div>
+              <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button"><span aria-hidden="true">▶</span> Steuerung starten</button><button class="secondary-button" data-page-link="settings" type="button">System prüfen</button></div>
+            </section>
+            <div class="operations-grid">
+              <article class="operation-card server"><div class="operation-card-head"><i aria-hidden="true">SYS</i><span>Server</span></div><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small><span class="metric-line"></span></article>
+              <article class="operation-card"><div class="operation-card-head"><i aria-hidden="true">ESP</i><span>Module</span></div><strong id="moduleCardStatus">0 / 0</strong><small>Online / registriert</small><span class="metric-line"></span></article>
+              <article class="operation-card"><div class="operation-card-head"><i aria-hidden="true">I/O</i><span>Relais</span></div><strong id="relayCardStatus">0 / 0</strong><small>Aktiv / erkannt</small><span class="metric-line"></span></article>
+              <article class="operation-card"><div class="operation-card-head"><i aria-hidden="true">PLN</i><span>Elemente</span></div><strong id="elementCardStatus">0</strong><small>Im Anlagenplan</small><span class="metric-line"></span></article>
+              <article class="operation-card temperature-card"><div class="operation-card-head"><i aria-hidden="true">°C</i><span>Trafo</span></div><strong id="temperatureCardStatus">–</strong><small id="temperatureCardDetail">BME280 nicht gemeldet</small><span class="metric-line"></span></article>
+            </div>
+          </aside>
+        </div>
+        <div class="dashboard-lower">
           <section class="panel dashboard-modules-panel">
-            <div class="panel-header"><div><div class="eyebrow">SYSTEM</div><h2>Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten →</button></div>
+            <div class="panel-header"><div><div class="eyebrow">GERÄTE</div><h2>Verbundene Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten <span>→</span></button></div>
             <div id="dashboardModuleList" class="dashboard-module-list"></div>
           </section>
           <section class="panel dashboard-events-panel">
-            <div class="panel-header"><div><div class="eyebrow">AKTIVITÄT</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle →</button></div>
+            <div class="panel-header"><div><div class="eyebrow">LOGBUCH</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle anzeigen <span>→</span></button></div>
             <div id="dashboardEventList" class="dashboard-event-list"></div>
           </section>
         </div>
@@ -109,39 +101,53 @@
         <section class="builder-shell">
           <div class="builder-header">
             <div>
-              <div class="eyebrow">EDITOR</div>
-              <h2>Gleisbild-Editor</h2>
-              <p>Elemente hinzufügen, verbinden, ausrichten.</p>
+              <div class="eyebrow">MÄRKLIN M-GLEIS PLANER</div>
+              <h2>M-Gleis-Anlage planen</h2>
+              <p>Originale Artikelnummern platzieren, verbinden und der Hardware zuweisen.</p>
             </div>
             <div class="builder-header-actions">
               <span id="layoutMessage" class="builder-message" aria-live="polite"></span>
-              <button id="exportPlanButton" class="secondary-button" type="button">PDF / Bauplan</button>
-              <button id="saveLayoutButton" class="primary-button" type="button">Speichern</button>
-              <button id="undoButton" class="tool-button" type="button">↶</button>
-              <button id="redoButton" class="tool-button" type="button">↷</button>
+              <button id="validatePlanButton" class="plan-check-button secondary-button" type="button" aria-controls="planValidationPanel" aria-expanded="false"><span>Planprüfung</span><b id="planIssueCount">0</b></button>
+              <button id="exportPlanButton" class="secondary-button" type="button">Bauplan exportieren</button>
+              <button id="saveLayoutButton" class="primary-button" type="button">Plan speichern</button>
+              <button id="undoButton" class="tool-button" type="button" aria-label="Rückgängig">↶</button>
+              <button id="redoButton" class="tool-button" type="button" aria-label="Wiederholen">↷</button>
             </div>
           </div>
 
+          <section id="planValidationPanel" class="plan-validation-panel" aria-label="Planprüfung" hidden>
+            <div class="plan-validation-head">
+              <div><span class="palette-kicker">QUALITÄTSCHECK</span><strong>Planprüfung</strong><small id="planValidationSummary">Plan wird analysiert …</small></div>
+              <button id="closePlanValidation" class="close-button" type="button" aria-label="Planprüfung schließen">×</button>
+            </div>
+            <div id="planValidationList" class="plan-validation-list"></div>
+          </section>
+
           <nav class="builder-mobile-tabs" aria-label="Builder-Bereiche">
-            <button class="active" data-builder-panel="canvas" type="button">Plan</button>
+            <button class="active" data-builder-panel="canvas" type="button">Arbeitsfläche</button>
             <button data-builder-panel="library" type="button">Bauteile</button>
-            <button data-builder-panel="inspector" type="button">Eigenschaften</button>
+            <button data-builder-panel="inspector" type="button">Konfiguration</button>
           </nav>
 
           <div class="builder-layout" data-mobile-panel="canvas">
             <aside class="builder-sidebar">
               <div class="builder-sidebar-head">
-                <div><span class="palette-kicker">BAUKASTEN</span><strong>Elementbibliothek</strong></div>
-                <small>Bauteil wählen und direkt platzieren</small>
+                <div><span class="palette-kicker">BAUTEILE</span><strong>Elementbibliothek</strong></div>
+                <small>Auswählen, platzieren, automatisch einrasten</small>
               </div>
 
+              <label class="builder-search">
+                <span aria-hidden="true">⌕</span>
+                <input id="componentSearch" type="search" placeholder="Bauteil suchen …" autocomplete="off">
+              </label>
+
               <div class="builder-tool-grid" aria-label="Editorwerkzeuge">
-                <button id="selectToolButton" class="palette-button active" type="button"><span>↖</span> Auswahl</button>
+                <button id="selectToolButton" class="palette-button active" type="button"><span>↖</span> Auswählen</button>
                 <button id="connectToolButton" class="palette-button" type="button"><span>⌁</span> Verbinden</button>
               </div>
 
               <details class="builder-library-group" open>
-                <summary>Gleise <span>5 Typen</span></summary>
+                <summary>Märklin M-Gleise & Weichen <span>6 Gruppen</span></summary>
                 <div class="catalog-group">
                   <label>Gerades Gleis</label>
                   <div id="trackTypeSelectHost"></div>
@@ -167,10 +173,14 @@
                   <div id="bumperTypeSelectHost"></div>
                   <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper">⊣</span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
                 </div>
+                <div class="catalog-group catalog-featured" data-searchable="Entkupplungsgleis 5112 Kupplung Relais Sensor">
+                  <label>Entkupplungsgleis</label>
+                  <button class="palette-button add-element-button" data-add="track" data-catalog-code="5112" type="button"><span class="element-glyph uncoupler">⇡</span><span>5112 Entkupplungsgleis<small>Relais + Belegtsensor zuweisbar</small></span><b>＋</b></button>
+                </div>
               </details>
 
               <details class="builder-library-group" open>
-                <summary>Steuerung <span>4 Typen</span></summary>
+                <summary>Signale & Versorgung <span>4 Typen</span></summary>
                 <div class="builder-control-grid">
                   <button class="palette-button add-element-button" data-add="signal" type="button"><span>●</span> Hauptsignal<b>＋</b></button>
                   <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span>◉</span><span>ESP-Signal<small>Rot / Grün</small></span><b>＋</b></button>
@@ -180,7 +190,7 @@
               </details>
 
               <details class="builder-library-group builder-selection-group" open>
-                <summary>Auswahl bearbeiten</summary>
+                <summary>Ausgewähltes Element</summary>
                 <div class="builder-action-grid">
                   <button id="duplicateButton" class="palette-button" type="button">⧉<small>Duplizieren</small></button>
                   <button id="rotateLeftButton" class="palette-button" type="button">↺<small>Links</small></button>
@@ -190,7 +200,7 @@
               </details>
 
               <details class="builder-library-group">
-                <summary>Ansicht</summary>
+                <summary>Plan & Raster</summary>
                 <div class="board-settings">
                   <div class="board-settings-title"><strong>Anlagenplatte</strong><span id="boardAreaLabel">3,20 × 1,80 m</span></div>
                   <div class="board-size-fields">
@@ -215,13 +225,13 @@
                   <button id="zoomOutButton" class="icon-button" type="button">−</button>
                   <strong id="zoomLabel">100 %</strong>
                   <button id="zoomInButton" class="icon-button" type="button">＋</button>
-                  <button id="zoomResetButton" class="icon-button" type="button">1:1</button>
-                  <button id="centerLayoutButton" class="icon-button" type="button">Zentrieren</button>
-                  <span class="pan-hint">Mausrad: Zoom · Leere Fläche ziehen: Plan bewegen</span>
+                  <button id="zoomResetButton" class="icon-button" type="button">100 %</button>
+                  <button id="centerLayoutButton" class="icon-button" type="button">Einpassen</button>
+                  <span class="pan-hint">Mausrad zoomt · freie Fläche verschiebt</span>
                 </div>
 
                 <div id="builderHint" class="builder-hint">
-                  V Auswahl · C Verbinden · Strg+S Speichern · Strg+D Duplizieren · R Drehen · Entf Löschen
+                  V Auswählen · C Verbinden · R Drehen · Entf Löschen
                 </div>
 
                 <div class="toolbar-counts">
@@ -269,8 +279,8 @@
             <aside id="inspector" class="inspector" aria-label="Eigenschaften">
               <div class="inspector-empty">
                 <div class="inspector-empty-icon">◇</div>
-                <strong>Kein Element ausgewählt</strong>
-                <span>Klicke ein Gleis, eine Kreuzungsweiche, eine Kurve, Weiche, Hauptsignal 7039, ESP-Signalmast oder Trafo an.</span>
+                <strong>Nichts ausgewählt</strong>
+                <span>Element im Plan anklicken, um Position und Hardware zu konfigurieren.</span>
               </div>
             </aside>
           </div>
@@ -281,10 +291,17 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <div class="eyebrow">BETRIEB</div>
-              <h2>Gleisbild</h2>
-              <p>Element antippen schaltet im zugewiesenen Modul.</p>
+              <div class="eyebrow">MÄRKLIN M-GLEIS · LIVE-STEUERUNG</div>
+              <h2>Anlagensteuerung</h2>
+              <p>Weichen, Signale und Stromkreise direkt und verzögerungsarm schalten.</p>
             </div>
+            <button id="toggleTrackFocusButton" class="secondary-button track-focus-button" type="button" aria-pressed="false">Gleisbild maximieren</button>
+          </div>
+
+          <div id="trackSystemNotice" class="track-system-notice" role="status" aria-live="polite">
+            <span class="track-system-indicator" aria-hidden="true"></span>
+            <div><strong>Hardwarestatus wird geprüft</strong><small>Der Gleisplan bleibt unabhängig vom Verbindungsstatus sichtbar.</small></div>
+            <button class="text-button" data-page-link="settings" type="button">Geräte prüfen <span>→</span></button>
           </div>
 
           <div class="track-light-panel">
@@ -327,9 +344,9 @@
       <section id="page-settings" class="page">
         <section class="hardware-center-head">
           <div>
-            <div class="eyebrow">SYSTEM</div>
-            <h2>Einstellungen</h2>
-            <p>Module, Ein- und Ausgänge sowie das Verhalten beim Betriebsstart verwalten.</p>
+            <div class="eyebrow">MÄRKLIN M-GLEIS · SYSTEMZENTRALE</div>
+            <h2>Hardware & Konfiguration</h2>
+            <p>ESP-Module, Schaltkanäle, Rückmelder und Betriebsabläufe zentral verwalten.</p>
           </div>
           <div class="hardware-health" id="settingsHealthStatus"><span></span>Systemstatus wird geprüft</div>
         </section>
@@ -338,16 +355,18 @@
           <article><span>Ausgänge</span><strong id="settingsOutputsSummary">0</strong><small>Relais und LEDs</small></article>
           <article><span>Eingänge</span><strong id="settingsSensorsSummary">0</strong><small>Sensoren erkannt</small></article>
           <article><span>Konfiguration</span><strong id="settingsConfigSummary">0</strong><small>zugewiesene Kanäle</small></article>
+          <article><span>ESP-Autofind</span><strong id="settingsDiscoverySummary">Aktiv</strong><small id="settingsDiscoveryDetail">UDP 8182</small></article>
+          <article class="system-profile-card"><span>Anlagenprofil</span><strong>M-Gleis</strong><small>Märklin H0 · Metallgleis</small></article>
         </div>
         <div class="settings-workspace">
         <nav class="settings-tabs" aria-label="Einstellungsbereiche">
-          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon">01</span><span><b>Module</b><small>ESP-Geräte</small></span></button>
-          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">02</span><span><b>Lichttasten</b><small>Bedienfelder</small></span></button>
-          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">03</span><span><b>Relais</b><small>Ausgänge</small></span></button>
-          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">04</span><span><b>Sensoren</b><small>Eingänge</small></span></button>
-          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">05</span><span><b>LEDs</b><small>Signalkanäle</small></span></button>
-          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon">06</span><span><b>Automationen</b><small>Wenn–Dann</small></span></button>
-          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">07</span><span><b>Grundstellung</b><small>Betriebsstart</small></span></button>
+          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon">01</span><span><b>Geräte</b><small>ESP-Module</small></span></button>
+          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">02</span><span><b>Bedienung</b><small>Lichttasten</small></span></button>
+          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">03</span><span><b>Ausgänge</b><small>Relais</small></span></button>
+          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">04</span><span><b>Rückmeldung</b><small>Sensoren</small></span></button>
+          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">05</span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
+          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon">06</span><span><b>Abläufe</b><small>Automationen</small></span></button>
+          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">07</span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
         </nav>
         <div class="settings-content">
 

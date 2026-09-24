@@ -45,7 +45,8 @@ function createModuleRegistry({ runtimeState, moduleTimeout, protocolVersion = 2
         relays: [],
         sensors: [],
         leds: [],
-        environment: null
+        environment: null,
+        health: { relayDriverReady: null, environmentSensorReady: null, relayActiveLow: null, relayOutputLatch: null, relayDirectionMask: null, relayDriveMode: "" }
       };
     }
     return runtimeState.modules[id];
@@ -87,6 +88,7 @@ function createModuleRegistry({ runtimeState, moduleTimeout, protocolVersion = 2
       sensoren: Array.isArray(m.sensors) ? m.sensors : [],
       leds: Array.isArray(m.leds) ? m.leds : [],
       environment: m.environment && typeof m.environment === "object" ? m.environment : null,
+      health: m.health && typeof m.health === "object" ? m.health : { relayDriverReady: null, environmentSensorReady: null, relayActiveLow: null, relayOutputLatch: null },
       lastHeartbeat: Number(m.lastHeartbeat || 0)
     };
   }
@@ -154,6 +156,16 @@ function createModuleRegistry({ runtimeState, moduleTimeout, protocolVersion = 2
       m.firmwareVersion = cleanText(mi?.firmwareVersion || "", 40);
       m.protocolVersion = toNumber(mi?.protocolVersion, 0);
       m.hardwareType = cleanText(mi?.hardwareType || "", 80);
+      if (mi?.health && typeof mi.health === "object") {
+        m.health = {
+          relayDriverReady: typeof mi.health.relayDriverReady === "boolean" ? mi.health.relayDriverReady : null,
+          environmentSensorReady: typeof mi.health.environmentSensorReady === "boolean" ? mi.health.environmentSensorReady : null,
+          relayActiveLow: typeof mi.health.relayActiveLow === "boolean" ? mi.health.relayActiveLow : null,
+          relayOutputLatch: Number.isInteger(Number(mi.health.relayOutputLatch)) ? Number(mi.health.relayOutputLatch) & 0xFFFF : null,
+          relayDirectionMask: Number.isInteger(Number(mi.health.relayDirectionMask)) ? Number(mi.health.relayDirectionMask) & 0xFFFF : null,
+          relayDriveMode: cleanText(mi.health.relayDriveMode || "", 40)
+        };
+      }
       m.online = moduleIsOnline(m);
     });
 

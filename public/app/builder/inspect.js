@@ -56,7 +56,7 @@ export function showInspector(element) {
 }
 
 function inspectorHtmlForElement(el) {
-  const directControlType = ["switch", "crossing", "signal", "espSignal"].includes(el.typ);
+  const directControlType = ["switch", "crossing", "signal", "espSignal"].includes(el.typ) || (el.typ === "track" && String(el.trackCode || el.catalogCode || "") === "5112");
   let html = `
     <div class="inspector-header">
       <div>
@@ -131,26 +131,34 @@ function inspectorHtmlForElement(el) {
 }
 
 function inspectorTrack(el) {
+  const isUncoupler = String(el.trackCode || el.catalogCode || "") === "5112";
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Gleis-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>${isUncoupler ? "Entkupplungsgleis 5112" : "Gleis-Konfiguration"}</strong>
       
       <label class="inspector-field">
-        <span>Relay (Gleisstrom)</span>
+        <span>${isUncoupler ? "Entkuppler-Relais" : "Relais (Gleisstrom)"}</span>
         <select id="inspRelay">
           ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
       </label>
 
+      ${isUncoupler ? `<label class="inspector-field">
+        <span>Impulsdauer (ms)</span>
+        <input type="number" id="inspUncouplerDuration" min="100" max="3000" step="50" value="${Math.max(100, Math.min(3000, Number(el.uncouplerDurationMs) || 450))}">
+      </label>` : ""}
+
       <label class="inspector-field">
-        <span>Sensor (Zugdetection)</span>
+        <span>Belegtsensor</span>
         <select id="inspSensor">
           ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
 
       <div class="inspector-info">
-        Dieses Gleis kann per Relay gesteuert und hat einen optionalen Sensor zur Zugerkennung.
+        ${isUncoupler
+          ? "Das Relais wird als zeitbegrenzter Impuls geschaltet. Der optionale Sensor meldet, ob ein Fahrzeug über dem Entkuppler steht."
+          : "Dieses Gleis kann per Relais geschaltet und mit einem Belegtsensor überwacht werden."}
       </div>
     </div>
   `;
@@ -158,8 +166,8 @@ function inspectorTrack(el) {
 
 function inspectorCurve(el) {
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Kurven-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>Kurven-Konfiguration</strong>
       
       <label class="inspector-field">
         <span>Relay (Gleisstrom)</span>
@@ -183,19 +191,21 @@ function inspectorCurve(el) {
 }
 
 function inspectorSwitch(el) {
+  const catalogCode = String(el.switchCode || el.catalogCode || "");
+  const isCurved5141 = catalogCode === "5141";
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Weichen-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>${isCurved5141 ? "Bogenweiche 5141" : "Weichen-Konfiguration"}</strong>
       
       <label class="inspector-field">
-        <span>Relay GERADE</span>
+        <span>Relais ${isCurved5141 ? "AUSSENBOGEN" : "GERADE"}</span>
         <select id="inspRelayStraight">
           ${getRelayOptions(el.module || "", el.relayStraight || 0)}
         </select>
       </label>
 
       <label class="inspector-field">
-        <span>Relay ABZWEIG</span>
+        <span>Relais ${isCurved5141 ? "INNENBOGEN" : "ABZWEIG"}</span>
         <select id="inspRelayBranch">
           ${getRelayOptions(el.module || "", el.relayBranch || 0)}
         </select>
@@ -209,7 +219,9 @@ function inspectorSwitch(el) {
       </label>
 
       <div class="inspector-info">
-        Weiche: Ein Relay für gerade Richtung, eines für Abzweig.
+        ${isCurved5141
+          ? "Die überarbeitete Geometrie zeigt Außen- und Innenbogen klar getrennt. Für jeden Fahrweg wird ein eigener Relaisimpuls verwendet."
+          : "Ein Relais für die gerade Lage, eines für den Abzweig."}
       </div>
     </div>
   `;
@@ -227,8 +239,8 @@ function inspectorBumper(el) {
 
 function inspectorCrossing(el) {
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Kreuzungsweiche-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>Kreuzungsweichen-Konfiguration</strong>
       
       <label class="inspector-field">
         <span>Relay GERADE</span>
@@ -258,8 +270,8 @@ function inspectorCrossing(el) {
 
 function inspectorSignal(el) {
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Hauptsignal-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>Hauptsignal-Konfiguration</strong>
       
       <label class="inspector-field">
         <span>Relay ROT (Halt)</span>
@@ -294,8 +306,8 @@ function inspectorEspSignal(el) {
   const availableChannels = ledChannelsForModule(el.module || "");
   const threeAspect = el.signalAspectMode === "rgy";
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">ESP-Signalmast-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>ESP-Signal-Konfiguration</strong>
 
       <label class="inspector-field">
         <span>Signaltyp</span>
@@ -343,8 +355,8 @@ function inspectorEspSignal(el) {
 
 function inspectorTransformer(el) {
   return `
-    <div style="border-top: 1px solid #333; margin-top: 10px; padding-top: 10px;">
-      <strong style="font-size: 12px; color: #aaa;">Trafo-Eigenschaften</strong>
+    <div class="inspector-section">
+      <strong>Transformator-Konfiguration</strong>
       
       <label class="inspector-field">
         <span>Relay (Stromversorgung)</span>
@@ -373,7 +385,7 @@ function saveInspectorChanges(element) {
   element.x = Math.max(40, Math.min(boardWidth - 40, Number(document.getElementById("inspX")?.value || element.x * 2) * .5));
   element.y = Math.max(40, Math.min(boardHeight - 40, Number(document.getElementById("inspY")?.value || element.y * 2) * .5));
   element.module = module;
-  if (["switch", "crossing", "signal", "espSignal"].includes(element.typ)) {
+  if (["switch", "crossing", "signal", "espSignal"].includes(element.typ) || (element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112")) {
     element.showInDirectControl = document.getElementById("inspShowInDirectControl")?.checked !== false;
   }
 
@@ -383,6 +395,9 @@ function saveInspectorChanges(element) {
     case "curve":
       element.relay = parseInt(document.getElementById("inspRelay")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
+      if (element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112") {
+        element.uncouplerDurationMs = Math.max(100, Math.min(3000, parseInt(document.getElementById("inspUncouplerDuration")?.value || 450)));
+      }
       break;
 
     case "crossing":

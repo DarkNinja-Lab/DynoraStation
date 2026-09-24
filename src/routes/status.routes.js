@@ -4,11 +4,15 @@ const express = require("express");
 const { wrap } = require("../utils/errors");
 const { findRelayConflicts } = require("../domain/hardware/relayConflicts");
 
-function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env }) {
+function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env, connectionInfo }) {
   const router = express.Router();
 
   router.get("/api/status", wrap(async (req, res) => {
     res.set("Cache-Control", "no-store");
+    const layoutRevision = Number(runtimeState.revisions?.layout || 1);
+    const eventRevision = Number(runtimeState.revisions?.events || 1);
+    const layoutChanged = Number(req.query?.layoutRevision || 0) !== layoutRevision;
+    const eventsChanged = Number(req.query?.eventRevision || 0) !== eventRevision;
     const modules = moduleRegistry.listModulesStatus();
 
     const modulesById = {};
@@ -27,6 +31,7 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
         protocolVersion: Number(m.protocolVersion) || 0,
         hardwareType: m.hardwareType || "",
         compatibility: m.compatibility,
+        health: m.health,
         relays: Array.isArray(m.relays) ? m.relays : [],
         sensors: Array.isArray(m.sensors) ? m.sensors : [],
         leds: Array.isArray(m.leds) ? m.leds : [],
@@ -49,8 +54,11 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
       serverTime: Date.now(),
       serverVersion: env.APP_VERSION,
       protocolVersion: env.PROTOCOL_VERSION,
+      systemProfile: { manufacturer: "Märklin", trackSystem: "M-Gleis", scale: "H0" },
       moduleTimeoutMs: env.MODULE_TIMEOUT,
       uiStatusIntervalMs: env.UI_STATUS_INTERVAL_MS,
+      revisions: { layout: layoutRevision, events: eventRevision },
+      connection: connectionInfo,
       modules,
       hardware: {
         ...(runtimeState.hardware || {}),
@@ -66,12 +74,12 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
         relaysActive: relayActive,
         relayConflicts: relayConflicts.length
       },
-      layout: runtimeState.layout,
+      layout: layoutChanged ? runtimeState.layout : null,
       lightButtons: runtimeState.hardware?.lightButtons || [],
       defaults: runtimeState.hardware?.defaults || [],
       ledConfig: runtimeState.hardware?.ledConfig || {},
       rules: runtimeState.rulesData?.rules || [],
-      events: Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, 100) : []
+      events: eventsChanged && Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, 100) : null
     });
   }));
 

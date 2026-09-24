@@ -24,11 +24,11 @@ function esc(value) {
 }
 
 const PAGE_META = {
-  dashboard: { title: "Übersicht", subtitle: "Status, Betrieb und Gleisbild" },
-  builder: { title: "Gleisbild-Editor", subtitle: "Planen, verbinden, speichern" },
-  track: { title: "Gleisbild", subtitle: "Betrieb und Schalten" },
-  settings: { title: "Einstellungen", subtitle: "Module, Relais, Sensoren, Standards" },
-  events: { title: "Ereignisse", subtitle: "System- und Sensorprotokoll" }
+  dashboard: { title: "Übersicht", subtitle: "Betriebsbild, Systemzustand und letzte Aktivitäten", section: "Zentrale" },
+  builder: { title: "Planung", subtitle: "Anlage entwerfen, verbinden und Hardware zuweisen", section: "Workspace" },
+  track: { title: "Betrieb", subtitle: "Fahrwege, Signale und Anlagenfunktionen steuern", section: "Workspace" },
+  settings: { title: "System", subtitle: "Geräte, Ein-/Ausgänge und Abläufe", section: "Administration" },
+  events: { title: "Logbuch", subtitle: "System-, Schalt- und Sensorereignisse", section: "Administration" }
 };
 
 if (!state.relayConfig || typeof state.relayConfig !== "object") state.relayConfig = {};
@@ -39,11 +39,14 @@ function setPageHeader(page) {
   const t = PAGE_META[page] || PAGE_META.dashboard;
   const title = byId("pageTitle");
   const subtitle = byId("pageSubtitle");
+  const section = byId("topbarSection");
   if (title) title.textContent = t.title;
   if (subtitle) subtitle.textContent = t.subtitle;
+  if (section) section.textContent = t.section;
 }
 
 function setActivePage(page) {
+  document.body.dataset.page = page;
   all(".nav-button[data-page]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.page === page);
   });
@@ -94,6 +97,7 @@ function bindNavigation() {
     };
     mobileBtn.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
     mobileMoreBtn?.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
+    all("[data-close-sidebar]").forEach((btn) => btn.addEventListener("click", () => setSidebarOpen(false)));
     all(".nav-button[data-page]").forEach((btn) => {
       btn.addEventListener("click", () => setSidebarOpen(false));
     });
@@ -118,6 +122,24 @@ function bindNavigation() {
   });
 
   setActivePage(restorePage());
+}
+
+function bindTrackFocusMode() {
+  const page = byId("page-track");
+  const button = byId("toggleTrackFocusButton");
+  if (!page || !button) return;
+  let active = false;
+  try { active = localStorage.getItem("dynora.trackFocus") === "true"; } catch {}
+  const apply = (next) => {
+    active = Boolean(next);
+    page.classList.toggle("plan-focus", active);
+    button.setAttribute("aria-pressed", String(active));
+    button.textContent = active ? "Bedienfelder zeigen" : "Gleisbild maximieren";
+    try { localStorage.setItem("dynora.trackFocus", String(active)); } catch {}
+    requestAnimationFrame(renderTrackLayout);
+  };
+  button.addEventListener("click", () => apply(!active));
+  apply(active);
 }
 
 function modOptions(selected = "") {
@@ -222,8 +244,8 @@ function renderModuleManagement() {
     return `
       <article class="module-management-card ${module.online ? "online" : "offline"} ${module.compatibility?.compatible === false ? "incompatible" : module.compatibility?.status === "warning" ? "compat-warning" : ""}" data-managed-module="${esc(module.id)}">
         <div class="module-identity"><strong>${esc(module.name || module.id)}</strong><small>${esc(module.id)}</small></div>
-        <span class="module-state-badge ${module.online && module.compatibility?.compatible !== false ? "online" : "offline"}">${!module.online ? "OFFLINE" : module.compatibility?.compatible === false ? "INKOMPATIBEL" : module.compatibility?.status === "warning" ? "WARNUNG" : "ONLINE"}</span>
-        <div class="module-endpoint"><strong>${esc(module.hardwareType || module.type || "ESP-Modul")}</strong><small>FW ${esc(module.firmwareVersion || "?")} · Protokoll ${esc(module.protocolVersion ?? "?")} · ${esc(module.ip || "keine aktuelle IP")}</small>${module.compatibility?.compatible === false || module.compatibility?.status === "warning" ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div>
+        <span class="module-state-badge ${module.online && module.compatibility?.compatible !== false && module.health?.relayDriverReady !== false ? "online" : "offline"}">${!module.online ? "OFFLINE" : module.health?.relayDriverReady === false ? "MCP FEHLER" : module.compatibility?.compatible === false ? "INKOMPATIBEL" : module.compatibility?.status === "warning" ? "WARNUNG" : "ONLINE"}</span>
+        <div class="module-endpoint"><strong>${esc(module.hardwareType || module.type || "ESP-Modul")}</strong><small>FW ${esc(module.firmwareVersion || "?")} · Protokoll ${esc(module.protocolVersion ?? "?")} · ${esc(module.ip || "keine aktuelle IP")}</small>${module.health?.relayDriveMode === "OPEN_DRAIN_IODIR" ? `<small>Relaislogik: aktiv-LOW · Open-Drain/IODIR</small>` : typeof module.health?.relayActiveLow === "boolean" ? `<small>Relaislogik: ${module.health.relayActiveLow ? "aktiv-LOW" : "aktiv-HIGH"}</small>` : ""}${module.health?.relayDriverReady === false ? `<small class="compatibility-warning">MCP23017 nicht erreichbar · I²C und Versorgung prüfen</small>` : module.compatibility?.compatible === false || module.compatibility?.status === "warning" ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div>
         <div class="module-channel-count"><b>${relays}</b> R&nbsp;&nbsp;<b>${leds}</b> LED&nbsp;&nbsp;<b>${sensors}</b> S${module.environment ? "&nbsp;&nbsp;<b>BME</b>" : ""}</div>
         <time>${esc(seen)}</time>
         <div class="module-row-actions">
@@ -824,8 +846,10 @@ function bindTrackElementQuickToggle() {
     if (!btn) return;
     const element = (state.layout?.elemente || []).find((item) => item.id === btn.dataset.elementId);
     if (!element) return;
-    const type = element.typ === "xtrack" || element.typ === "crossing" ? "xtrack" : element.typ === "ledSignal" || element.typ === "espSignal" ? "espSignal" : element.typ;
+    const isUncoupler = element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112";
+    const type = isUncoupler ? "uncoupler" : element.typ === "xtrack" || element.typ === "crossing" ? "xtrack" : element.typ === "ledSignal" || element.typ === "espSignal" ? "espSignal" : element.typ;
     const config = {
+      uncoupler: ["/track/control", "pulse"],
       switch: ["/switch/control", element.switchState === "abzweig" ? "gerade" : "abzweig"],
       xtrack: ["/xtrack/control", element.xState === "abzweig" ? "gerade" : "abzweig"],
       signal: ["/signal/control", element.signalState === "fahrt" ? "halt" : "fahrt"],
@@ -856,6 +880,7 @@ export function eventsRegistrieren() {
     if (["modules", "lights", "relays", "sensors", "leds", "rules", "defaults"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
+  bindTrackFocusMode();
   bindSettingsInput();
   bindTrackLightsQuickToggle();
   bindTrackElementQuickToggle();

@@ -81,6 +81,32 @@ function setLastSync(online) {
   el.classList.toggle("offline", !online);
 }
 
+function updateTrackSystemNotice(modules) {
+  const notice = document.getElementById("trackSystemNotice");
+  if (!notice) return;
+  const all = Object.values(modules || {});
+  const online = all.filter((module) => module.online && module.compatibility?.compatible !== false && module.health?.relayDriverReady !== false).length;
+  const assigned = (state.layout?.elemente || []).filter((element) => element.module).length;
+  const total = (state.layout?.elemente || []).length;
+  const title = notice.querySelector("strong");
+  const detail = notice.querySelector("small");
+  const ready = all.length > 0 && online === all.length;
+
+  notice.classList.toggle("ready", ready);
+  notice.classList.toggle("attention", !ready);
+  if (title) {
+    title.textContent = all.length === 0
+      ? "Noch keine Steuerungsmodule registriert"
+      : ready ? `${online} ${online === 1 ? "Modul" : "Module"} schaltbereit`
+        : `${online} von ${all.length} Modulen schaltbereit`;
+  }
+  if (detail) {
+    detail.textContent = total
+      ? `${assigned} von ${total} Planelementen haben eine Hardwarezuweisung.`
+      : "Lege zuerst im Planer deine Märklin M-Gleis-Anlage an.";
+  }
+}
+
 function normalizeModules(rawModules) {
   if (Array.isArray(rawModules)) {
     const out = {};
@@ -135,15 +161,22 @@ function directControlSignature(layout, modules) {
       espState: element.espState,
       module: element.module
     })),
-    modules: Object.values(modules || {}).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility })),
+    modules: Object.values(modules || {}).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility, health: module.health })),
     commands: state.commands || []
   });
 }
 
 export async function statusLaden({ ruhig = true } = {}) {
   try {
-    const data = await apiCall("/status", { timeoutMs: 3500 });
+    const revisions = state.statusRevisions || { layout: 0, events: 0 };
+    const query = new URLSearchParams({
+      layoutRevision: String(revisions.layout || 0),
+      eventRevision: String(revisions.events || 0)
+    });
+    const data = await apiCall(`/status?${query}`, { timeoutMs: 3500 });
+    if (data?.revisions) state.statusRevisions = { ...revisions, ...data.revisions };
     state.statusPollMs = Math.max(250, Number(data?.uiStatusIntervalMs) || 400);
+    state.connection = data?.connection && typeof data.connection === "object" ? data.connection : null;
 
     setServerOnline(true);
     setLastSync(true);
@@ -161,6 +194,7 @@ export async function statusLaden({ ruhig = true } = {}) {
 
     const allModules = Object.values(modules);
     const onlineModules = allModules.filter(m => !!m.online).length;
+    updateTrackSystemNotice(modules);
 
     const hardwareInventorySignature = JSON.stringify({
       modules: allModules.map((module) => ({
@@ -172,6 +206,7 @@ export async function statusLaden({ ruhig = true } = {}) {
         protocolVersion: module.protocolVersion,
         hardwareType: module.hardwareType,
         compatibility: module.compatibility,
+        health: module.health,
         relayCount: module.relays?.length || 0,
         sensorIds: (module.sensors || []).map((sensor) => sensor?.id),
         ledCount: module.leds?.length || 0
@@ -190,7 +225,9 @@ export async function statusLaden({ ruhig = true } = {}) {
       : incompatibleModules
         ? `${incompatibleModules} inkompatible(s) Modul(e)`
         : onlineModules === allModules.length && allModules.length
-          ? "Alle Systeme betriebsbereit"
+          ? allModules.some((module) => module.health?.relayDriverReady === false)
+            ? "MCP23017 nicht erreichbar"
+            : "Alle Systeme betriebsbereit"
           : allModules.length ? `${allModules.length - onlineModules} Modul(e) offline` : "Noch keine Module registriert");
 
     let relayTotal = 0;
@@ -271,7 +308,7 @@ export async function statusLaden({ ruhig = true } = {}) {
     }
 
     const sidebarSignature = JSON.stringify(allModules.map((module) => ({
-      id: module.id, name: module.name, online: module.online, kind: module.kind, ip: module.ip,
+      id: module.id, name: module.name, online: module.online, kind: module.kind, ip: module.ip, health: module.health,
       firmwareVersion: module.firmwareVersion, protocolVersion: module.protocolVersion, hardwareType: module.hardwareType, compatibility: module.compatibility
     })));
     if (sidebarSignature !== lastSidebarSignature) {
@@ -287,7 +324,7 @@ export async function statusLaden({ ruhig = true } = {}) {
 
     const lightSignature = JSON.stringify({
       lights: state.lightButtons || [],
-      modules: Object.values(modules).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility })),
+      modules: Object.values(modules).map((module) => ({ id: module.id, online: module.online, compatibility: module.compatibility, health: module.health })),
       commands: state.commands || []
     });
     if (lightSignature !== lastLightButtonSignature) {

@@ -54,6 +54,9 @@ function createControlRoutes({
     if (!compatibility.compatible) {
       throw apiError(409, "MODULE_INCOMPATIBLE", `${module.name || moduleId}: ${compatibility.reason}`);
     }
+    if (module.health?.relayDriverReady === false) {
+      throw apiError(503, "RELAY_DRIVER_OFFLINE", `${module.name || moduleId}: MCP23017 nicht erreichbar. SDA, SCL, 3V3, GND, RESET und Adresse 0x20 prüfen.`);
+    }
     return module;
   }
 
@@ -375,6 +378,17 @@ function createControlRoutes({
     const module = requireControllableModule(moduleId);
     const channel = validRelay(element.relay);
     if (!channel) throw apiError(400, "TRACK_NO_RELAY", "Diesem Element ist kein Relay zugewiesen");
+    const isUncoupler = String(element.trackCode || element.catalogCode || "") === "5112";
+    if (isUncoupler) {
+      const duration = Math.max(100, Math.min(3000, toInt(element.uncouplerDurationMs, 450)));
+      ensureNoPending(moduleId, (command) => command.type === "RELAY_PULSE" && Number(command.data?.channel) === channel, element.name || "Entkupplungsgleis");
+      const cmd = commandQueueApi.createCommand("RELAY_PULSE", {
+        channel, duration, elementId: element.id, operationId: operationId("UNCOUPLER"), triggerOnConfirm: true, triggerKind: "uncoupler"
+      }, moduleId);
+      addEvent("ENTKUPPLER", `${moduleId}:${element.id}`, `${element.name || "Entkupplungsgleis"} wird für ${duration} ms aktiviert`);
+      res.json(pendingResponse(cmd, { requestedState: "pulse", duration, channel, module: moduleId }));
+      return;
+    }
     ensureNoPending(moduleId, (command) => command.type === "RELAY_SET" && Number(command.data?.channel) === channel, element.name || "Gleis");
     const confirmedState = currentRelayState(moduleId, channel, module);
     const state = req.body?.toggle === true ? !confirmedState : parseState(req.body?.state);

@@ -4,6 +4,8 @@ const { toInt, parseState } = require("../utils/parse");
 
 const SERVER_IP = process.env.SERVER_IP || "127.0.0.1";
 const SERVER_PORT = toInt(process.env.SERVER_PORT, 8181);
+const DISCOVERY_PORT = toInt(process.env.DISCOVERY_PORT, 8182);
+const ENABLE_UDP_DISCOVERY = parseState(process.env.ENABLE_UDP_DISCOVERY ?? "true");
 const NODE_ENV = String(process.env.NODE_ENV || "development").trim().toLowerCase();
 const APP_VERSION = require("../../package.json").version;
 const PROTOCOL_VERSION = toInt(process.env.PROTOCOL_VERSION, 2);
@@ -36,6 +38,8 @@ const RL_MODULE_MAX = toInt(process.env.RL_MODULE_MAX, 80);
 module.exports = {
   SERVER_IP,
   SERVER_PORT,
+  DISCOVERY_PORT,
+  ENABLE_UDP_DISCOVERY,
   NODE_ENV,
   APP_VERSION,
   PROTOCOL_VERSION,

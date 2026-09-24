@@ -1,21 +1,16 @@
 {
-  "name": "DynoraStation",
-  "short_name": "Dynora",
-  "description": "Digitale Steuerzentrale für die H0-Modellbahn",
+  "name": "DynoraStation – Märklin M-Gleis",
+  "short_name": "DynoraStation",
+  "description": "Professionelle Steuerzentrale für Märklin M-Gleis in H0",
   "lang": "de",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b0d12",
-  "theme_color": "#0b0d12",
+  "background_color": "#0b0c0f",
+  "theme_color": "#0b0c0f",
   "icons": [
     {
-      "src": "/assets/brand/dynora-logo-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/assets/brand/dynora-logo-512.png",
-      "sizes": "512x512",
+      "src": "/assets/brand/dynora-logo.png",
+      "sizes": "399x401",
       "type": "image/png"
     }
   ]

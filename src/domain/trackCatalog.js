@@ -7,6 +7,7 @@ const TRACK_CATALOG = {
   "5108": { kind: "track", label: "5108", length: 45 },
   "5109": { kind: "track", label: "5109", length: 33.5 },
   "5110": { kind: "track", label: "5110", length: 22.5 },
+  "5112": { kind: "track", label: "5112 Entkupplungsgleis", length: 90, trackStyle: "uncoupler" },
   "5129": { kind: "bumper", label: "5129 Prellbock", length: 70 },
 
   "5128": {
@@ -24,7 +25,7 @@ const TRACK_CATALOG = {
   "5120": { kind: "curve", label: "5120 Industriekreis", radius: 286, angleDeg: 45, arcLength: 224.6 },
   "5118": { kind: "switch", label: "5118 Weiche links", handed: "left", length: 180, radius: 360, angleDeg: 30 },
   "5119": { kind: "switch", label: "5119 Weiche rechts", handed: "right", length: 180, radius: 360, angleDeg: 30 },
-  "5141": { kind: "switch", label: "5141 Bogenweiche links", handed: "left", length: 180, radius: 360, branchRadius: 437.4, angleDeg: 30, innerCurveCode: "5100", outerCurveCode: "5200", switchStyle: "curved", switchGeometry: "5141" },
+  "5141": { kind: "switch", label: "5141 Bogenweiche links", handed: "left", length: 180, radius: 360, branchRadius: 437.4, angleDeg: 30, branchAngleDeg: 38, innerCurveCode: "5100", outerCurveCode: "5200", switchStyle: "curved", switchGeometry: "5141" },
   "5202": { kind: "switch", label: "5202 links", handed: "left", length: 180, radius: 437.4, angleDeg: 24.2833 },
   "5203": { kind: "switch", label: "5203 rechts", handed: "right", length: 180, radius: 437.4, angleDeg: 24.2833 }
 };

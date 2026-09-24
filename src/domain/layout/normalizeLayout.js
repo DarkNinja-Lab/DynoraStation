@@ -80,6 +80,7 @@ function normalizeLayout(input) {
         showInDirectControl: e.showInDirectControl !== false,
 
         powerState: Boolean(e.powerState),
+        uncouplerDurationMs: Math.max(100, Math.min(3000, toInt(e.uncouplerDurationMs, 450))),
         stromkreis: String(e.stromkreis || ""),
 
         ledChannelRed: validLedChannel(e.ledChannelRed || 0),

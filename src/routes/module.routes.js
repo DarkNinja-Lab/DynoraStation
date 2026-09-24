@@ -24,6 +24,23 @@ function createModuleRoutes({
 }) {
   const router = express.Router();
 
+  function commandPayload(cmd) {
+    if (!cmd) return null;
+    return {
+      id: cmd.id,
+      type: cmd.type,
+      channel: Number(cmd.data.channel) || 0,
+      state: Boolean(cmd.data.state),
+      brightness: Number(cmd.data.brightness) || 0,
+      onMs: Number(cmd.data.onMs) || 0,
+      offMs: Number(cmd.data.offMs) || 0,
+      durationMs: Number(cmd.data.durationMs) || 0,
+      duration: Number(cmd.data.duration) || 0,
+      elementId: String(cmd.data.elementId || ""),
+      line: String(cmd.data.line || "")
+    };
+  }
+
   router.post("/api/module/heartbeat", wrap(async (req, res) => {
     const moduleId = cleanText(req.body?.module || "", 48);
     if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "Modul-ID fehlt");
@@ -40,6 +57,17 @@ function createModuleRoutes({
     module.firmwareVersion = firmwareVersion;
     module.protocolVersion = protocolVersion;
     module.hardwareType = hardwareType;
+    const reportsRelayDriver = Object.prototype.hasOwnProperty.call(req.body || {}, "mcp23017");
+    const reportsEnvironmentSensor = Object.prototype.hasOwnProperty.call(req.body || {}, "bme280");
+    module.health = {
+      ...(module.health && typeof module.health === "object" ? module.health : {}),
+      ...(reportsRelayDriver ? { relayDriverReady: req.body.mcp23017 === true } : {}),
+      ...(reportsEnvironmentSensor ? { environmentSensorReady: req.body.bme280 === true } : {}),
+      ...(typeof req.body?.relayActiveLow === "boolean" ? { relayActiveLow: req.body.relayActiveLow } : {}),
+      ...(Number.isInteger(Number(req.body?.relayOutputLatch)) ? { relayOutputLatch: Number(req.body.relayOutputLatch) & 0xFFFF } : {}),
+      ...(Number.isInteger(Number(req.body?.relayDirectionMask)) ? { relayDirectionMask: Number(req.body.relayDirectionMask) & 0xFFFF } : {}),
+      ...(typeof req.body?.relayDriveMode === "string" ? { relayDriveMode: cleanText(req.body.relayDriveMode, 40) } : {})
+    };
     const reportedName = cleanText(req.body?.moduleName || req.body?.name || "", 80);
     const environmentInput = req.body?.environment && typeof req.body.environment === "object"
       ? req.body.environment
@@ -212,18 +240,25 @@ function createModuleRoutes({
       lastHeartbeat: module.lastHeartbeat,
       firmwareVersion: module.firmwareVersion,
       protocolVersion: module.protocolVersion,
-      hardwareType: module.hardwareType
+      hardwareType: module.hardwareType,
+      health: module.health
     };
     runtimeState.hardware.updatedAt = Date.now();
     queueWriteHardware();
 
     const compatibility = moduleRegistry.moduleCompatibility(module);
+    // Der Heartbeat ist ein zweiter, robuster Zustellweg. Falls ein Router oder
+    // Proxy das schnelle GET-Polling stört, erhält der ESP den Befehl spätestens
+    // mit dem nächsten ohnehin funktionierenden Heartbeat.
+    const heartbeatCommand = commandQueueApi.nextCommandForModule(moduleId);
     res.json({
       ok: true,
       serverTime: Date.now(),
       serverVersion: env.APP_VERSION,
       protocolVersion: env.PROTOCOL_VERSION,
       compatibility,
+      health: module.health,
+      command: commandPayload(heartbeatCommand),
       accepted: {
         module: moduleId,
         relays: relayStates ? relayStates.length : 0,
@@ -400,21 +435,7 @@ function createModuleRoutes({
     const cmd = commandQueueApi.nextCommandForModule(moduleId);
     if (!cmd) return res.json({ command: null });
 
-    res.json({
-      command: {
-        id: cmd.id,
-        type: cmd.type,
-        channel: Number(cmd.data.channel) || 0,
-        state: Boolean(cmd.data.state),
-        brightness: Number(cmd.data.brightness) || 0,
-        onMs: Number(cmd.data.onMs) || 0,
-        offMs: Number(cmd.data.offMs) || 0,
-        durationMs: Number(cmd.data.durationMs) || 0,
-        duration: Number(cmd.data.duration) || 0,
-        elementId: String(cmd.data.elementId || ""),
-        line: String(cmd.data.line || "")
-      }
-    });
+    res.json({ command: commandPayload(cmd) });
   });
 
   router.post("/api/module/ack", wrap(async (req, res) => {

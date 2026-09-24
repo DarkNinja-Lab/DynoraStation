@@ -1,8 +1,8 @@
 # DynoraStation
 
-Webbasierte Steuerzentrale für eine H0-Modellbahn mit mehreren ESP8266-Modulen. DynoraStation kombiniert Gleisbild-Editor, Live-Betrieb, Hardwareverwaltung und Wenn-Dann-Automationen.
+Webbasierte Steuerzentrale speziell für **Märklin M-Gleis in H0** mit mehreren ESP8266-Modulen. DynoraStation kombiniert M-Gleis-Planer, Live-Betrieb, Hardwareverwaltung und Wenn-Dann-Automationen.
 
-Aktuelle Version: **2.0.7**. Die Oberfläche verwendet ein neutrales, dunkles Systemdesign mit klarer Navigation und kompakten Statusflächen. Übersicht, Planung und Betrieb arbeiten auf Desktop und Mobilgeräten als feste, nicht scrollende Arbeitsbereiche; lange Teilinhalte scrollen nur innerhalb ihres Panels. Die Einstellungen besitzen eine eigene seitliche Bereichsnavigation und enthalten jetzt auch die Automationen. Das Schalten von Gleisrelais erfolgt atomisch auf dem Server, schützt vor Mehrfachklicks und bleibt auch während überlappender ESP-Heartbeats konsistent. Der Gleisbild-Editor kombiniert Live- und gespeicherte Relais-/Sensorbestände, damit Zuweisungen auch für registrierte Offline-Module sichtbar bleiben. Die MCP23017-Firmware liefert zusätzlich BME280-Telemetrie; die Trafo-Temperatur erscheint auf dem Dashboard und direkt im Betriebsplan. Automationen besitzen eine frei einstellbare Sperrzeit in Sekunden.
+Aktuelle Version: **3.1.0**. Die Oberfläche nutzt eine ruhige, dunkle Leitstellenstruktur mit Helvetica-artiger Typografie. Hardwarefehler werden zentral gemeldet und nicht mehr über jedem einzelnen Gleis wiederholt. Der Server ist in App-Konfiguration, Laufzeitkontext, Dienste und Lifecycle getrennt. Der Live-Status überträgt große Pläne und Ereignisse nur nach tatsächlichen Änderungen; Schaltbefehle bleiben atomisch und gegen Mehrfachklicks geschützt. Die ESP-Firmwares finden DynoraStation im lokalen Netzwerk automatisch per UDP, eine fest eingetragene Server-IP bleibt als Fallback erhalten.
 
 ## Eigenes Dynora-Logo einsetzen
 
@@ -23,6 +23,8 @@ Für das beste Ergebnis sollte das Logo quadratisch sein, einen transparenten Hi
 ## Funktionen
 
 - Professionelle, reduzierte Leitstellenoberfläche mit klarer Statushierarchie und responsivem Hardware-Center
+- Eindeutiges Märklin-M-Gleis-Anlagenprofil in Übersicht, Planung, Betrieb und Systemzentrale
+- Zentraler Hardwarestatus statt wiederholter „ESP offline“-Hinweise an jedem Gleiselement
 - Visueller Gleisbild-Editor mit physischem Millimeter-Raster, magnetischen Gleisenden, Zoom und Undo/Redo
 - Märklin-M-Gleiskatalog mit Geraden, Kurven, Weichen und Kreuzungsweiche
 - Weichen 5118 (links), 5119 (rechts), 5141 (Bogenweiche links mit R1/R2-Doppelbogen) und Prellbock 5129
@@ -56,6 +58,12 @@ npm start
 ```
 
 Danach ist die Oberfläche standardmäßig unter `http://<SERVER_IP>:8181` erreichbar.
+
+Beim Start zeigt der Server alle erkannten LAN-Adressen an. Die ESP-Firmwares
+suchen DynoraStation zusätzlich automatisch über UDP-Port `8182`. Dafür müssen
+PC und ESP im selben lokalen Netzwerk sein; Client-Isolation im WLAN und eine
+Firewall-Regel gegen UDP-Broadcast verhindern die automatische Erkennung. Die
+in der Firmware eingetragene `SERVER_HOST`-Adresse bleibt als Fallback aktiv.
 
 Wichtig: `npm install` verwenden, nicht nur `npm install express`. Nur so wird der vollständige Abhängigkeitsbaum installiert und aktualisiert.
 
@@ -156,9 +164,9 @@ Im Browser anschließend **Als PDF speichern** wählen. Der gezeichnete Plan wir
 
 ## Bedienung auf Smartphone und Tablet
 
-Auf kleinen Displays steht unten eine feste Schnellnavigation für Start, Gleisbild, Builder und Einstellungen bereit. **Mehr** öffnet die vollständige Navigation mit Regeln und Ereignissen.
+Auf kleinen Displays steht unten eine feste Schnellnavigation für Übersicht, Betrieb, Planung und System bereit. **Mehr** öffnet das Gerätecenter mit Server- und ESP-Status.
 
-Der Builder ist mobil in drei Bereiche aufgeteilt:
+Die Planung ist mobil in drei Bereiche aufgeteilt:
 
 - **Plan** für Verschieben, Zoomen und Verbinden,
 - **Bauteile** für Katalog und Werkzeuge,
@@ -207,8 +215,15 @@ DynoraStation/
 │   ├── app/rules/         Automationseditor
 │   ├── app/status/        Live-Status
 │   ├── app/track/         Betriebs-Gleisbild
-│   └── style.css          UI-Design
-├── src/                   Backend, API und Persistenz
+│   ├── style.css          Basis- und Funktionslayout
+│   └── station-v4.css     Neue Workspace-Architektur und Responsive UI
+├── src/
+│   ├── app/               Express-Konfiguration und Middleware
+│   ├── bootstrap/         Laufzeitkontext und sauberer Server-Lifecycle
+│   ├── domain/            Fachlogik für Gleise, Hardware und Regeln
+│   ├── routes/            Schlanke HTTP-/API-Endpunkte
+│   ├── services/          Queue, Module, Events, Discovery und Persistenz
+│   └── state/             Zentraler Laufzeitzustand
 ├── .env.example
 ├── package.json
 └── README.md
@@ -240,6 +255,17 @@ Beim Speichern des Gleisbilds prüft der Server Mehrfachbelegungen derselben Mod
 - Keine zu niedrigen Rate-Limits konfigurieren.
 - `UI_STATUS_INTERVAL_MS` nicht unter 250 ms setzen.
 - Bei unruhigen Sensoren `SENSOR_DEBOUNCE_MS` vorsichtig erhöhen.
+
+Der Browser fragt weiterhin im 400-ms-Takt ab. Gleisplan und Ereignisprotokoll werden dabei nur erneut übertragen, wenn ihre Revisionsnummer geändert wurde. HTTP-Keep-Alive und ein einzelner, überlappungsfreier Statuszyklus vermeiden unnötige Verbindungsaufbauten.
+
+## Sinnvolle nächste Ausbaustufen
+
+- Fahrstraßen mit Flankenschutz und gegenseitiger Verriegelung
+- Blockabschnitte mit Zugverfolgung statt reiner Einzelmelderanzeige
+- Konfigurations-Backup sowie Import/Export für Umzug auf einen anderen Rechner
+- Rollen und PIN-Schutz für Bedienung, Planung und Administration
+- Diagnoseansicht für WLAN-Signal, Antwortzeiten, Versorgung und ESP-Neustarts
+- Wartungsmodus mit sicherem Test einzelner Relais ohne aktiven Fahrbetrieb
 
 ## Betriebssicherheit
 

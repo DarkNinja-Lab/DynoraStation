@@ -64,6 +64,32 @@ export function drawPowerLine(g, x1, y1, x2, y2, color = "#32f29a") {
   g.append(glow, core);
 }
 
+export function drawUncouplerShape(g, geometry = {}, active = false, occupied = false) {
+  const half = Math.max(30, Number(geometry.length || 90) * .25);
+  const railColor = occupied ? "#ff5f69" : "#d5dbe0";
+  drawDoubleRailLine(g, -half, 0, half, 0, railColor, 8);
+
+  const plate = svg("rect");
+  attrs(plate, {
+    x: -13, y: -12, width: 26, height: 24, rx: 5,
+    fill: active ? "#2d8f68" : "#202b34",
+    stroke: active ? "#71edba" : "#83919d",
+    "stroke-width": 1.8
+  });
+  const ramp = svg("path");
+  attrs(ramp, {
+    d: "M -8 5 L 0 -6 L 8 5 M 0 -6 V 8",
+    fill: "none",
+    stroke: active ? "#eafff4" : "#c7d0d6",
+    "stroke-width": 2.2,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  });
+  const coil = svg("circle");
+  attrs(coil, { cx: 0, cy: 0, r: 16, fill: "none", stroke: active ? "#32f29a" : "#536675", "stroke-width": active ? 2.4 : 1.4, opacity: active ? .9 : .7 });
+  g.append(coil, plate, ramp);
+}
+
 export function drawTrackMarker(g, x, y, angleDeg, activeColor = "#111") {
   const m = svg("g");
   m.setAttribute("transform", `translate(${x} ${y}) rotate(${angleDeg})`);
@@ -154,15 +180,27 @@ function drawCurvedTurnoutRoute(g, startX, radius, angle, sign, railColor) {
   return centerPath;
 }
 
-function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute, geometry) {
+function turnout5141Geometry(geometry, sign) {
   const scale = .5;
   const innerRadius = Math.max(250, Number(geometry.radius) || 360) * scale;
   const outerRadius = Math.max(innerRadius, Math.max(250, Number(geometry.branchRadius) || 437.4) * scale);
-  const angleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
-  const angle = angleDeg * Math.PI / 180;
-  const startX = -(outerRadius * Math.sin(angle)) / 2;
-  const innerPath = drawCurvedTurnoutRoute(g, startX, innerRadius, angle, sign, railColor);
-  const outerPath = drawCurvedTurnoutRoute(g, startX, outerRadius, angle, sign, railColor);
+  const innerAngleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
+  const outerAngleDeg = Math.max(innerAngleDeg + 4, Math.min(48, Number(geometry.branchAngleDeg) || 38));
+  const innerAngle = innerAngleDeg * Math.PI / 180;
+  const outerAngle = outerAngleDeg * Math.PI / 180;
+  const outerSpan = outerRadius * Math.sin(outerAngle);
+  const startX = -outerSpan / 2;
+  return {
+    startX, innerRadius, outerRadius, innerAngle, outerAngle,
+    innerEnd: { x: startX + innerRadius * Math.sin(innerAngle), y: sign * innerRadius * (1 - Math.cos(innerAngle)), angle: sign * innerAngleDeg },
+    outerEnd: { x: startX + outerSpan, y: sign * outerRadius * (1 - Math.cos(outerAngle)), angle: sign * outerAngleDeg }
+  };
+}
+
+function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute, geometry) {
+  const layout = turnout5141Geometry(geometry, sign);
+  const innerPath = drawCurvedTurnoutRoute(g, layout.startX, layout.innerRadius, layout.innerAngle, sign, railColor);
+  const outerPath = drawCurvedTurnoutRoute(g, layout.startX, layout.outerRadius, layout.outerAngle, sign, railColor);
 
   [{ path: innerPath, active: !isGerade }, { path: outerPath, active: isGerade }].forEach((route) => {
     const stateRoute = svg("path");
@@ -170,18 +208,18 @@ function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute
     g.appendChild(stateRoute);
   });
 
-  const splitX = startX + innerRadius * Math.sin(angle * .46);
-  const splitY = sign * innerRadius * (1 - Math.cos(angle * .46));
+  const splitX = layout.startX + layout.innerRadius * Math.sin(layout.innerAngle * .42);
+  const splitY = sign * layout.innerRadius * (1 - Math.cos(layout.innerAngle * .42));
   const blade = svg("path");
-  attrs(blade, { d: `M ${startX + 15} ${sign * 1.8} Q ${startX + 38} ${sign * 4} ${splitX} ${splitY}`, fill: "none", stroke: "#eef1f2", "stroke-width": 2.2, "stroke-linecap": "round" });
+  attrs(blade, { d: `M ${layout.startX + 12} ${sign * 1.8} Q ${layout.startX + 31} ${sign * 3.5} ${splitX} ${splitY}`, fill: "none", stroke: "#eef1f2", "stroke-width": 2.2, "stroke-linecap": "round" });
   const frog = svg("path");
   attrs(frog, { d: `M ${splitX - 5} ${splitY} L ${splitX + 10} ${splitY + sign * 7} M ${splitX} ${splitY + sign * 7} L ${splitX + 14} ${splitY + sign * 1}`, fill: "none", stroke: "#e4e7e8", "stroke-width": 2, "stroke-linecap": "round" });
-  const lanternX = startX + 22;
-  const lanternY = sign * 20;
+  const lanternX = layout.startX + 20;
+  const lanternY = sign * 22;
   const lanternBase = svg("circle");
   attrs(lanternBase, { cx: lanternX, cy: lanternY, r: 8, fill: "#171a1c", stroke: "#9d7339", "stroke-width": 1.5 });
   const marker = svg("path");
-  attrs(marker, { d: "M -5 -4 L 5 0 L -5 4 Z", transform: `translate(${lanternX} ${lanternY}) rotate(${isGerade ? sign * 12 : sign * 28})`, fill: "#fff4d2", stroke: "#a56a11", "stroke-width": 1.2 });
+  attrs(marker, { d: "M -5 -4 L 5 0 L -5 4 Z", transform: `translate(${lanternX} ${lanternY}) rotate(${isGerade ? sign * 18 : sign * 36})`, fill: "#fff4d2", stroke: "#a56a11", "stroke-width": 1.2 });
   g.append(blade, frog, lanternBase, marker);
 }
 
@@ -332,13 +370,11 @@ export function localConnectionPorts(element, catalogItem = {}) {
     const half = length / 2;
     if (catalogItem.switchStyle === "curved") {
       if (catalogItem.switchGeometry === "5141") {
-        const innerRadius = Math.max(250, Number(catalogItem.radius) || 360) * .5;
-        const outerRadius = Math.max(innerRadius, Math.max(250, Number(catalogItem.branchRadius) || 437.4) * .5);
-        const startX = -(outerRadius * Math.sin(a)) / 2;
+        const layout = turnout5141Geometry(catalogItem, sign);
         return [
-          { x: startX, y: 0, angle: 180 },
-          { x: startX + outerRadius * Math.sin(a), y: sign * outerRadius * (1 - Math.cos(a)), angle: sign * angle },
-          { x: startX + innerRadius * Math.sin(a), y: sign * innerRadius * (1 - Math.cos(a)), angle: sign * angle }
+          { x: layout.startX, y: 0, angle: 180 },
+          layout.outerEnd,
+          layout.innerEnd
         ];
       }
       const outerRadius = Math.max(radius, Math.max(250, Number(catalogItem.branchRadius) || 437.4) * .5);

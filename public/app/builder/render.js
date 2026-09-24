@@ -3,11 +3,12 @@
 import { state } from "../core/state.js";
 import { showInspector, inspectorLeer } from "./inspect.js";
 import {
-  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawCurveDual, drawPowerCurve,
+  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort
 } from "./shapes.js";
 import { recordHistory } from "./history.js";
+import { refreshPlanValidation } from "./validation.js";
 
 export function canvasSize() {
   return {
@@ -165,6 +166,7 @@ export function renderCanvas() {
   if (count) count.textContent = String(elements.length);
   const connectionCount = document.getElementById("connectionCount");
   if (connectionCount) connectionCount.textContent = String(state.layout.verbindungen?.length || 0);
+  refreshPlanValidation();
 
   root.onpointerdown = (event) => {
     if (event.target.closest?.(".layout-element")) return;
@@ -339,10 +341,15 @@ function drawElementShape(group, element) {
   switch (element.typ) {
     case "track":
       {
-        const half = Math.max(12, Number(catalogItem(element, "tracks").length || 180) * .25);
-        drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8);
-        if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0);
-        else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#607080");
+        const item = catalogItem(element, "tracks");
+        if (item.trackStyle === "uncoupler") {
+          drawUncouplerShape(group, item, element.powerState, false);
+        } else {
+          const half = Math.max(12, Number(item.length || 180) * .25);
+          drawDoubleRailLine(group, -half, 0, half, 0, "#d5dbe0", 8);
+          if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0);
+          else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#607080");
+        }
       }
       break;
     case "curve":

@@ -34,6 +34,8 @@ async function queueWrite({ kind, file, payloadFactory, runtimeState, addEvent }
 }
 
 function queueWriteLayout(runtimeState, addEvent) {
+  if (!runtimeState.revisions) runtimeState.revisions = {};
+  runtimeState.revisions.layout = Number(runtimeState.revisions.layout || 0) + 1;
   return queueWrite({
     kind: "layout",
     file: runtimeState.paths.LAYOUT_FILE,

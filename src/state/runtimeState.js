@@ -20,6 +20,11 @@ const runtimeState = {
 
   modules: {},
 
+  revisions: {
+    layout: 1,
+    events: 1
+  },
+
   writeState: {
     layout: { running: false, pending: false, lastError: null },
     hardware: { running: false, pending: false, lastError: null },

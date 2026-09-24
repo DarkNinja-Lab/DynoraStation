@@ -28,6 +28,22 @@ test("Command-Queue markiert fehlende ESP-Bestätigung als Zeitüberschreitung",
   assert.equal(events.length, 1);
 });
 
+test("Wiederholtes ESP-Polling beendet einen Befehl nicht vor dem Zeitlimit", () => {
+  const runtimeState = { commandQueue: [], commandResults: [], nextCommandId: 1 };
+  const queue = createCommandQueue({
+    runtimeState,
+    maxCommands: 20,
+    commandMaxAgeMs: 1000,
+    commandMaxAttempts: 1,
+    addEvent: () => {}
+  });
+  const command = queue.createCommand("RELAY_SET", { channel: 1, state: true }, "ESP-A");
+  queue.nextCommandForModule("ESP-A");
+  queue.nextCommandForModule("ESP-A");
+  queue.nextCommandForModule("ESP-A");
+  assert.equal(queue.getCommandResult(command.id).status, "pending");
+});
+
 test("Relais-Konflikte warnen bei unabhängiger Doppelbelegung", () => {
   const conflicts = findRelayConflicts({
     stromkreise: [],

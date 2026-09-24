@@ -68,7 +68,7 @@ test.after(async () => {
 });
 
 test("UI und Kern-API sind erreichbar", async () => {
-  const endpoints = ["/", "/style.css", "/system-ui.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
+  const endpoints = ["/", "/style.css", "/station-v4.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
   for (const endpoint of endpoints) {
     const response = await fetch(`${baseUrl}${endpoint}`);
     assert.equal(response.status, 200, endpoint);
@@ -77,14 +77,37 @@ test("UI und Kern-API sind erreichbar", async () => {
 
 test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", () => {
   const html = fs.readFileSync(path.join(projectDir, "public", "index.html"), "utf8");
-  const systemCss = fs.readFileSync(path.join(projectDir, "public", "system-ui.css"), "utf8");
+  const workspaceCss = fs.readFileSync(path.join(projectDir, "public", "station-v4.css"), "utf8");
   assert.match(html, /data-settings-view="rules"/);
   assert.match(html, /data-settings-section="rules"/);
   assert.doesNotMatch(html, /id="page-rules"/);
-  assert.match(systemCss, /#page-dashboard\.active/);
-  assert.match(systemCss, /#page-builder\.active/);
-  assert.match(systemCss, /#page-track\.active/);
-  assert.match(systemCss, /grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(html, /class="global-header"/);
+  assert.match(html, /class="system-drawer"/);
+  assert.match(html, /class="dashboard-control-stack"/);
+  assert.match(workspaceCss, /#page-dashboard\.active/);
+  assert.match(workspaceCss, /#page-builder\.active/);
+  assert.match(workspaceCss, /#page-track\.active/);
+  assert.match(workspaceCss, /\.settings-tabs\s*\{[^}]*display:\s*flex/s);
+  assert.match(html, /MÄRKLIN M-GLEIS/);
+  assert.match(html, /id="trackSystemNotice"/);
+});
+
+test("Server ist in App-Konfiguration, Runtime-Kontext und Lifecycle getrennt", () => {
+  const createApp = fs.readFileSync(path.join(projectDir, "src", "app", "createApp.js"), "utf8");
+  assert.match(createApp, /createRuntimeContext/);
+  assert.match(createApp, /configureApp/);
+  assert.ok(fs.existsSync(path.join(projectDir, "src", "bootstrap", "startServer.js")));
+  assert.ok(fs.existsSync(path.join(projectDir, "src", "app", "configureApp.js")));
+});
+
+test("Status liefert große Live-Daten nur bei geänderter Revision", async () => {
+  const first = await (await fetch(`${baseUrl}/api/status`)).json();
+  assert.ok(first.layout);
+  assert.ok(Array.isArray(first.events));
+  const second = await (await fetch(`${baseUrl}/api/status?layoutRevision=${first.revisions.layout}&eventRevision=${first.revisions.events}`)).json();
+  assert.equal(second.layout, null);
+  assert.equal(second.events, null);
+  assert.ok(second.hardware);
 });
 
 test("alle Gleisbilder werden vollständig ausgeliefert", async () => {
@@ -171,6 +194,76 @@ test("BME280-Telemetrie wird validiert und im Status bereitgestellt", async () =
   await fetch(`${baseUrl}/api/module/delete`, {
     method: "POST", headers, body: JSON.stringify({ module: moduleId })
   });
+});
+
+test("MCP23017-Ausfall wird sofort gemeldet statt in einen Timeout zu laufen", async () => {
+  const moduleId = "ESP8266-MCP-OFFLINE";
+  const headers = { "content-type": "application/json" };
+  const heartbeat = await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({
+      module: moduleId,
+      moduleType: "RELAY_SENSOR_CONTROLLER",
+      hardwareType: "ESP8266_NODEMCU_MCP23017_BME280",
+      mcp23017: false,
+      relayActiveLow: false,
+      relayOutputLatch: 0,
+      relays: Array(16).fill(false)
+    }))
+  });
+  assert.equal(heartbeat.status, 200);
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  assert.equal(status.hardware.modules[moduleId].health.relayDriverReady, false);
+  assert.equal(status.hardware.modules[moduleId].health.relayActiveLow, false);
+
+  const control = await fetch(`${baseUrl}/api/control/relay`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: moduleId, channel: 1, state: true })
+  });
+  assert.equal(control.status, 503);
+  const error = await control.json();
+  assert.equal(error.code, "RELAY_DRIVER_OFFLINE");
+  assert.match(error.fehler, /MCP23017/);
+  assert.equal(await nextCommand(moduleId), null);
+
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
+test("Heartbeat liefert wartende Relaisbefehle als redundanten Zustellweg", async () => {
+  const moduleId = "ESP8266-HEARTBEAT-COMMAND";
+  const headers = { "content-type": "application/json" };
+  const heartbeatBody = compatibleHeartbeat({
+    module: moduleId,
+    moduleType: "RELAY_SENSOR_CONTROLLER",
+    hardwareType: "ESP8266_NODEMCU_MCP23017_BME280",
+    mcp23017: true,
+    relayActiveLow: false,
+    relayOutputLatch: 0,
+    relays: Array(16).fill(false)
+  });
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, { method: "POST", headers, body: JSON.stringify(heartbeatBody) })).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/control/relay`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId, channel: 4, state: true })
+  })).status, 200);
+
+  const heartbeat = await (await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers, body: JSON.stringify(heartbeatBody)
+  })).json();
+  assert.equal(heartbeat.command.type, "RELAY_SET");
+  assert.equal(heartbeat.command.channel, 4);
+  assert.equal(heartbeat.command.state, true);
+  await ackCommand(moduleId, heartbeat.command);
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
+test("Relais-Firmware bestätigt Befehle auch bei Hardwarefehlern eindeutig", () => {
+  const firmware = fs.readFileSync(path.join(projectDir, "esp8266_code", "relays_und_sensoren.ino"), "utf8");
+  assert.match(firmware, /FIRMWARE_VERSION = "2\.4\.0"/);
+  assert.match(firmware, /RELAY_ACTIVE_LOW = false/);
+  assert.match(firmware, /mcpWriteAndVerify/);
+  assert.match(firmware, /reply\["command"\]/);
+  assert.match(firmware, /MCP23017 nicht bereit oder Schreibfehler/);
+  assert.doesNotMatch(firmware, /if \(relayHardwareReady && WiFi\.status\(\) == WL_CONNECTED/);
 });
 
 test("Automations-Sperrzeit blockiert erneute Sensortrigger", async () => {
@@ -430,19 +523,85 @@ test("Direktsteuerung priorisiert bei ESP-Signalen den LED-Zustand", async () =>
   assert.equal(directControlState({ typ: "ledSignal", signalState: "halt", ledState: "fahrt" }), "fahrt");
   assert.equal(directControlState({ typ: "espSignal", signalState: "halt", ledState: "warnung" }), "warnung");
   assert.equal(directControlState({ typ: "switch", switchState: "abzweig" }), "abzweig");
+  assert.equal(directControlState({ typ: "track", trackCode: "5112" }), "bereit");
+});
+
+test("Planprüfung erkennt Hardwarefehler, Relais-Konflikte und isolierte Gleise", async () => {
+  const { analyzePlan } = await import("../public/app/builder/validation.js");
+  const issues = analyzePlan({
+    elemente: [
+      { id: "A", typ: "track", trackCode: "5112", module: "ESP-A", relay: 2 },
+      { id: "B", typ: "switch", switchCode: "5202", module: "ESP-A", relayStraight: 2, relayBranch: 3 },
+      { id: "C", typ: "signal", relayHp0: 0, relayHp1: 0 }
+    ],
+    verbindungen: []
+  });
+  const codes = new Set(issues.map((issue) => issue.code));
+  assert.ok(codes.has("RELAY_CONFLICT"));
+  assert.ok(codes.has("NO_MODULE"));
+  assert.ok(codes.has("NO_RELAY"));
+  assert.ok(codes.has("ISOLATED"));
+
+  const shared = analyzePlan({
+    elemente: [
+      { id: "D", typ: "track", module: "ESP-A", relay: 4, stromkreis: "C1" },
+      { id: "E", typ: "curve", module: "ESP-A", relay: 4, stromkreis: "C1" }
+    ],
+    verbindungen: [{ von: "D", nach: "E" }]
+  });
+  assert.equal(shared.some((issue) => issue.code === "RELAY_CONFLICT"), false);
 });
 
 test("5141 stellt drei klar getrennte und korrekt ausgerichtete Anschluesse bereit", async () => {
   const { localConnectionPorts } = await import("../public/app/builder/shapes.js");
   const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, branchRadius: 437.4, angleDeg: 30 });
   assert.equal(ports.length, 3);
-  assert.ok(Math.abs(ports[0].x + 54.675) < .001);
+  assert.ok(Math.abs(ports[0].x + 67.32) < .02);
   assert.equal(ports[0].y, 0);
   assert.equal(ports[0].angle, 180);
   assert.ok(ports[1].y < ports[2].y);
-  assert.equal(ports[1].angle, -30);
+  assert.equal(ports[1].angle, -38);
   assert.equal(ports[2].angle, -30);
   assert.notEqual(ports[1].x, ports[2].x);
+});
+
+test("Entkupplungsgleis 5112 nutzt einen sicheren Relais-Impuls und behält den Sensor", async () => {
+  const moduleId = "ESP8266-UNCOUPLER";
+  const headers = { "content-type": "application/json" };
+  const catalog = await (await fetch(`${baseUrl}/api/track-catalog`)).json();
+  assert.equal(catalog.tracks.find((item) => item.code === "5112")?.trackStyle, "uncoupler");
+
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false, false], sensors: [{ id: "S1", state: false }] }))
+  })).status, 200);
+
+  assert.equal((await fetch(`${baseUrl}/api/layout`, {
+    method: "POST", headers,
+    body: JSON.stringify({ metadaten: {}, stromkreise: [], verbindungen: [], elemente: [{
+      id: "uncoupler-1", typ: "track", trackCode: "5112", module: moduleId, relay: 2,
+      sensorId: "S1", uncouplerDurationMs: 650
+    }] })
+  })).status, 200);
+
+  const response = await fetch(`${baseUrl}/api/track/control`, {
+    method: "POST", headers, body: JSON.stringify({ elementId: "uncoupler-1", toggle: true })
+  });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.requestedState, "pulse");
+  assert.equal(result.duration, 650);
+  const command = await nextCommand(moduleId);
+  assert.equal(command.type, "RELAY_PULSE");
+  assert.equal(command.channel, 2);
+  assert.equal(command.duration, 650);
+  await ackCommand(moduleId, command);
+
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  const element = status.layout.elemente.find((item) => item.id === "uncoupler-1");
+  assert.equal(element.sensorId, "S1");
+  assert.equal(element.uncouplerDurationMs, 650);
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
 
 test("Direktsteuerungs-Endpunkte übernehmen Zustände erst nach ESP-Bestätigung", async () => {
@@ -651,4 +810,3 @@ test("Layout-API meldet Relais-Konflikte und akzeptiert explizite gemeinsame Str
   body = await response.json();
   assert.deepEqual(body.warnings.relayConflicts, []);
 });
-

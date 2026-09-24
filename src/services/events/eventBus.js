@@ -13,6 +13,8 @@ function addEventFactory(runtimeState, maxEvents) {
     if (runtimeState.events.length > maxEvents) {
       runtimeState.events.length = maxEvents;
     }
+    if (!runtimeState.revisions) runtimeState.revisions = {};
+    runtimeState.revisions.events = Number(runtimeState.revisions.events || 0) + 1;
   };
 }
 

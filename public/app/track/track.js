@@ -5,7 +5,7 @@ import { apiCall } from "../core/api.js";
 import { showToast } from "../ui/toast.js";
 import { commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
 import {
-  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawCurveDual, drawPowerCurve,
+  svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort
 } from "../builder/shapes.js";
@@ -107,10 +107,15 @@ function drawConnections(layer, elements, connections) {
 function drawShape(group, element, occupied = false) {
   const type = uiType(element.typ);
   if (type === "track") {
-    const half = Math.max(12, Number(catalogItem(element, "tracks").length || 180) * .25);
-    drawDoubleRailLine(group, -half, 0, half, 0, occupied ? "#ff5f69" : "#d5dbe0", 8);
-    if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0, occupied ? "#ff5f69" : "#32f29a");
-    else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#566675");
+    const item = catalogItem(element, "tracks");
+    if (item.trackStyle === "uncoupler") {
+      drawUncouplerShape(group, item, element.powerState, occupied);
+    } else {
+      const half = Math.max(12, Number(item.length || 180) * .25);
+      drawDoubleRailLine(group, -half, 0, half, 0, occupied ? "#ff5f69" : "#d5dbe0", 8);
+      if (element.powerState) drawPowerLine(group, -half + 3, 0, half - 3, 0, occupied ? "#ff5f69" : "#32f29a");
+      else drawStateSegmentLine(group, -Math.min(half - 3, 16), 0, Math.min(half - 3, 16), 0, "#566675");
+    }
   } else if (type === "curve") {
     const item = catalogItem(element, "curves");
     drawCurveDual(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), occupied ? "#ff5f69" : "#89949d");
@@ -274,7 +279,9 @@ export function renderTrackLayout() {
     drawShape(group, element, occupied);
     if (occupied) drawOccupancyBadge(group, rotation);
     drawTransformerTemperature(group, element, rotation);
-    if (hardwareInteractive) drawCommandBadge(group, feedback, rotation, !control.enabled && !feedback ? control.reason : "");
+    // Verbindungsprobleme werden einmal zentral über dem Gleisbild angezeigt.
+    // Direkt am Element erscheinen nur laufende bzw. bestätigte Schaltvorgänge.
+    if (hardwareInteractive && feedback) drawCommandBadge(group, feedback, rotation);
     drawLabel(group, element, rotation);
     if (interactive) group.addEventListener("click", () => controlElement(element, group));
     if (interactive) group.addEventListener("keydown", (event) => {

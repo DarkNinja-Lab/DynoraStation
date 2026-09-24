@@ -31,7 +31,18 @@ export function setupBuilderButtons() {
   document.querySelectorAll(".add-element-button").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      beginPlacement(btn.dataset.add, btn.dataset.signalAspects || "");
+      beginPlacement(btn.dataset.add, btn.dataset.signalAspects || "", btn.dataset.catalogCode || "");
+    });
+  });
+  const componentSearch = document.getElementById("componentSearch");
+  componentSearch?.addEventListener("input", () => {
+    const query = componentSearch.value.trim().toLocaleLowerCase("de");
+    document.querySelectorAll(".builder-library-group .catalog-group, .builder-control-grid .add-element-button").forEach((item) => {
+      const text = `${item.textContent || ""} ${item.dataset.searchable || ""}`.toLocaleLowerCase("de");
+      item.classList.toggle("search-hidden", Boolean(query && !text.includes(query)));
+    });
+    document.querySelectorAll(".builder-library-group").forEach((group) => {
+      if (query && group.querySelector(":scope > .catalog-group:not(.search-hidden), :scope > .builder-control-grid .add-element-button:not(.search-hidden)")) group.open = true;
     });
   });
   bindPlacementCanvas();
@@ -105,6 +116,11 @@ function placementLabel(type) {
     track: "Gerades Gleis", curve: "Kurve", switch: "Weiche", crossing: "Kreuzungsweiche",
     bumper: "Prellbock", signal: "Hauptsignal", espSignal: "ESP-Signal", transformer: "Transformator"
   })[type] || "Bauteil";
+}
+
+function placementDisplayLabel(type, catalogCode = "") {
+  if (type === "track" && String(catalogCode) === "5112") return "Entkupplungsgleis";
+  return placementLabel(type);
 }
 
 function selectedCatalogCode(type) {
@@ -210,7 +226,7 @@ function syncPlacementUi() {
   const code = placement.catalogCode ? ` · ${placement.catalogCode}` : "";
   const title = document.getElementById("placementTitle");
   const hint = document.getElementById("placementHint");
-  if (title) title.textContent = `${placementLabel(placement.typ)}${code}`;
+  if (title) title.textContent = `${placementDisplayLabel(placement.typ, placement.catalogCode)}${code}`;
   if (hint) {
     const magnetic = placement.magnetic
       ? `Freier Anschluss an ${placement.previewConnection?.targetName || "Gleis"} · klicken zum Verbinden`
@@ -219,7 +235,7 @@ function syncPlacementUi() {
   }
 }
 
-export function beginPlacement(type, signalAspectMode = "") {
+export function beginPlacement(type, signalAspectMode = "", requestedCatalogCode = "") {
   if (!["track", "curve", "switch", "crossing", "bumper", "signal", "espSignal", "transformer"].includes(type)) return;
   const size = canvasSize();
   const center = snapCanvasPoint({
@@ -228,7 +244,7 @@ export function beginPlacement(type, signalAspectMode = "") {
   });
   state.selectedTool = "place";
   state.connectFrom = null;
-  state.placement = { ...createElement(type, center.x, center.y, 0, "", signalAspectMode), id: "placement-preview", count: 0, magnetic: false };
+  state.placement = { ...createElement(type, center.x, center.y, 0, requestedCatalogCode, signalAspectMode), id: "placement-preview", count: 0, magnetic: false };
   syncPlacementUi();
   renderCanvas();
   if (window.matchMedia("(max-width: 900px)").matches) {
@@ -271,7 +287,7 @@ function commitPlacement(point) {
   placement.y = position.y;
   syncPlacementUi();
   renderCanvas();
-  showToast(connection ? "Gleis platziert und magnetisch verbunden" : `${placementLabel(element.typ)} platziert`);
+  showToast(connection ? "Gleis platziert und magnetisch verbunden" : `${placementDisplayLabel(element.typ, element.catalogCode)} platziert`);
 }
 
 function bindPlacementCanvas() {

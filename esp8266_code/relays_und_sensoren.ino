@@ -26,6 +26,7 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
@@ -39,11 +40,12 @@ const char* WIFI_PASS = "DEIN_WLAN_PASSWORT";
 // IPv4-Adresse des PCs mit DynoraStation (nicht "localhost" und nicht die ESP-IP).
 const char* SERVER_HOST = "192.168.1.115";
 const uint16_t SERVER_PORT = 8181;
+const uint16_t DISCOVERY_PORT = 8182;
 
 // Nur der Anzeigename ist frei waehlbar. Die technische ID wird automatisch
 // aus der Chip-ID gebildet und bleibt auch nach einer Umbenennung stabil.
 const char* MODULE_NAME = "Relais und Sensoren";
-const char* FIRMWARE_VERSION = "2.0.7";
+const char* FIRMWARE_VERSION = "2.5.0";
 const uint16_t PROTOCOL_VERSION = 2;
 const char* HARDWARE_TYPE = "ESP8266_NODEMCU_MCP23017_BME280";
 
@@ -57,6 +59,7 @@ const uint8_t HTTP_RETRIES = 1;
 
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;
 const unsigned long HTTP_ERROR_LOG_INTERVAL_MS = 5000;
+const unsigned long DISCOVERY_RETRY_INTERVAL_MS = 10000;
 
 // MCP23017 / Relaisboard (Pflicht)
 const uint8_t MCP23017_ADDRESS = 0x20;
@@ -66,8 +69,15 @@ const uint32_t MCP_I2C_CLOCK_HZ = 100000;
 const unsigned long MCP_RETRY_INTERVAL_MS = 5000;
 
 const uint8_t RELAY_COUNT = 16;
-// Auf false stellen, falls dein Board mit HIGH einschaltet.
+// Das vorhandene 16-Kanal-Board hat optogekoppelte, intern auf 5 V gezogene
+// LOW-Trigger-Eingaenge. Der mit 3,3 V versorgte MCP23017 darf diese 5 V
+// deshalb NICHT aktiv auf HIGH treiben.
+//
+// Ansteuerung als Open-Drain:
+//   Relais EIN: MCP-Pin OUTPUT + OLAT=LOW -> Eingang wird auf GND gezogen
+//   Relais AUS: MCP-Pin INPUT          -> Eingang ist hochohmig und steigt auf 5 V
 const bool RELAY_ACTIVE_LOW = true;
+const char* RELAY_DRIVE_MODE = "OPEN_DRAIN_IODIR";
 
 // BME280 teilt sich SDA/SCL mit dem MCP23017. Übliche Adresse: 0x76.
 const uint8_t BME280_I2C_ADDRESS = 0x76;
@@ -102,8 +112,12 @@ bool wifiWasConnected = false;
 bool serverWasReachable = false;
 bool heartbeatConfirmed = false;
 bool relayHardwareReady = false;
+String activeServerHost = SERVER_HOST;
+WiFiUDP discoveryUdp;
+unsigned long lastDiscoveryAttempt = 0;
 String moduleId;
-uint16_t mcpOutputLatch = 0xFFFF;
+uint16_t mcpOutputLatch = 0x0000;
+uint16_t mcpDirectionMask = 0xFFFF; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
 unsigned long lastMcpAttempt = 0;
 Adafruit_BME280 bme280;
 bool bme280Ready = false;
@@ -127,14 +141,51 @@ struct PulseState {
 };
 PulseState pulses[RELAY_COUNT];
 
+// Heartbeat und Polling verwenden denselben Befehls-Handler.
+void executeCommand(const JsonObject& cmd);
+
 /* ============================ Hilfsfunktionen =========================== */
 
 String makeBaseUrl() {
   String url = "http://";
-  url += SERVER_HOST;
+  url += activeServerHost;
   url += ":";
   url += String(SERVER_PORT);
   return url;
+}
+
+bool discoverDynoraStation() {
+  if (WiFi.status() != WL_CONNECTED) return false;
+  lastDiscoveryAttempt = millis();
+
+  const uint16_t localPort = 42000 + (ESP.getChipId() % 1000);
+  if (!discoveryUdp.begin(localPort)) return false;
+  discoveryUdp.beginPacket(IPAddress(255, 255, 255, 255), DISCOVERY_PORT);
+  discoveryUdp.write("DYNORA_DISCOVER_V1");
+  discoveryUdp.endPacket();
+
+  const unsigned long startedAt = millis();
+  while ((unsigned long)(millis() - startedAt) < 450) {
+    int packetSize = discoveryUdp.parsePacket();
+    if (packetSize > 0) {
+      char reply[72] = {0};
+      int readCount = discoveryUdp.read(reply, sizeof(reply) - 1);
+      if (readCount > 0) reply[readCount] = '\0';
+      if (String(reply).startsWith("DYNORA_STATION_V1|")) {
+        activeServerHost = discoveryUdp.remoteIP().toString();
+        discoveryUdp.stop();
+        Serial.print("[SERVER] Automatisch gefunden: ");
+        Serial.println(makeBaseUrl());
+        return true;
+      }
+    }
+    delay(10);
+    yield();
+  }
+  discoveryUdp.stop();
+  Serial.print("[SERVER] Auto-Erkennung ohne Treffer, Fallback: ");
+  Serial.println(makeBaseUrl());
+  return false;
 }
 
 void logHttpFailure(const char* method, const String& path, int code, const String& response) {
@@ -162,9 +213,25 @@ bool mcpWriteRegister(uint8_t reg, uint8_t value) {
   return Wire.endTransmission() == 0;
 }
 
-bool mcpWriteBothPorts() {
-  bool portAOk = mcpWriteRegister(MCP_OLATA, (uint8_t)(mcpOutputLatch & 0xFF));
-  bool portBOk = mcpWriteRegister(MCP_OLATB, (uint8_t)(mcpOutputLatch >> 8));
+bool mcpReadRegister(uint8_t reg, uint8_t& value) {
+  Wire.beginTransmission(MCP23017_ADDRESS);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(MCP23017_ADDRESS, (uint8_t)1) != 1) return false;
+  value = Wire.read();
+  return true;
+}
+
+bool mcpWriteAndVerify(uint8_t reg, uint8_t value) {
+  if (!mcpWriteRegister(reg, value)) return false;
+  uint8_t readback = 0;
+  return mcpReadRegister(reg, readback) && readback == value;
+}
+
+bool mcpWriteDirections(uint16_t directionMask) {
+  // IODIR: 1 = INPUT (hochohmig/AUS), 0 = OUTPUT (OLAT LOW -> EIN)
+  bool portAOk = mcpWriteAndVerify(MCP_IODIRA, (uint8_t)(directionMask & 0xFF));
+  bool portBOk = mcpWriteAndVerify(MCP_IODIRB, (uint8_t)(directionMask >> 8));
   return portAOk && portBOk;
 }
 
@@ -172,11 +239,16 @@ bool initMcp23017() {
   Wire.beginTransmission(MCP23017_ADDRESS);
   if (Wire.endTransmission() != 0) return false;
 
-  // Sicheren AUS-Pegel vor dem Umschalten auf Ausgang vorladen.
-  mcpOutputLatch = RELAY_ACTIVE_LOW ? 0xFFFF : 0x0000;
-  if (!mcpWriteBothPorts()) return false;
-  if (!mcpWriteRegister(MCP_IODIRA, 0x00)) return false;
-  if (!mcpWriteRegister(MCP_IODIRB, 0x00)) return false;
+  // Wichtig fuer das 5-V-LOW-Trigger-Board:
+  // OLAT bleibt dauerhaft LOW. AUS wird NICHT durch HIGH erzeugt, sondern
+  // indem der jeweilige MCP-Pin als INPUT hochohmig geschaltet wird.
+  mcpOutputLatch = 0x0000;
+  if (!mcpWriteAndVerify(MCP_OLATA, 0x00)) return false;
+  if (!mcpWriteAndVerify(MCP_OLATB, 0x00)) return false;
+
+  // Alle Kanaele beim Start hochohmig = alle Relais AUS.
+  mcpDirectionMask = 0xFFFF;
+  if (!mcpWriteDirections(mcpDirectionMask)) return false;
 
   for (uint8_t i = 0; i < RELAY_COUNT; i++) relayStates[i] = false;
   return true;
@@ -185,28 +257,41 @@ bool initMcp23017() {
 bool setRelayHw(uint8_t idx, bool on) {
   if (idx >= RELAY_COUNT || !relayHardwareReady) return false;
 
-  bool level = RELAY_ACTIVE_LOW ? !on : on;
-  uint16_t mask = (uint16_t)1U << idx;
-  uint16_t nextLatch = level ? (mcpOutputLatch | mask) : (mcpOutputLatch & ~mask);
-  uint8_t reg = idx < 8 ? MCP_OLATA : MCP_OLATB;
-  uint8_t portValue = idx < 8 ? (uint8_t)(nextLatch & 0xFF) : (uint8_t)(nextLatch >> 8);
+  const uint16_t mask = (uint16_t)1U << idx;
+  // EIN = OUTPUT LOW (IODIR-Bit 0), AUS = INPUT/Hi-Z (IODIR-Bit 1).
+  const uint16_t nextDirections = on
+    ? (mcpDirectionMask & ~mask)
+    : (mcpDirectionMask | mask);
 
-  if (!mcpWriteRegister(reg, portValue)) {
+  const uint8_t reg = idx < 8 ? MCP_IODIRA : MCP_IODIRB;
+  const uint8_t portValue = idx < 8
+    ? (uint8_t)(nextDirections & 0xFF)
+    : (uint8_t)(nextDirections >> 8);
+
+  if (!mcpWriteAndVerify(reg, portValue)) {
     relayHardwareReady = false;
     heartbeatConfirmed = false;
-    Serial.println("[MCP23017] Schreibfehler, Neuverbindung wird versucht");
+    Serial.println("[MCP23017] IODIR-Schreibfehler, Neuverbindung wird versucht");
     return false;
   }
 
-  mcpOutputLatch = nextLatch;
+  mcpDirectionMask = nextDirections;
   relayStates[idx] = on;
+  Serial.print("[MCP] Kanal ");
+  Serial.print(idx + 1);
+  Serial.print(on ? " EIN" : " AUS");
+  Serial.print(" · IODIR=0x");
+  if (mcpDirectionMask < 0x1000) Serial.print("0");
+  if (mcpDirectionMask < 0x0100) Serial.print("0");
+  if (mcpDirectionMask < 0x0010) Serial.print("0");
+  Serial.println(mcpDirectionMask, HEX);
   return true;
 }
 
 bool allRelaysOff() {
   for (uint8_t i = 0; i < RELAY_COUNT; i++) relayStates[i] = false;
-  mcpOutputLatch = RELAY_ACTIVE_LOW ? 0xFFFF : 0x0000;
-  if (relayHardwareReady && !mcpWriteBothPorts()) {
+  mcpDirectionMask = 0xFFFF;
+  if (relayHardwareReady && !mcpWriteDirections(mcpDirectionMask)) {
     relayHardwareReady = false;
     heartbeatConfirmed = false;
     return false;
@@ -335,6 +420,11 @@ bool sendHeartbeat() {
   doc["protocolVersion"] = PROTOCOL_VERSION;
   doc["hardwareType"] = HARDWARE_TYPE;
   doc["mcp23017"] = relayHardwareReady;
+  doc["bme280"] = bme280Ready;
+  doc["relayActiveLow"] = RELAY_ACTIVE_LOW;
+  doc["relayOutputLatch"] = mcpOutputLatch;
+  doc["relayDirectionMask"] = mcpDirectionMask;
+  doc["relayDriveMode"] = RELAY_DRIVE_MODE;
   doc["relayDriver"] = "MCP23017";
 
   if (bme280Ready && !isnan(temperatureC)) {
@@ -368,15 +458,19 @@ bool sendHeartbeat() {
   String response;
   bool ok = httpPostJson("/api/module/heartbeat", payload, response);
   if (ok) {
-    StaticJsonDocument<384> reply;
+    DynamicJsonDocument reply(1024);
     DeserializationError err = deserializeJson(reply, response);
-    if (!err && reply["ok"] == true && !heartbeatConfirmed) {
-      heartbeatConfirmed = true;
-      Serial.print("[SERVER] Heartbeat OK: ");
-      Serial.print(RELAY_COUNT);
-      Serial.print(" Relais, ");
-      Serial.print(SENSOR_COUNT);
-      Serial.println(" Sensoren");
+    if (!err && reply["ok"] == true) {
+      if (!heartbeatConfirmed) {
+        heartbeatConfirmed = true;
+        Serial.print("[SERVER] Heartbeat OK: ");
+        Serial.print(RELAY_COUNT);
+        Serial.print(" Relais, ");
+        Serial.print(SENSOR_COUNT);
+        Serial.println(" Sensoren");
+      }
+      JsonVariant heartbeatCommand = reply["command"];
+      if (!heartbeatCommand.isNull()) executeCommand(heartbeatCommand.as<JsonObject>());
     }
   }
   return ok;
@@ -395,7 +489,7 @@ void sendSensorEvent(const char* sensorId, bool triggered) {
   httpPostJson("/api/module/sensor", payload, response);
 }
 
-void ackCommand(int id, bool ok = true, const char* error = "") {
+bool ackCommand(int id, bool ok = true, const char* error = "") {
   DynamicJsonDocument doc(256);
   doc["id"] = id;
   doc["module"] = moduleId;
@@ -406,7 +500,13 @@ void ackCommand(int id, bool ok = true, const char* error = "") {
   serializeJson(doc, payload);
 
   String response;
-  httpPostJson("/api/module/ack", payload, response);
+  bool sent = httpPostJson("/api/module/ack", payload, response);
+  if (!sent) {
+    Serial.print("[ACK] Bestaetigung fuer Befehl #");
+    Serial.print(id);
+    Serial.println(" konnte nicht gesendet werden");
+  }
+  return sent;
 }
 
 bool startPulse(uint8_t relayIndex, unsigned long durationMs) {
@@ -437,6 +537,16 @@ void executeCommand(const JsonObject& cmd) {
   bool state = cmd["state"] | false;
   int duration = cmd["duration"] | 0;
 
+  Serial.print("[BEFEHL] #");
+  Serial.print(id);
+  Serial.print(" ");
+  Serial.print(type);
+  if (channel > 0) {
+    Serial.print(" · Kanal ");
+    Serial.print(channel);
+  }
+  Serial.println();
+
   if (strcmp(type, "RELAY_SET") == 0) {
     if (channel < 1 || channel > RELAY_COUNT) {
       if (id > 0) ackCommand(id, false, "Ungueltiger Relaiskanal");
@@ -444,7 +554,7 @@ void executeCommand(const JsonObject& cmd) {
     }
     pulses[channel - 1].active = false;
     bool executed = setRelayHw((uint8_t)(channel - 1), state);
-    if (id > 0) ackCommand(id, executed, executed ? "" : "MCP23017 Schreibfehler");
+    if (id > 0) ackCommand(id, executed, executed ? "" : "MCP23017 nicht bereit oder Schreibfehler");
     return;
   }
 
@@ -507,6 +617,7 @@ void ensureWifi() {
       Serial.println(WiFi.localIP());
       Serial.print("[SERVER] Ziel: ");
       Serial.println(makeBaseUrl());
+      discoverDynoraStation();
       // Nach jeder neuen WLAN-Verbindung Hardware sofort vollständig anmelden.
       sendHeartbeat();
       lastHeartbeat = millis();
@@ -522,6 +633,7 @@ void ensureWifi() {
   }
 
   unsigned long now = millis();
+
   if (
     wifiConnectStarted &&
     (unsigned long)(now - lastWifiAttempt) < WIFI_CONNECT_TIMEOUT_MS
@@ -550,6 +662,8 @@ void setup() {
   WiFi.hostname(moduleId);
   Serial.print("[MODUL] Stabile ID: ");
   Serial.println(moduleId);
+  Serial.print("[RELAIS] Schaltlogik: ");
+  Serial.println("aktiv-LOW / Open-Drain via IODIR (5-V Optokoppler-Eingaenge)");
 
   Wire.begin(MCP_SDA_PIN, MCP_SCL_PIN);
   Wire.setClock(MCP_I2C_CLOCK_HZ);
@@ -580,14 +694,22 @@ void loop() {
 
   unsigned long now = millis();
 
+  if (
+    WiFi.status() == WL_CONNECTED &&
+    !serverWasReachable &&
+    (unsigned long)(now - lastDiscoveryAttempt) >= DISCOVERY_RETRY_INTERVAL_MS
+  ) {
+    discoverDynoraStation();
+  }
+
   if (WiFi.status() == WL_CONNECTED && (unsigned long)(now - lastHeartbeat) >= HEARTBEAT_INTERVAL_MS) {
     lastHeartbeat = now;
     sendHeartbeat();
   }
 
-  // Befehle erst abholen, wenn die Relais-Hardware erreichbar ist. So wird ein
-  // Befehl bei einem I2C-Ausfall nicht bestätigt oder durch Poll-Versuche verworfen.
-  if (relayHardwareReady && WiFi.status() == WL_CONNECTED && (unsigned long)(now - lastCommandPoll) >= COMMAND_POLL_INTERVAL_MS) {
+  // Auch bei einem MCP-Ausfall pollen: Der Server bekommt dann sofort eine
+  // konkrete negative Bestätigung statt erst nach einem Queue-Timeout.
+  if (WiFi.status() == WL_CONNECTED && (unsigned long)(now - lastCommandPoll) >= COMMAND_POLL_INTERVAL_MS) {
     lastCommandPoll = now;
     pollNextCommand();
   }

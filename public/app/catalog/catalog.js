@@ -27,6 +27,7 @@ function itemCode(item) {
 }
 
 function itemImage(item) {
+  if (item?.trackStyle === "uncoupler") return "";
   const article = itemCode(item);
   return /^\d{4}$/.test(article) ? `/assets/track/${encodeURIComponent(article)}.jpg` : "";
 }
@@ -40,6 +41,7 @@ function imageMarkup(item, className, deferred = false) {
 }
 
 function itemSymbol(kind, item) {
+  if (kind === "track" && item.trackStyle === "uncoupler") return "⇡";
   if (kind === "curve") return "⌒";
   if (kind === "switch") return item.handed === "right" ? "⑃" : "⑂";
   if (kind === "crossing") return "╳";
@@ -48,11 +50,13 @@ function itemSymbol(kind, item) {
 }
 
 function itemMeta(item, kind) {
-  if (kind === "track") return `${item.length || "?"} mm`;
+  if (kind === "track") return item.trackStyle === "uncoupler"
+    ? `${item.length || "?"} mm · Entkuppler`
+    : `${item.length || "?"} mm`;
   if (kind === "curve") return `R ${item.radius || "?"} mm · ${item.angleDeg || "?"}°${item.arcLength ? ` · ${item.arcLength} mm Bogen` : ""}`;
   if (kind === "switch") {
     const handed = item.handed === "right" ? "rechts" : item.handed === "left" ? "links" : "Weiche";
-    if (item.switchGeometry === "5141") return `Bogenweiche ${handed} · R ${item.radius} / ${item.branchRadius} mm · ${item.angleDeg}°`;
+    if (item.switchGeometry === "5141") return `Bogenweiche ${handed} · Innen-/Außenbogen · ${item.angleDeg}°`;
     return handed;
   }
   if (kind === "crossing") return "Kreuzung";

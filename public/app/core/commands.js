@@ -67,7 +67,7 @@ export function commandStatusText(feedback) {
   if (!feedback) return "";
   if (feedback.status === "pending") return "Wird geschaltet …";
   if (feedback.status === "confirmed") return "Erfolgreich bestätigt";
-  if (feedback.status === "timeout") return "Fehlgeschlagen / Zeitüberschreitung";
+  if (feedback.status === "timeout") return feedback.reason || "Zeitüberschreitung: keine ESP-Bestätigung";
   if (feedback.status === "failed") return feedback.reason ? `Fehlgeschlagen: ${feedback.reason}` : "Fehlgeschlagen";
   return "";
 }
@@ -77,6 +77,7 @@ export function moduleControlInfo(moduleId) {
   const module = state.hardware?.modules?.[id];
   if (!id || !module) return { enabled: false, reason: "Kein ESP-Modul zugewiesen", module: null };
   if (!module.online) return { enabled: false, reason: "ESP offline", module };
+  if (module.health?.relayDriverReady === false) return { enabled: false, reason: "MCP23017 nicht erreichbar", module };
   if (module.compatibility?.compatible === false) {
     return { enabled: false, reason: module.compatibility?.reason || "Firmware/Protokoll inkompatibel", module };
   }

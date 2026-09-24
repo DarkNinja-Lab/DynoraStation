@@ -21,6 +21,12 @@ function createRoutes(deps) {
     res.set("Cache-Control", "no-store");
     const catalogItems = Object.entries(TRACK_CATALOG).map(([code, item]) => ({ code, ...item }));
     res.json({
+      profile: {
+        manufacturer: "Märklin",
+        trackSystem: "M-Gleis",
+        scale: "H0",
+        gaugeMm: 16.5
+      },
       tracks: catalogItems.filter(t => t.kind === "track"),
       curves: catalogItems.filter(t => t.kind === "curve"),
       switches: catalogItems.filter(t => t.kind === "switch"),

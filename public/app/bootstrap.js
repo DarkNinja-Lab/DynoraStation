@@ -13,6 +13,7 @@ import { builderRender, trackRender, renderSidebarEspStatus, renderCs3Tiles, ren
 import { statusLaden } from "./status/status.js";
 import { renderCanvas, inspectorLeer } from "./builder/render.js";
 import { resetHistory } from "./builder/history.js";
+import { setupPlanValidation } from "./builder/validation.js";
 
 export async function startApp() {
   console.log("=== START APP ===");
@@ -49,6 +50,7 @@ export async function startApp() {
   renderRulesGrid();
 
   setupBuilderButtons();
+  setupPlanValidation();
   initializeTools();
 
   await statusLaden({ ruhig: false });

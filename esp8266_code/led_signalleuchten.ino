@@ -13,6 +13,7 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
 /* ============================ Konfiguration ============================= */
@@ -22,10 +23,11 @@ const char* WIFI_PASS = "DEIN_WLAN_PASSWORT";
 
 const char* SERVER_HOST = "192.168.1.115";
 const uint16_t SERVER_PORT = 8181;
+const uint16_t DISCOVERY_PORT = 8182;
 
 // Muss zum Modul in deinem Server passen
 const char* MODULE_ID = "LEDMOD_01";
-const char* FIRMWARE_VERSION = "2.0.7";
+const char* FIRMWARE_VERSION = "2.2.0";
 const uint16_t PROTOCOL_VERSION = 2;
 const char* HARDWARE_TYPE = "ESP8266_NODEMCU_LED_DIRECT";
 
@@ -36,6 +38,7 @@ const unsigned long WIFI_RECONNECT_COOLDOWN_MS = 5000;
 
 const uint16_t HTTP_TIMEOUT_MS = 2500;
 const uint8_t HTTP_RETRIES = 2;
+const unsigned long DISCOVERY_RETRY_INTERVAL_MS = 10000;
 
 // LED-Ausgänge (ESP8266 NodeMCU Pins)
 // ACHTUNG: D8 (GPIO15), D0 etc. haben Boot-Eigenheiten. Plane Hardware entsprechend.
@@ -60,6 +63,11 @@ unsigned long lastHeartbeat = 0;
 unsigned long lastCommandPoll = 0;
 unsigned long lastWifiAttempt = 0;
 unsigned long lastWifiStatusLog = 0;
+unsigned long lastDiscoveryAttempt = 0;
+bool wifiWasConnected = false;
+bool serverWasReachable = false;
+String activeServerHost = SERVER_HOST;
+WiFiUDP discoveryUdp;
 
 // Blink pro Kanal (non-blocking)
 struct BlinkState {
@@ -81,10 +89,42 @@ inline bool elapsedSince(unsigned long now, unsigned long since, unsigned long i
 
 String makeBaseUrl() {
   String url = "http://";
-  url += SERVER_HOST;
+  url += activeServerHost;
   url += ":";
   url += String(SERVER_PORT);
   return url;
+}
+
+bool discoverDynoraStation() {
+  if (WiFi.status() != WL_CONNECTED) return false;
+  lastDiscoveryAttempt = millis();
+
+  const uint16_t localPort = 43000 + (ESP.getChipId() % 1000);
+  if (!discoveryUdp.begin(localPort)) return false;
+  discoveryUdp.beginPacket(IPAddress(255, 255, 255, 255), DISCOVERY_PORT);
+  discoveryUdp.write("DYNORA_DISCOVER_V1");
+  discoveryUdp.endPacket();
+
+  const unsigned long startedAt = millis();
+  while ((unsigned long)(millis() - startedAt) < 450) {
+    int packetSize = discoveryUdp.parsePacket();
+    if (packetSize > 0) {
+      char reply[72] = {0};
+      int readCount = discoveryUdp.read(reply, sizeof(reply) - 1);
+      if (readCount > 0) reply[readCount] = '\0';
+      if (String(reply).startsWith("DYNORA_STATION_V1|")) {
+        activeServerHost = discoveryUdp.remoteIP().toString();
+        discoveryUdp.stop();
+        Serial.printf("[SERVER] automatisch gefunden: %s\n", makeBaseUrl().c_str());
+        return true;
+      }
+    }
+    delay(10);
+    yield();
+  }
+  discoveryUdp.stop();
+  Serial.printf("[SERVER] Auto-Erkennung ohne Treffer, Fallback: %s\n", makeBaseUrl().c_str());
+  return false;
 }
 
 bool validChannel(int channel) {
@@ -165,11 +205,16 @@ bool httpPostJson(const String& path, const String& payload, String& responseOut
     responseOut = http.getString();
     http.end();
 
-    if (code >= 200 && code < 300) return true;
+    if (code >= 200 && code < 300) {
+      serverWasReachable = true;
+      return true;
+    }
 
     delay(40);
     yield();
   }
+  serverWasReachable = false;
+  Serial.printf("[SERVER] POST %s nicht erreichbar\n", path.c_str());
   return false;
 }
 
@@ -192,11 +237,15 @@ bool httpGet(const String& path, String& responseOut) {
     responseOut = http.getString();
     http.end();
 
-    if (code >= 200 && code < 300) return true;
+    if (code >= 200 && code < 300) {
+      serverWasReachable = true;
+      return true;
+    }
 
     delay(40);
     yield();
   }
+  serverWasReachable = false;
   return false;
 }
 
@@ -349,7 +398,22 @@ void pollNextCommand() {
 
 void ensureWifi() {
   wl_status_t st = WiFi.status();
-  if (st == WL_CONNECTED) return;
+  if (st == WL_CONNECTED) {
+    if (!wifiWasConnected) {
+      wifiWasConnected = true;
+      Serial.printf("[WiFi] verbunden, IP=%s\n", WiFi.localIP().toString().c_str());
+      discoverDynoraStation();
+      sendHeartbeat();
+      lastHeartbeat = millis();
+    }
+    return;
+  }
+
+  if (wifiWasConnected) {
+    wifiWasConnected = false;
+    serverWasReachable = false;
+    Serial.println("[WiFi] Verbindung verloren");
+  }
 
   unsigned long now = millis();
 
@@ -410,6 +474,14 @@ void loop() {
   tickBlinkers();
 
   unsigned long now = millis();
+
+  if (
+    WiFi.status() == WL_CONNECTED &&
+    !serverWasReachable &&
+    elapsedSince(now, lastDiscoveryAttempt, DISCOVERY_RETRY_INTERVAL_MS)
+  ) {
+    discoverDynoraStation();
+  }
 
   if (elapsedSince(now, lastHeartbeat, HEARTBEAT_INTERVAL_MS)) {
     lastHeartbeat = now;

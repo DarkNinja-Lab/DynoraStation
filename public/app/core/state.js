@@ -3,6 +3,7 @@
 export const state = {
   statusTimer: null,
   statusPollMs: 400,
+  statusRevisions: { layout: 0, events: 0 },
 
   // Backend-Status/HW
   hardware: {
@@ -10,6 +11,7 @@ export const state = {
   },
   commands: [],
   relayConflicts: [],
+  connection: null,
 
   // Regeln
   rules: [],

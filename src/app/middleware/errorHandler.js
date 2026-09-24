@@ -7,7 +7,7 @@ function errorHandler(err, req, res, next) {
   const code = String(err?.code || "INTERNAL_ERROR");
   const message = String(err?.message || "Interner Serverfehler");
 
-  if (status >= 500) {
+  if (status >= 500 && code === "INTERNAL_ERROR") {
     console.error("Unhandled error:", err);
   }
 

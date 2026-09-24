@@ -61,10 +61,13 @@ function createCommandQueue({ runtimeState, maxCommands, commandMaxAgeMs, comman
     for (let i = runtimeState.commandQueue.length - 1; i >= 0; i--) {
       const c = runtimeState.commandQueue[i];
       const tooOld = now - Number(c.created || 0) > commandMaxAgeMs;
-      const tooManyAttempts = Number(c.attempts || 0) > commandMaxAttempts;
-      if (tooOld || tooManyAttempts) {
-        const status = tooOld ? "timeout" : "failed";
-        const reason = tooOld ? "Zeitüberschreitung: ESP-Bestätigung fehlt" : "Zu viele Zustellversuche";
+      // Wiederholte Abholung ist erlaubt, bis das absolute Zeitlimit greift.
+      // So führt ein kurz verlorenes ACK nicht schon nach wenigen Sekunden zum Abbruch.
+      if (tooOld) {
+        const status = "timeout";
+        const reason = Number(c.attempts || 0) === 0
+          ? "Zeitüberschreitung: Befehl wurde vom ESP nicht abgeholt"
+          : "Zeitüberschreitung: ESP-Bestätigung fehlt";
         settleCommand(c, status, reason);
         addEvent("COMMAND", `${c.module}:${c.type}`, `${reason}: #${c.id}`);
         runtimeState.commandQueue.splice(i, 1);
@@ -110,6 +113,8 @@ function createCommandQueue({ runtimeState, maxCommands, commandMaxAgeMs, comman
       attempts: 0,
       priority: isEmergency ? 100 : 10
     };
+
+    console.log(`[COMMAND] erstellt · #${cmd.id} · ${cmd.module} · ${cmd.type}${Number(cmd.data?.channel) > 0 ? ` · Kanal ${cmd.data.channel}` : ""}`);
 
     if (isEmergency) runtimeState.commandQueue.unshift(cmd);
     else runtimeState.commandQueue.push(cmd);
