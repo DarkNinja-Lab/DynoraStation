@@ -4,3 +4,4 @@ data/
 npm-debug.log*
 *.log
 yarn.lock
+installer/
