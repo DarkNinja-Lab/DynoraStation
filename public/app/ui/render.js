@@ -3,6 +3,7 @@
 import { state } from "../core/state.js";
 import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js";
 import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js";
+import { icon } from "./icons.js";
 
 function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 
@@ -20,7 +21,7 @@ export function inspectorLeer() {
   if (inspector) {
     inspector.innerHTML = `
       <div class="inspector-empty">
-        <div class="inspector-empty-icon">◇</div>
+        <div class="inspector-empty-icon">${icon("empty")}</div>
         <strong>Kein Element ausgewählt</strong>
         <span>Klicke ein Gleis, eine Kreuzungsweiche, eine Kurve, Weiche, Hauptsignal 7039, ESP-Signalmast oder Trafo an.</span>
       </div>

@@ -1,6 +1,7 @@
 "use strict";
 
 import { state } from "../core/state.js";
+import { icon } from "../ui/icons.js";
 
 const TRACK_TYPES = new Set(["track", "curve", "switch", "crossing", "xtrack", "bumper"]);
 
@@ -101,10 +102,10 @@ function renderValidationPanel(issues) {
   summary.textContent = errors || warnings ? `${errors} Fehler · ${warnings} Hinweise` : "Keine Probleme erkannt";
   list.innerHTML = issues.length ? issues.map((issue) => `
     <article class="plan-validation-item severity-${issue.severity}">
-      <span class="validation-status" aria-hidden="true">${issue.severity === "error" ? "!" : issue.severity === "warning" ? "△" : "i"}</span>
+      <span class="validation-status" aria-hidden="true">${icon(issue.severity === "error" ? "close" : issue.severity === "warning" ? "warning" : "info")}</span>
       <div><strong>${escapeHtml(issue.title)}</strong><small>${escapeHtml(issue.detail)}</small></div>
     </article>`).join("") : `
-    <div class="plan-validation-ok"><span>✓</span><strong>Plan ist bereit</strong><small>Keine fehlenden Hardware-Zuweisungen, Konflikte oder isolierten Gleise erkannt.</small></div>`;
+    <div class="plan-validation-ok"><span>${icon("check")}</span><strong>Plan ist bereit</strong><small>Keine fehlenden Hardware-Zuweisungen, Konflikte oder isolierten Gleise erkannt.</small></div>`;
 }
 
 export function refreshPlanValidation() {

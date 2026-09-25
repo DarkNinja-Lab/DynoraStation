@@ -9,12 +9,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/style.css">
-  <link rel="stylesheet" href="/station-v4.css">
-  <!-- Font: Google Roboto -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=maximize-2">
 </head>
 <body>
   <div class="app-shell">
@@ -23,38 +18,36 @@
         <div class="brand-icon"><img src="/assets/brand/dynora-logo.png" alt="Dynora Logo"></div>
         <div class="brand-text">
           <strong>Dynora<span>Station</span></strong>
-          <small>Märklin M-Gleis · H0</small>
+          <small>Analog-Stellwerk · Märklin M-Gleis</small>
         </div>
       </div>
 
       <nav class="main-nav" aria-label="Hauptnavigation">
-        <button class="nav-button active" data-page="dashboard" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg></span><span class="nav-copy"><b>Übersicht</b></span></button>
-        <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4v16M19 4v16M5 8h14M5 16h14M9 8l6 8m0-8-6 8"/></svg></span><span class="nav-copy"><b>Betrieb</b></span></button>
-        <button class="nav-button" data-page="builder" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 16l5-9 3 5 2-3 3 7M8 4h.01M18 4h.01"/></svg></span><span class="nav-copy"><b>Planung</b></span></button>
-        <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6l-.04.08H10l-.04-.08a1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1l-.08-.04V10L4 9.96a1.7 1.7 0 0 0 .6-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.86-2.86.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6l.04-.08H14l.04.08a1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 9c.08.38.3.72.6 1l.08.04V14L20 14.04c-.3.28-.52.62-.6.96Z"/></svg></span><span class="nav-copy"><b>System</b></span></button>
-        <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 5h12M6 10h12M6 15h8M6 20h5"/></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
+        <button class="nav-button active" data-page="dashboard" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-dashboard"></use></svg></span><span class="nav-copy"><b>Übersicht</b></span></button>
+        <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stellwerk"></use></svg></span><span class="nav-copy"><b>Betrieb</b></span></button>
+        <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-settings"></use></svg></span><span class="nav-copy"><b>System</b></span></button>
+        <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-logbook"></use></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
       </nav>
 
       <div class="global-actions">
         <span id="lastSyncStatus" class="last-sync"><i aria-hidden="true"></i> Synchronisierung läuft</span>
         <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
         <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span> Geräte</button>
-        <button id="emergencyButton" class="danger-button" type="button"><span aria-hidden="true">■</span> NOT-AUS</button>
+        <button id="emergencyButton" class="danger-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stop"></use></svg><span>NOT-AUS</span></button>
       </div>
     </header>
 
     <aside class="system-drawer" id="sidebar" aria-label="Gerätecenter">
-      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar aria-label="Gerätecenter schließen">×</button></div>
+      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-close"></use></svg></button></div>
       <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">WebServer wird geladen</strong><small>Systemverbindung</small></div></div>
       <div class="sidebar-esp-box"><div class="sidebar-esp-title"><span>ESP-Module</span><small>Live</small></div><div id="sidebarEspList" class="sidebar-esp-list"><div class="sidebar-esp-empty">Noch kein ESP verbunden.</div></div></div>
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mobile-nav-button active" data-page-link="dashboard" type="button"><span>01</span><small>Übersicht</small></button>
-      <button class="mobile-nav-button" data-page-link="track" type="button"><span>02</span><small>Betrieb</small></button>
-      <button class="mobile-nav-button" data-page-link="builder" type="button"><span>03</span><small>Planung</small></button>
-      <button class="mobile-nav-button" data-page-link="settings" type="button"><span>04</span><small>System</small></button>
-      <button id="mobileMoreButton" class="mobile-nav-button" type="button" aria-label="Weitere Bereiche öffnen" aria-controls="sidebar" aria-expanded="false"><span>•••</span><small>Mehr</small></button>
+      <button class="mobile-nav-button active" data-page-link="dashboard" type="button" aria-label="Übersicht öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-dashboard"></use></svg></span><small>Übersicht</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button" aria-label="Betrieb öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stellwerk"></use></svg></span><small>Betrieb</small></button>
+      <button class="mobile-nav-button" data-page-link="settings" type="button" aria-label="System öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-settings"></use></svg></span><small>System</small></button>
+      <button class="mobile-nav-button" data-page-link="events" type="button" aria-label="Logbuch öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-logbook"></use></svg></span><small>Logbuch</small></button>
     </nav>
 
     <main class="main-area">
@@ -66,19 +59,19 @@
             <p id="pageSubtitle">Analog-Stellwerk für Märklin M-Gleis · Betriebsbild, Systemzustand und letzte Aktivitäten</p>
           </div>
         </div>
-        <div class="page-context-actions"><button class="secondary-button" data-page-link="builder" type="button">Plan öffnen</button><button class="primary-button" data-page-link="track" type="button">In den Betrieb</button></div>
+        <div class="page-context-actions"><button class="secondary-button" data-page-link="builder" type="button">Stellwerk bearbeiten</button><button class="primary-button" data-page-link="track" type="button">In den Betrieb</button></div>
       </header>
 
       <section id="page-dashboard" class="page active">
         <div class="dashboard-workspace">
           <section class="panel dashboard-plan-panel">
-            <div class="panel-header"><div><div class="eyebrow">ANALOG-STELLWERK · MÄRKLIN M-GLEIS</div><h2>Betriebsbild</h2><p>Fahrwege, Rückmelder und Schaltzustände auf einen Blick.</p></div><button class="text-button" data-page-link="track" type="button">Öffnen <span>→</span></button></div>
+            <div class="panel-header"><div><div class="eyebrow">ANALOG-STELLWERK · MÄRKLIN M-GLEIS</div><h2>Betriebsbild</h2><p>Fahrwege, Rückmelder und Schaltzustände auf einen Blick.</p></div><button class="text-button" data-page-link="track" type="button">Öffnen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
             <div class="dashboard-plan"><svg id="dashboardTrackSvg" viewBox="0 0 1600 900" aria-label="Vorschau des Gleisbilds"><g id="dashboardTrackElements"></g><text id="dashboardTrackEmpty" x="800" y="450" text-anchor="middle">Noch kein Gleisbild erstellt</text></svg></div>
           </section>
           <aside class="dashboard-control-stack">
             <section class="dashboard-commandbar">
               <div class="commandbar-status"><span class="dashboard-live-dot"></span><div><span class="commandbar-kicker">ANLAGENSTATUS</span><strong>Betriebszentrale</strong><small id="dashboardSummary">Systemstatus wird geladen …</small></div></div>
-              <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button"><span aria-hidden="true">▶</span> Steuerung starten</button><button class="secondary-button" data-page-link="settings" type="button">System prüfen</button></div>
+              <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-play"></use></svg><span>Steuerung starten</span></button><button class="secondary-button" data-page-link="settings" type="button">System prüfen</button></div>
             </section>
             <div class="operations-grid">
               <article class="operation-card server"><div class="operation-card-head"><i aria-hidden="true">SYS</i><span>Server</span></div><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small><span class="metric-line"></span></article>
@@ -91,11 +84,11 @@
         </div>
         <div class="dashboard-lower">
           <section class="panel dashboard-modules-panel">
-            <div class="panel-header"><div><div class="eyebrow">GERÄTE</div><h2>Verbundene Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten <span>→</span></button></div>
+            <div class="panel-header"><div><div class="eyebrow">GERÄTE</div><h2>Verbundene Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
             <div id="dashboardModuleList" class="dashboard-module-list"></div>
           </section>
           <section class="panel dashboard-events-panel">
-            <div class="panel-header"><div><div class="eyebrow">LOGBUCH</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle anzeigen <span>→</span></button></div>
+            <div class="panel-header"><div><div class="eyebrow">LOGBUCH</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle anzeigen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
             <div id="dashboardEventList" class="dashboard-event-list"></div>
           </section>
         </div>
@@ -105,24 +98,25 @@
         <section class="builder-shell">
           <div class="builder-header">
             <div>
-              <div class="eyebrow">MÄRKLIN M-GLEIS PLANER</div>
-              <h2>M-Gleis-Anlage planen</h2>
-              <p>Originale Artikelnummern platzieren, verbinden und der Hardware zuweisen.</p>
+              <div class="eyebrow">STELLWERK · BEARBEITUNGSMODUS</div>
+              <h2>Stellwerk bearbeiten</h2>
+              <p>Gleise, Weichen und Signale platzieren, verbinden und der Hardware zuweisen.</p>
             </div>
             <div class="builder-header-actions">
               <span id="layoutMessage" class="builder-message" aria-live="polite"></span>
+              <button id="exitEditModeButton" class="secondary-button edit-mode-exit" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-left"></use></svg><span>Betrieb</span></button>
               <button id="validatePlanButton" class="plan-check-button secondary-button" type="button" aria-controls="planValidationPanel" aria-expanded="false"><span>Planprüfung</span><b id="planIssueCount">0</b></button>
               <button id="exportPlanButton" class="secondary-button" type="button">Bauplan exportieren</button>
               <button id="saveLayoutButton" class="primary-button" type="button">Plan speichern</button>
-              <button id="undoButton" class="tool-button" type="button" aria-label="Rückgängig">↶</button>
-              <button id="redoButton" class="tool-button" type="button" aria-label="Wiederholen">↷</button>
+              <button id="undoButton" class="tool-button" type="button" aria-label="Rückgängig"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-undo"></use></svg></button>
+              <button id="redoButton" class="tool-button" type="button" aria-label="Wiederholen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-redo"></use></svg></button>
             </div>
           </div>
 
           <section id="planValidationPanel" class="plan-validation-panel" aria-label="Planprüfung" hidden>
             <div class="plan-validation-head">
               <div><span class="palette-kicker">QUALITÄTSCHECK</span><strong>Planprüfung</strong><small id="planValidationSummary">Plan wird analysiert …</small></div>
-              <button id="closePlanValidation" class="close-button" type="button" aria-label="Planprüfung schließen">×</button>
+              <button id="closePlanValidation" class="close-button" type="button" aria-label="Planprüfung schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-close"></use></svg></button>
             </div>
             <div id="planValidationList" class="plan-validation-list"></div>
           </section>
@@ -141,70 +135,70 @@
               </div>
 
               <label class="builder-search">
-                <span aria-hidden="true">⌕</span>
+                <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-search"></use></svg>
                 <input id="componentSearch" type="search" placeholder="Bauteil suchen …" autocomplete="off">
               </label>
 
               <div class="builder-tool-grid" aria-label="Editorwerkzeuge">
-                <button id="selectToolButton" class="palette-button active" type="button"><span>↖</span> Auswählen</button>
-                <button id="connectToolButton" class="palette-button" type="button"><span>⌁</span> Verbinden</button>
+                <button id="selectToolButton" class="palette-button active" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-pointer"></use></svg><span>Auswählen</span></button>
+                <button id="connectToolButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-link"></use></svg><span>Verbinden</span></button>
               </div>
 
               <details class="builder-library-group" open>
-                <summary>Märklin M-Gleise & Weichen <span>6 Gruppen</span></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg><span class="summary-title">Gleise & Fahrwege</span><span>6 Gruppen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
                 <div class="catalog-group">
-                  <label>Gerades Gleis</label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg><span>Gerades Gleis</span></label>
                   <div id="trackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight">━</span><span>Gerade auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg></span><span>Gerade auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label>Kurve</label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-curve"></use></svg><span>Kurve</span></label>
                   <div id="curveTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve">⌒</span><span>Kurve auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-curve"></use></svg></span><span>Kurve auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label>Weiche</label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-turnout-left"></use></svg><span>Weiche</span></label>
                   <div id="switchTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout">⑂</span><span>Weiche auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-turnout-left"></use></svg></span><span>Weiche auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label>Kreuzungsweiche</label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-crossing"></use></svg><span>Kreuzungsweiche</span></label>
                   <div id="xTrackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing">╳</span><span>Kreuzung auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-crossing"></use></svg></span><span>Kreuzung auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label>Gleisabschluss</label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-bumper"></use></svg><span>Gleisabschluss</span></label>
                   <div id="bumperTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper">⊣</span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-bumper"></use></svg></span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group catalog-featured" data-searchable="Entkupplungsgleis 5112 Kupplung Relais Sensor">
-                  <label>Entkupplungsgleis</label>
-                  <button class="palette-button add-element-button" data-add="track" data-catalog-code="5112" type="button"><span class="element-glyph uncoupler">⇡</span><span>5112 Entkupplungsgleis<small>Relais + Belegtsensor zuweisbar</small></span><b>＋</b></button>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-uncoupler"></use></svg><span>Entkupplungsgleis</span></label>
+                  <button class="palette-button add-element-button" data-add="track" data-catalog-code="5112" type="button"><span class="element-glyph uncoupler"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-uncoupler"></use></svg></span><span>5112 Entkupplungsgleis<small>Relais + Belegtsensor zuweisbar</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
               </details>
 
               <details class="builder-library-group" open>
-                <summary>Signale & Versorgung <span>4 Typen</span></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg><span class="summary-title">Signale & Versorgung</span><span>4 Typen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
                 <div class="builder-control-grid">
-                  <button class="palette-button add-element-button" data-add="signal" type="button"><span>●</span> Hauptsignal<b>＋</b></button>
-                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span>◉</span><span>ESP-Signal<small>Rot / Grün</small></span><b>＋</b></button>
-                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rgy" type="button"><span>◉</span><span>ESP-Signal<small>Rot / Gelb / Grün</small></span><b>＋</b></button>
-                  <button class="palette-button add-element-button" data-add="transformer" type="button"><span>ϟ</span> Trafo 6631<b>＋</b></button>
+                  <button class="palette-button add-element-button" data-add="signal" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>Hauptsignal</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rgy" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Gelb / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="transformer" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-transformer"></use></svg></span><span>Trafo 6631</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
                 </div>
               </details>
 
               <details class="builder-library-group builder-selection-group" open>
-                <summary>Ausgewähltes Element</summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-pointer"></use></svg><span class="summary-title">Ausgewähltes Element</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
                 <div class="builder-action-grid">
-                  <button id="duplicateButton" class="palette-button" type="button">⧉<small>Duplizieren</small></button>
-                  <button id="rotateLeftButton" class="palette-button" type="button">↺<small>Links</small></button>
-                  <button id="rotateRightButton" class="palette-button" type="button">↻<small>Rechts</small></button>
-                  <button id="deleteButton" class="palette-button delete-button" type="button">⌫<small>Löschen</small></button>
+                  <button id="duplicateButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-duplicate"></use></svg><small>Duplizieren</small></button>
+                  <button id="rotateLeftButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-left"></use></svg><small>Links</small></button>
+                  <button id="rotateRightButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-right"></use></svg><small>Rechts</small></button>
+                  <button id="deleteButton" class="palette-button delete-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-trash"></use></svg><small>Löschen</small></button>
                 </div>
               </details>
 
               <details class="builder-library-group">
-                <summary>Plan & Raster</summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fit"></use></svg><span class="summary-title">Plan & Raster</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
                 <div class="board-settings">
                   <div class="board-settings-title"><strong>Anlagenplatte</strong><span id="boardAreaLabel">3,20 × 1,80 m</span></div>
                   <div class="board-size-fields">
@@ -226,11 +220,11 @@
             <section class="builder-canvas-area">
               <div class="canvas-toolbar">
                 <div class="toolbar-group">
-                  <button id="zoomOutButton" class="icon-button" type="button">−</button>
+                  <button id="zoomOutButton" class="icon-button" type="button" aria-label="Verkleinern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-minus"></use></svg></button>
                   <strong id="zoomLabel">100 %</strong>
-                  <button id="zoomInButton" class="icon-button" type="button">＋</button>
+                  <button id="zoomInButton" class="icon-button" type="button" aria-label="Vergrößern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></button>
                   <button id="zoomResetButton" class="icon-button" type="button">100 %</button>
-                  <button id="centerLayoutButton" class="icon-button" type="button">Einpassen</button>
+                  <button id="centerLayoutButton" class="icon-button icon-button-text" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fit"></use></svg><span>Einpassen</span></button>
                   <span class="pan-hint">Mausrad zoomt · freie Fläche verschiebt</span>
                 </div>
 
@@ -248,8 +242,8 @@
                 <div id="placementBar" class="placement-bar" hidden>
                   <div class="placement-info"><span class="placement-dot"></span><div><strong id="placementTitle">Bauteil platzieren</strong><small id="placementHint">Position anklicken · nahe Enden verbinden automatisch</small></div></div>
                   <div class="placement-actions">
-                    <button id="placementRotateLeft" class="icon-button" type="button" aria-label="Vorschau nach links drehen">↺</button>
-                    <button id="placementRotateRight" class="icon-button" type="button" aria-label="Vorschau nach rechts drehen">↻</button>
+                    <button id="placementRotateLeft" class="icon-button" type="button" aria-label="Vorschau nach links drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-left"></use></svg></button>
+                    <button id="placementRotateRight" class="icon-button" type="button" aria-label="Vorschau nach rechts drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-right"></use></svg></button>
                     <button id="placementDone" class="primary-button" type="button">Fertig</button>
                   </div>
                 </div>
@@ -282,7 +276,7 @@
 
             <aside id="inspector" class="inspector" aria-label="Eigenschaften">
               <div class="inspector-empty">
-                <div class="inspector-empty-icon">◇</div>
+                <div class="inspector-empty-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-empty"></use></svg></div>
                 <strong>Nichts ausgewählt</strong>
                 <span>Element im Plan anklicken, um Position und Hardware zu konfigurieren.</span>
               </div>
@@ -293,22 +287,23 @@
 
       <section id="page-track" class="page">
         <section class="panel">
-          <div class="panel-header">
+          <div class="panel-header track-page-header">
             <div>
               <div class="eyebrow">MÄRKLIN M-GLEIS · LIVE-STEUERUNG</div>
-              <h2>Anlagensteuerung</h2>
-              <p>Weichen, Signale und Stromkreise direkt und verzögerungsarm schalten.</p>
+              <h2>Stellwerk</h2>
+              <p>Gleisbild bedienen, Weichen und Signale schalten, Anlagenlicht steuern.</p>
             </div>
-            <button id="toggleTrackFocusButton" class="secondary-button track-focus-button" type="button" aria-pressed="false">Gleisbild maximieren</button>
+            <div class="track-header-actions"><button id="enterEditModeButton" class="secondary-button track-edit-button" data-page-link="builder" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-edit"></use></svg><span>Bearbeiten</span></button><button id="toggleTrackFocusButton" class="secondary-button track-focus-button" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fullscreen"></use></svg><span>Gleisbild maximieren</span></button></div>
           </div>
 
           <div id="trackSystemNotice" class="track-system-notice" role="status" aria-live="polite">
             <span class="track-system-indicator" aria-hidden="true"></span>
             <div><strong>Hardwarestatus wird geprüft</strong><small>Der Gleisplan bleibt unabhängig vom Verbindungsstatus sichtbar.</small></div>
-            <button class="text-button" data-page-link="settings" type="button">Geräte prüfen <span>→</span></button>
+            <button class="text-button" data-page-link="settings" type="button">Geräte prüfen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button>
           </div>
 
           <div class="track-light-panel">
+            <div class="track-section-heading"><div><strong>Anlagenlicht</strong><span>Schnellzugriff</span></div><small>Tippen zum Schalten</small></div>
             <div class="track-light-grid" id="trackLightGrid">
               <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>
               <button class="light-toggle-btn" data-light-index="1" type="button">Licht 2</button>
@@ -317,15 +312,31 @@
             </div>
           </div>
 
-          <div class="cs3-tile-panel">
-            <div class="cs3-tile-header">
-              <div><strong>Direktsteuerung</strong><span>Weichen & Signale</span></div>
-              <div class="route-legend" aria-label="Legende"><span><i class="route-active"></i> gewählter Fahrweg</span><span><i class="route-passive"></i> alternative Lage</span></div>
-            </div>
-            <div id="cs3TileGrid" class="cs3-tile-grid"></div>
-          </div>
-
           <div class="track-plan-wrapper">
+            <button id="trackFocusExitButton" class="track-focus-exit" type="button" aria-label="Maximiertes Gleisbild schließen">
+              <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-left"></use></svg>
+              <span>Zurück</span>
+            </button>
+            <div class="track-plan-overlay" aria-label="Schnellsteuerung">
+              <div class="track-overlay-controls">
+<div class="cs3-tile-panel">
+                            <div class="cs3-tile-header">
+                              <div><strong>Direktsteuerung</strong><span>Weichen & Signale</span></div>
+                              <div class="route-legend" aria-label="Legende"><span><i class="route-active"></i> gewählter Fahrweg</span><span><i class="route-passive"></i> alternative Lage</span></div>
+                            </div>
+                            <div id="cs3TileGrid" class="cs3-tile-grid"></div>
+                          </div>
+              </div>
+              <div class="track-overlay-power">
+<div class="track-power-panel">
+                            <div class="track-section-heading">
+                              <div><strong>Gleisstrom</strong><span>Stromabschnitte</span></div>
+                              <small>Abschnitt antippen</small>
+                            </div>
+                            <div id="trackPowerGrid" class="track-power-grid"></div>
+                          </div>
+              </div>
+            </div>
             <svg id="trackSvg" viewBox="0 0 1600 900" role="img">
               <defs>
                 <filter id="trackGlow" x="-60%" y="-60%" width="220%" height="220%">
@@ -350,7 +361,7 @@
           <div>
             <div class="eyebrow">MÄRKLIN M-GLEIS · SYSTEMZENTRALE</div>
             <h2>Hardware & Konfiguration</h2>
-            <p>ESP-Module, Schaltkanäle, Rückmelder und Betriebsabläufe zentral verwalten.</p>
+            <p>ESP-Module, Schaltkanäle, Rückmelder und Ereignisse zentral verwalten.</p>
           </div>
           <div class="hardware-health" id="settingsHealthStatus"><span></span>Systemstatus wird geprüft</div>
         </section>
@@ -364,13 +375,13 @@
         </div>
         <div class="settings-workspace">
         <nav class="settings-tabs" aria-label="Einstellungsbereiche">
-          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon">01</span><span><b>Geräte</b><small>ESP-Module</small></span></button>
-          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon">02</span><span><b>Bedienung</b><small>Lichttasten</small></span></button>
-          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon">03</span><span><b>Ausgänge</b><small>Relais</small></span></button>
-          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon">04</span><span><b>Rückmeldung</b><small>Sensoren</small></span></button>
-          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon">05</span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
-          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon">06</span><span><b>Abläufe</b><small>Automationen</small></span></button>
-          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon">07</span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
+          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-device"></use></svg></span><span><b>Geräte</b><small>ESP-Module</small></span></button>
+          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-light"></use></svg></span><span><b>Bedienung</b><small>Lichttasten</small></span></button>
+          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-output"></use></svg></span><span><b>Ausgänge</b><small>Relais</small></span></button>
+          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-sensor"></use></svg></span><span><b>Rückmeldung</b><small>Sensoren</small></span></button>
+          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
+          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-events"></use></svg></span><span><b>Ereignisse</b><small>Wenn-Dann-Abläufe</small></span></button>
+          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-home"></use></svg></span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
         </nav>
         <div class="settings-content">
 
@@ -453,9 +464,9 @@
         <section class="panel settings-panel compact settings-section rules-shell" data-settings-section="rules">
           <div class="panel-header">
             <div>
-              <div class="eyebrow">AUTOMATISIERUNG</div>
-              <h2>Wenn-Dann Regeln</h2>
-              <p>Sensor auswählen, Aktion festlegen und als nachvollziehbaren Ablauf speichern.</p>
+              <div class="eyebrow">EREIGNISSTEUERUNG</div>
+              <h2>Ereignisse</h2>
+              <p>Angelehnt an die Central Station: Auslöser, Bedingungen und Aktionen als nachvollziehbare Ereignisse verwalten.</p>
             </div>
           </div>
           <div id="rulesGrid" class="rules-grid"></div>
@@ -486,6 +497,6 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
-  <script type="module" src="/app/main.js"></script>
+  <script type="module" src="/app/main.js?v=overlay-fit-1"></script>
 </body>
 </html>

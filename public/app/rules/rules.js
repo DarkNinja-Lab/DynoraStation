@@ -2,6 +2,7 @@
 
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
+import { icon } from "../ui/icons.js";
 
 function esc(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
@@ -79,7 +80,7 @@ function actionOptions(type) {
 }
 
 function defaultRule() {
-  return { id: `RULE_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: "Neue Automation", enabled: true, cooldownMs: 5000, triggerType: "sensor", triggerRef: "", triggerState: "triggered", targetType: "relay", targetRef: "", action: "on" };
+  return { id: `RULE_${Date.now()}_${Math.floor(Math.random() * 10000)}`, name: "Neues Ereignis", enabled: true, cooldownMs: 5000, triggerType: "sensor", triggerRef: "", triggerState: "triggered", targetType: "relay", targetRef: "", action: "on" };
 }
 
 function toUiRule(rule) {
@@ -99,7 +100,7 @@ function toUiRule(rule) {
   if (!triggerState) triggerState = triggerStateOptions(triggerType)[0][0];
   return {
     id: rule.id,
-    name: rule.name || "Automation",
+    name: rule.name || "Ereignis",
     enabled: rule.enabled !== false,
     cooldownMs: Number(rule.cooldownMs ?? 5000),
     triggerType,
@@ -135,9 +136,9 @@ function toApiRule(rule) {
 
 function validate(rules) {
   for (let index = 0; index < rules.length; index += 1) {
-    if (!rules[index].name.trim()) return `Automation ${index + 1}: Name fehlt`;
-    if (!rules[index].triggerRef) return `Automation ${index + 1}: WENN-Auslöser fehlt`;
-    if (!rules[index].targetRef) return `Automation ${index + 1}: DANN-Ziel fehlt`;
+    if (!rules[index].name.trim()) return `Ereignis ${index + 1}: Name fehlt`;
+    if (!rules[index].triggerRef) return `Ereignis ${index + 1}: WENN-Auslöser fehlt`;
+    if (!rules[index].targetRef) return `Ereignis ${index + 1}: DANN-Ziel fehlt`;
   }
   return "";
 }
@@ -163,7 +164,7 @@ export async function rulesSpeichern() {
   state.rules = Array.isArray(data?.rules) ? data.rules : [];
   uiRules = state.rules.map(toUiRule);
   rulesDirty = false;
-  if (hint) hint.textContent = "Automationen gespeichert";
+  if (hint) hint.textContent = "Ereignisse gespeichert";
   renderRulesGrid();
 }
 
@@ -176,11 +177,11 @@ function renderRow(rule, index, triggers, targets) {
     <header class="automation-card-head">
       <div class="automation-identity">
         <span class="automation-number">${String(index + 1).padStart(2, "0")}</span>
-        <label class="automation-name"><span>Name der Automation</span><input data-field="name" value="${esc(rule.name)}" placeholder="z. B. Einfahrt Gleis 1"></label>
+        <label class="automation-name"><span>Name des Ereignisses</span><input data-field="name" value="${esc(rule.name)}" placeholder="z. B. Einfahrt Gleis 1"></label>
       </div>
       <div class="automation-head-actions">
         <label class="automation-toggle"><input data-field="enabled" type="checkbox" ${rule.enabled ? "checked" : ""}><span>${rule.enabled ? "Aktiv" : "Pausiert"}</span></label>
-        <button type="button" class="icon-danger-button" data-action="delete-rule" aria-label="Automation löschen">×</button>
+        <button type="button" class="icon-danger-button" data-action="delete-rule" aria-label="Ereignis löschen">${icon("trash")}</button>
       </div>
     </header>
     <div class="automation-flow">
@@ -191,9 +192,9 @@ function renderRow(rule, index, triggers, targets) {
           <label>Quelle<select class="${rule.triggerRef ? "" : "field-invalid"}" data-field="triggerRef"><option value="">Auslöser wählen…</option>${availableTriggers.map((item) => `<option value="${esc(item.value)}" ${rule.triggerRef === item.value ? "selected" : ""}>${esc(item.label)}</option>`).join("")}</select></label>
           <label>Zustand<select data-field="triggerState">${triggerStateOptions(rule.triggerType).map(([value, label]) => `<option value="${value}" ${rule.triggerState === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
         </div>
-        <p>Die Automation startet, sobald diese Bedingung eintritt.</p>
+        <p>Das Ereignis startet, sobald diese Bedingung eintritt.</p>
       </section>
-      <div class="automation-arrow" aria-hidden="true">→</div>
+      <div class="automation-arrow" aria-hidden="true">${icon("arrow-right")}</div>
       <section class="automation-step then-step">
         <div class="automation-step-title"><span>DANN</span><strong>Aktion</strong></div>
         <div class="automation-action-grid">
@@ -205,7 +206,7 @@ function renderRow(rule, index, triggers, targets) {
       </section>
     </div>
     <footer class="automation-card-footer">
-      <span>Nach einer Auslösung ignoriert diese Automation weitere Treffer bis zum Ablauf der Sperrzeit.</span>
+      <span>Nach einer Auslösung ignoriert dieses Ereignis weitere Treffer bis zum Ablauf der Sperrzeit.</span>
       <label>Sperrzeit <input data-field="cooldownSeconds" type="number" min="0" max="86400" step="0.5" value="${Math.round((rule.cooldownMs / 1000) * 10) / 10}"> Sekunden</label>
     </footer>
   </article>`;
@@ -226,11 +227,11 @@ export function renderRulesGrid() {
   const active = uiRules.filter((rule) => rule.enabled).length;
   const incomplete = uiRules.filter((rule) => !rule.triggerRef || !rule.targetRef).length;
   root.innerHTML = `<div class="automation-overview">
-    <div class="automation-stats"><div><strong>${uiRules.length}</strong><span>Automationen</span></div><div><strong>${active}</strong><span>Aktiv</span></div><div><strong>${incomplete}</strong><span>Unvollständig</span></div></div>
-    <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-rule">＋ Automation anlegen</button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">Änderungen speichern</button></div>
+    <div class="automation-stats"><div><strong>${uiRules.length}</strong><span>Ereignisse</span></div><div><strong>${active}</strong><span>Aktiv</span></div><div><strong>${incomplete}</strong><span>Unvollständig</span></div></div>
+    <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-rule">${icon("plus")}<span>Ereignis anlegen</span></button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">Änderungen speichern</button></div>
   </div>
-  <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Automationen sind markiert." : uiRules.length ? "Alle Automationen sind vollständig konfiguriert." : "Noch keine Automation angelegt."}</div>
-  <div class="automation-list">${uiRules.length ? uiRules.map((rule, index) => renderRow(rule, index, triggers, targets)).join("") : `<div class="automation-empty"><span>＋</span><strong>Noch keine Wenn-Dann-Regel</strong><p>Lege erst über „Automation anlegen“ einen Ablauf an.</p></div>`}</div>`;
+  <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Ereignisse sind markiert." : uiRules.length ? "Alle Ereignisse sind vollständig konfiguriert." : "Noch kein Ereignis angelegt."}</div>
+  <div class="automation-list">${uiRules.length ? uiRules.map((rule, index) => renderRow(rule, index, triggers, targets)).join("") : `<div class="automation-empty"><span>${icon("events", "ui-icon automation-empty-icon")}</span><strong>Noch kein Ereignis</strong><p>Lege erst über „Ereignis anlegen“ einen Ablauf an.</p></div>`}</div>`;
   if (bound) return;
   bound = true;
   root.addEventListener("change", (event) => {

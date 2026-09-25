@@ -25,9 +25,8 @@ function esc(value) {
 
 const PAGE_META = {
   dashboard: { title: "Übersicht", subtitle: "Betriebsbild, Systemzustand und letzte Aktivitäten", section: "Zentrale" },
-  builder: { title: "Planung", subtitle: "Anlage entwerfen, verbinden und Hardware zuweisen", section: "Workspace" },
   track: { title: "Betrieb", subtitle: "Fahrwege, Signale und Anlagenfunktionen steuern", section: "Workspace" },
-  settings: { title: "System", subtitle: "Geräte, Ein-/Ausgänge und Abläufe", section: "Administration" },
+  settings: { title: "System", subtitle: "Geräte, Ein-/Ausgänge und Ereignisse", section: "Administration" },
   events: { title: "Logbuch", subtitle: "System-, Schalt- und Sensorereignisse", section: "Administration" }
 };
 
@@ -45,33 +44,67 @@ function setPageHeader(page) {
   if (section) section.textContent = t.section;
 }
 
+function setTrackWorkspaceMode(mode = "operate") {
+  const editing = mode === "edit";
+  const trackPage = byId("page-track");
+  const builderPage = byId("page-builder");
+  const onTrackWorkspace = document.body.dataset.page === "track";
+
+  document.body.classList.toggle("track-edit-mode", editing && onTrackWorkspace);
+  if (trackPage) trackPage.classList.toggle("active", onTrackWorkspace && !editing);
+  if (builderPage) builderPage.classList.toggle("active", onTrackWorkspace && editing);
+
+  const editButton = byId("enterEditModeButton");
+  if (editButton) editButton.setAttribute("aria-pressed", String(editing));
+
+  if (onTrackWorkspace) {
+    const title = byId("pageTitle");
+    const subtitle = byId("pageSubtitle");
+    const section = byId("topbarSection");
+    if (editing) {
+      if (title) title.textContent = "Stellwerk bearbeiten";
+      if (subtitle) subtitle.textContent = "Gleisbild bearbeiten, Elemente platzieren und Hardware zuweisen";
+      if (section) section.textContent = "Bearbeitung";
+      document.dispatchEvent(new CustomEvent("dynora:builder-opened"));
+      requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+    } else {
+      setPageHeader("track");
+      requestAnimationFrame(renderTrackLayout);
+    }
+  }
+}
+
 function setActivePage(page) {
-  document.body.dataset.page = page;
+  const editRequested = page === "builder";
+  const targetPage = editRequested ? "track" : page;
+  const targetMeta = PAGE_META[targetPage] ? targetPage : "dashboard";
+
+  document.body.dataset.page = targetMeta;
   all(".nav-button[data-page]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.page === page);
+    btn.classList.toggle("active", btn.dataset.page === targetMeta);
   });
 
   all(".page").forEach((p) => {
-    p.classList.toggle("active", p.id === `page-${page}`);
+    p.classList.toggle("active", p.id === `page-${targetMeta}`);
   });
 
-  setPageHeader(page);
+  setPageHeader(targetMeta);
   all(".mobile-nav-button[data-page-link]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.pageLink === page);
+    btn.classList.toggle("active", btn.dataset.pageLink === targetMeta);
   });
 
-  if (page === "settings") renderSettingsTab();
-  if (page === "track") renderTrackLayout();
-  if (page === "builder") document.dispatchEvent(new CustomEvent("dynora:builder-opened"));
+  if (targetMeta === "settings") renderSettingsTab();
+  if (targetMeta === "track") setTrackWorkspaceMode(editRequested ? "edit" : "operate");
+  else document.body.classList.remove("track-edit-mode");
 
   try {
-    localStorage.setItem("dynora.activePage", page);
+    localStorage.setItem("dynora.activePage", targetMeta);
   } catch {}
 }
-
 function restorePage() {
   try {
     const saved = localStorage.getItem("dynora.activePage");
+    if (saved === "builder") return "track";
     if (saved && PAGE_META[saved]) return saved;
   } catch {}
   return "dashboard";
@@ -87,23 +120,20 @@ function bindNavigation() {
   });
 
   const mobileBtn = byId("mobileMenuButton");
-  const mobileMoreBtn = byId("mobileMoreButton");
   const sidebar = byId("sidebar");
   if (mobileBtn && sidebar) {
     const setSidebarOpen = (open) => {
       document.body.classList.toggle("sidebar-open", open);
       mobileBtn.setAttribute("aria-expanded", String(open));
-      mobileMoreBtn?.setAttribute("aria-expanded", String(open));
     };
     mobileBtn.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
-    mobileMoreBtn?.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
     all("[data-close-sidebar]").forEach((btn) => btn.addEventListener("click", () => setSidebarOpen(false)));
     all(".nav-button[data-page]").forEach((btn) => {
       btn.addEventListener("click", () => setSidebarOpen(false));
     });
     document.addEventListener("click", (event) => {
       if (!document.body.classList.contains("sidebar-open")) return;
-      if (sidebar.contains(event.target) || mobileBtn.contains(event.target) || mobileMoreBtn?.contains(event.target)) return;
+      if (sidebar.contains(event.target) || mobileBtn.contains(event.target)) return;
       setSidebarOpen(false);
     });
     document.addEventListener("keydown", (event) => {
@@ -127,19 +157,34 @@ function bindNavigation() {
 function bindTrackFocusMode() {
   const page = byId("page-track");
   const button = byId("toggleTrackFocusButton");
+  const exitButton = byId("trackFocusExitButton");
   if (!page || !button) return;
+
   let active = false;
-  try { active = localStorage.getItem("dynora.trackFocus") === "true"; } catch {}
+  const label = button.querySelector("span");
+
   const apply = (next) => {
     active = Boolean(next);
     page.classList.toggle("plan-focus", active);
+    document.body.classList.toggle("track-focus-active", active);
     button.setAttribute("aria-pressed", String(active));
-    button.textContent = active ? "Bedienfelder zeigen" : "Gleisbild maximieren";
-    try { localStorage.setItem("dynora.trackFocus", String(active)); } catch {}
-    requestAnimationFrame(renderTrackLayout);
+    if (label) label.textContent = active ? "Maximierung beenden" : "Gleisbild maximieren";
+    if (exitButton) exitButton.hidden = !active;
+
+    // Erst nach dem Layoutwechsel neu einpassen, damit wirklich die volle
+    // Viewport-Fläche und nicht die vorherige Panel-Größe verwendet wird.
+    requestAnimationFrame(() => requestAnimationFrame(renderTrackLayout));
   };
+
   button.addEventListener("click", () => apply(!active));
-  apply(active);
+  exitButton?.addEventListener("click", () => apply(false));
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && active) apply(false);
+  });
+
+  // Ein maximiertes Gleisbild ist ein momentaner Bedienzustand und wird
+  // absichtlich nicht über Seiten-Neuladen hinweg gespeichert.
+  apply(false);
 }
 
 function modOptions(selected = "") {
@@ -320,22 +365,21 @@ function renderRelayGrid() {
         const conflict = (state.relayConflicts || []).find((item) => item.module === r.m.id && Number(item.channel) === r.idx + 1);
         const disabled = !control.enabled || feedback?.status === "pending";
         return `
-          <div class="relay-item ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${r.m.id}" data-relay-index="${r.idx + 1}">
-            <div><b>${esc(r.m.name || r.m.id)}</b> • ${esc(cfg.name || `Relay ${r.idx + 1}`)}</div>
-            <div class="${r.on ? "badge-on" : "badge-off"}">${r.on ? "AN" : "AUS"}</div>
+          <article class="relay-item io-channel-card ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${r.m.id}" data-relay-index="${r.idx + 1}">
+            <header class="io-channel-head">
+              <div class="io-channel-title"><small>Kanal ${String(r.idx + 1).padStart(2, "0")}</small><strong>${esc(cfg.name || `Relais ${r.idx + 1}`)}</strong></div>
+              <span class="${r.on ? "badge-on" : "badge-off"}">${r.on ? "AN" : "AUS"}</span>
+            </header>
 
-            <label>Name</label>
-            <input data-field="relayName" value="${esc(cfg.name || "")}" placeholder="z. B. Bahnhof Licht">
+            <label class="io-field"><span>Name</span><input data-field="relayName" value="${esc(cfg.name || "")}" placeholder="z. B. Bahnhof Licht"></label>
+            <label class="io-field"><span>Rolle</span><input data-field="relayRole" value="${esc(cfg.role || "")}" placeholder="z. B. Beleuchtung"></label>
 
-            <label>Rolle</label>
-            <input data-field="relayRole" value="${esc(cfg.role || "")}" placeholder="z. B. Beleuchtung">
-
-            ${conflict ? `<div class="relay-conflict-warning">Warnung: Relay mehrfach belegt (${conflict.assignments?.length || 2} Zuweisungen)</div>` : ""}
+            ${conflict ? `<div class="relay-conflict-warning">Mehrfach belegt · ${conflict.assignments?.length || 2} Zuweisungen</div>` : ""}
             ${commandText ? `<div class="command-inline-status status-${feedback?.status || "disabled"}">${esc(commandText)}</div>` : ""}
-            <button class="secondary-button" data-action="toggle-relay" type="button" ${disabled ? "disabled" : ""}>
+            <button class="secondary-button io-channel-action" data-action="toggle-relay" type="button" ${disabled ? "disabled" : ""}>
               ${r.on ? "Ausschalten" : "Einschalten"}
             </button>
-          </div>
+          </article>
         `;
       }).join("") : `<div class="empty-state relay-empty-state"><strong>${selectedModule ? esc(selectedModule.name || selectedModule.id) : "Kein Modul"} meldet aktuell keine Relais.</strong><span>Es werden keine Kanäle erfunden. Prüfe den ESP-Code und den nächsten Heartbeat; sobald das Modul seine Relay-Anzahl meldet, erscheinen die Kanäle hier.</span></div>`}
     </div>
@@ -358,13 +402,13 @@ function renderSensorGrid() {
         const key = `${r.m.id}:${sensorId}`;
         const cfg = state.sensorConfig[key] || {};
         return `
-          <div class="sensor-item" data-module-id="${esc(r.m.id)}" data-sensor-id="${esc(sensorId)}">
-            <div><b>${esc(r.m.name || r.m.id)}</b> • ${esc(cfg.name || r.s.name || sensorId)}</div>
-            <div class="${r.s.triggered ? "badge-on" : "badge-off"}">${r.s.triggered ? "AKTIV" : "RUHE"}</div>
-
-            <label>Name</label>
-            <input data-field="sensorName" value="${esc(cfg.name || r.s.name || "")}" placeholder="z. B. Einfahrt Gleis 1">
-          </div>
+          <article class="sensor-item io-channel-card" data-module-id="${esc(r.m.id)}" data-sensor-id="${esc(sensorId)}">
+            <header class="io-channel-head">
+              <div class="io-channel-title"><small>${esc(r.m.name || r.m.id)} · ${esc(sensorId)}</small><strong>${esc(cfg.name || r.s.name || sensorId)}</strong></div>
+              <span class="${r.s.triggered ? "badge-on" : "badge-off"}">${r.s.triggered ? "AKTIV" : "RUHE"}</span>
+            </header>
+            <label class="io-field"><span>Name</span><input data-field="sensorName" value="${esc(cfg.name || r.s.name || "")}" placeholder="z. B. Einfahrt Gleis 1"></label>
+          </article>
         `;
       }).join("")
     : `<div class="sidebar-esp-empty">Keine Sensoren verfügbar.</div>`;
@@ -722,7 +766,7 @@ function bindSettingsInput() {
       const onlineWarning = module.online
         ? "\n\nDieses Modul ist online und erscheint beim nächsten Heartbeat wieder. Schalte den ESP zuerst aus, wenn es dauerhaft wegbleiben soll."
         : "";
-      if (!confirm(`ESP-Modul „${module.name || moduleId}“ wirklich löschen?\n\nRelais, LEDs und Sensoren dieses Moduls werden entfernt. Zugewiesene Elemente werden getrennt und betroffene Automationen deaktiviert.${onlineWarning}`)) return;
+      if (!confirm(`ESP-Modul „${module.name || moduleId}“ wirklich löschen?\n\nRelais, LEDs und Sensoren dieses Moduls werden entfernt. Zugewiesene Elemente werden getrennt und betroffene Ereignisse deaktiviert.${onlineWarning}`)) return;
       btn.disabled = true;
       btn.textContent = "Wird gelöscht …";
       try {
@@ -737,7 +781,7 @@ function bindSettingsInput() {
         if (state.settingsRelayModule === moduleId) state.settingsRelayModule = "";
         renderSettingsTab();
         renderSidebarEspStatus();
-        showToast(`Modul gelöscht · ${result.clearedElements || 0} Zuweisungen getrennt · ${result.disabledRules || 0} Automationen deaktiviert`);
+        showToast(`Modul gelöscht · ${result.clearedElements || 0} Zuweisungen getrennt · ${result.disabledRules || 0} Ereignisse deaktiviert`);
       } catch (error) {
         btn.disabled = false;
         btn.textContent = "Modul löschen";

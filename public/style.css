@@ -1945,8 +1945,8 @@ body { font-size: 14px; }
   padding: 9px 12px; cursor: pointer; list-style: none; color: #c7d4dd; font-size: .75rem; font-weight: 800;
 }
 .builder-library-group > summary::-webkit-details-marker { display: none; }
-.builder-library-group > summary::before { content: "›"; color: #71899c; transition: transform .15s ease; }
-.builder-library-group[open] > summary::before { transform: rotate(90deg); }
+.builder-library-group > summary::before { content: none; }
+.builder-library-group[open] > summary::before { transform: none; }
 .builder-library-group > summary > span { margin-left: auto; color: #708597; font-size: .64rem; font-weight: 600; }
 .builder-library-group > .catalog-group, .builder-library-group > .builder-control-grid,
 .builder-library-group > .builder-action-grid, .builder-library-group > .builder-view-options,
@@ -2339,7 +2339,7 @@ input:focus, select:focus, textarea:focus { border-color: #d6a458; }
   #pageSubtitle, .topbar .eyebrow { display: none; }
   .topbar-actions { width: auto; flex-wrap: nowrap; justify-content: flex-end; gap: 6px; }
   #serverStatus { display: grid; place-items: center; width: 40px; min-width: 40px; height: 40px; padding: 0; font-size: 0; }
-  #serverStatus::after { content: "●"; font-size: 15px; }
+  #serverStatus::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
   #emergencyButton { min-width: 78px; min-height: 44px; padding: 6px 9px; }
 
   .mobile-bottom-nav {
@@ -3972,7 +3972,7 @@ textarea:focus { border-color: #68728f; box-shadow: 0 0 0 3px rgba(148,171,237,.
   .module-center-button .module-center-dot { width: 7px; height: 7px; }
   .danger-button { min-width: auto; min-height: 34px; padding-inline: 9px; font-size: 10px; }
   .system-drawer { top: 60px; padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
-  body.sidebar-open::after { inset-top: 60px; }
+  body.sidebar-open::after { top: 60px; }
   .main-area { padding: 10px 8px calc(70px + env(safe-area-inset-bottom)); }
   .topbar { min-height: 58px; margin-bottom: 8px; padding-bottom: 9px; }
   #pageTitle { font-size: 20px; }
@@ -4025,190 +4025,1743 @@ textarea:focus { border-color: #68728f; box-shadow: 0 0 0 3px rgba(148,171,237,.
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
-/* 3.2 UI normalization: one scale, clearer analog signal-box workspace */
-:root { --app-header-h: 76px; --space: clamp(10px, 1.1vw, 18px); }
-html { font-size: 16px; }
-.app-shell { grid-template-rows: var(--app-header-h) minmax(0,1fr); }
-.global-header { min-height: var(--app-header-h); grid-template-columns: minmax(210px,260px) minmax(0,1fr) max-content; gap: clamp(10px,1.5vw,24px); padding-inline: clamp(12px,2vw,28px); }
-.brand-bar { grid-template-columns: 42px minmax(0,1fr); }
-.brand-icon { width:42px; height:42px; }
-.brand-text strong { font-size:18px; }
-.brand-text small { display:block; font-size:10px; white-space:nowrap; }
-.brand-text small::after { content:" · Analog-Stellwerk"; color:#d4b46d; }
-.main-nav { gap:6px; overflow:visible; }
-.nav-button { flex:0 1 auto; min-width:max-content; min-height:44px; padding:0 clamp(10px,1vw,15px); gap:9px; }
-.nav-button .nav-icon { width:21px; height:21px; flex:0 0 21px; }
-.nav-button .nav-icon svg { width:20px; height:20px; }
-.nav-copy b { font-size:13px; line-height:1; overflow:visible; }
-.global-actions { flex-wrap:nowrap; }
-.main-area { padding:var(--space); }
-.topbar { min-height:64px; margin-bottom:var(--space); padding:0 2px 12px; }
-.page.active { min-width:0; }
-.panel { min-width:0; }
+/* ========================================================================== */
+/* DynoraStation 3.3 — unified UI + touch-first mobile                        */
+/* One final design layer. Keep new visual changes in this section only.       */
+/* ========================================================================== */
 
-/* Dashboard: prevent cards from colliding and let both columns shrink safely. */
-#page-dashboard.active { overflow:auto; }
-.dashboard-workspace { grid-template-columns:minmax(0,1.65fr) minmax(300px,.72fr); gap:var(--space); height:auto; min-height:520px; }
-.dashboard-plan-panel, .dashboard-control-stack, .operations-grid, .operation-card { min-width:0; }
-.operations-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.dashboard-command-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.dashboard-command-actions button { min-width:0; white-space:normal; }
-.dashboard-lower { gap:var(--space); }
-
-/* Planner: conventional library | large canvas | inspector layout. */
-#page-builder .builder-shell { border:1px solid var(--line); }
-.builder-layout { grid-template-columns:280px minmax(420px,1fr) 300px; }
-.builder-sidebar { grid-column:1; grid-row:1; border-right:1px solid var(--line); }
-.builder-canvas-area { grid-column:2; grid-row:1; min-width:0; }
-.inspector { grid-column:3; grid-row:1; border-left:1px solid var(--line); }
-.canvas-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 10px; }
-.canvas-toolbar .toolbar-group { flex-wrap:wrap; }
-.canvas-viewport { min-height:420px; }
-#builderSvg { width:100%; height:100%; touch-action:none; }
-.builder-header { min-height:66px; }
-.builder-header-actions { flex-wrap:wrap; justify-content:flex-end; }
-
-/* Betrieb: the track diagram is the primary instrument, controls stay compact. */
-#page-track.active > .panel { grid-template-rows:auto auto auto minmax(360px,1fr) auto; padding:12px; }
-#page-track .track-light-panel { margin-bottom:6px; padding:6px 8px; }
-#page-track .cs3-tile-panel { margin-bottom:6px; padding:6px 8px; max-height:128px; overflow:auto; }
-#page-track .track-system-notice { min-height:44px; margin:4px 0 6px; padding:7px 10px; }
-.track-plan-wrapper { min-height:360px !important; }
-#page-track #trackSvg { display:block; }
-
-/* Settings: stable left navigation instead of a long horizontal strip. */
-.settings-workspace { display:grid; grid-template-columns:220px minmax(0,1fr); gap:12px; align-items:start; }
-.settings-tabs { position:sticky; top:0; display:grid; grid-template-columns:1fr; gap:4px; overflow:visible; padding:7px; }
-.settings-tab { width:100%; min-height:52px; flex:none; justify-content:flex-start; }
-.settings-content { min-width:0; }
-.hardware-summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
-#page-settings .module-management-grid { grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); }
-
-@media (max-width: 1280px) {
-  .global-header { grid-template-columns:190px minmax(0,1fr) max-content; padding-inline:12px; }
-  .brand-text small::after { content:" · Stellwerk"; }
-  .nav-button { padding-inline:9px; gap:6px; }
-  .nav-copy b { font-size:12px; }
-  .global-actions .last-sync { display:none; }
-  .builder-layout { grid-template-columns:240px minmax(360px,1fr) 270px; }
+:root {
+  --ds-bg: #090b10;
+  --ds-surface: #11141b;
+  --ds-surface-2: #171b23;
+  --ds-surface-3: #1d222c;
+  --ds-line: #292f3a;
+  --ds-line-strong: #3a4350;
+  --ds-text: #f3f6fa;
+  --ds-muted: #98a2b0;
+  --ds-muted-2: #687382;
+  --ds-accent: #8aa7ff;
+  --ds-accent-strong: #a7bcff;
+  --ds-accent-soft: rgba(138, 167, 255, .12);
+  --ds-green: #65d19a;
+  --ds-red: #ff6673;
+  --ds-amber: #e8b86b;
+  --ds-radius-sm: 10px;
+  --ds-radius: 14px;
+  --ds-radius-lg: 18px;
+  --ds-header-h: 68px;
+  --ds-mobile-nav-h: 68px;
+  --ds-shadow: 0 14px 40px rgba(0, 0, 0, .22);
 }
 
-@media (max-width: 1050px) {
-  .global-actions .status-pill { display:none; }
-  .dashboard-workspace { grid-template-columns:1fr; }
-  .dashboard-control-stack { display:grid; grid-template-columns:minmax(260px,.65fr) minmax(0,1fr); grid-template-rows:none; }
-  .settings-workspace { grid-template-columns:190px minmax(0,1fr); }
+html, body { background: var(--ds-bg); color: var(--ds-text); }
+body { -webkit-tap-highlight-color: transparent; }
+button { -webkit-tap-highlight-color: transparent; }
+
+/* ---- shared visual language ------------------------------------------------ */
+.panel,
+.dashboard-commandbar,
+.operation-card,
+.hardware-summary-grid > article,
+.module-management-card,
+.module-card,
+.relay-card,
+.relay-item,
+.sensor-card,
+.sensor-item,
+.light-config-card,
+.default-state-card,
+.rule-card,
+.event-toolbar,
+.event-item,
+.event-row,
+.sidebar-status-box,
+.sidebar-esp-box {
+  border-color: var(--ds-line);
+  background: var(--ds-surface);
+  box-shadow: none;
+}
+
+.panel { border-radius: var(--ds-radius-lg); }
+.panel-header h2,
+.hardware-center-head h2,
+.builder-header h2 { color: var(--ds-text); letter-spacing: -.025em; }
+.panel-header p,
+.hardware-center-head p,
+.builder-header p { color: var(--ds-muted); }
+.eyebrow { color: var(--ds-muted-2); letter-spacing: .08em; }
+
+.primary-button,
+.secondary-button,
+.danger-button,
+.tool-button,
+.icon-button,
+.small-button,
+.palette-button,
+.text-button,
+.module-center-button {
+  border-radius: var(--ds-radius-sm);
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease;
+}
+.primary-button { color: #0c111a; background: #eef2ff; border-color: #eef2ff; }
+.primary-button:hover { color: #070a0f; background: #fff; border-color: #fff; }
+.secondary-button,
+.tool-button,
+.icon-button,
+.small-button,
+.palette-button,
+.module-center-button { color: #dce2ec; background: var(--ds-surface-2); border-color: var(--ds-line); }
+.secondary-button:hover,
+.tool-button:hover,
+.icon-button:hover,
+.small-button:hover,
+.palette-button:hover,
+.module-center-button:hover { color: #fff; background: var(--ds-surface-3); border-color: var(--ds-line-strong); }
+.danger-button { color: #fff; background: #b83f4a; border-color: #d34e5a; }
+.danger-button:hover { background: #ce4955; border-color: #ec5b67; }
+
+input, select, textarea {
+  color: var(--ds-text);
+  background: #0d1016;
+  border-color: var(--ds-line-strong);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--ds-accent);
+  box-shadow: 0 0 0 3px rgba(138,167,255,.14);
+}
+
+/* ---- desktop app frame + header ------------------------------------------- */
+.app-shell { grid-template-rows: var(--ds-header-h) minmax(0, 1fr); }
+.global-header {
+  height: var(--ds-header-h);
+  min-height: var(--ds-header-h);
+  grid-template-columns: minmax(168px, 205px) minmax(max-content, 1fr) auto;
+  gap: clamp(10px, 1.25vw, 20px);
+  padding: 0 clamp(12px, 1.6vw, 24px);
+  background: rgba(13, 16, 22, .96);
+  border-bottom: 1px solid var(--ds-line);
+  backdrop-filter: blur(18px);
+}
+.brand-bar { grid-template-columns: 38px minmax(0, 1fr); }
+.brand-icon { background: var(--ds-surface-2); border-color: var(--ds-line); border-radius: 11px; }
+.brand-text strong { font-size: 16px; color: var(--ds-text); }
+.brand-text strong span { color: #c5ced9; }
+.brand-text small { overflow: hidden; color: var(--ds-muted-2); font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }
+
+.main-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: max-content;
+  overflow: visible;
+}
+.nav-button {
+  flex: 0 0 auto;
+  min-width: max-content;
+  min-height: 42px;
+  padding: 0 12px;
+  gap: 8px;
+  color: #969fac;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 11px;
+}
+.nav-button .nav-icon { flex: 0 0 18px; width: 18px; height: 18px; }
+.nav-button .nav-icon svg { width: 18px; height: 18px; }
+.nav-copy { min-width: max-content; }
+.nav-copy b { display: block; overflow: visible; font-size: 12px; font-weight: 650; text-overflow: clip; white-space: nowrap; }
+.nav-button:hover { color: #e9edf4; background: var(--ds-surface-2); border-color: var(--ds-line); }
+.nav-button.active { color: #fff; background: var(--ds-surface-3); border-color: var(--ds-line-strong); }
+.nav-button.active .nav-icon { color: var(--ds-accent-strong); }
+
+.global-actions { gap: 7px; }
+.last-sync { color: var(--ds-muted-2); }
+.module-center-button { min-height: 36px; }
+.module-center-dot { background: var(--ds-green); }
+.status-pill { border-radius: 9px; }
+
+.system-drawer {
+  top: var(--ds-header-h);
+  background: #0e1117;
+  border-color: var(--ds-line);
+}
+body.sidebar-open::after { inset: var(--ds-header-h) 0 0; }
+
+.main-area { padding: 16px clamp(14px, 1.5vw, 22px) 20px; background: var(--ds-bg); }
+.topbar { min-height: 68px; margin-bottom: 12px; padding-bottom: 12px; border-bottom-color: var(--ds-line); }
+#pageTitle { font-size: clamp(23px, 2vw, 28px); }
+#pageSubtitle { color: var(--ds-muted); }
+
+/* ---- dashboard ------------------------------------------------------------- */
+.dashboard-workspace {
+  grid-template-columns: minmax(0, 1.9fr) minmax(330px, .72fr);
+  gap: 12px;
+  min-height: 470px;
+  height: min(59vh, 640px);
+}
+.dashboard-plan-panel { padding: 16px; overflow: hidden; }
+.dashboard-plan { min-height: 0; height: 100%; margin-top: 10px; border-color: var(--ds-line); border-radius: 12px; }
+.dashboard-control-stack { gap: 10px; min-width: 0; }
+.dashboard-commandbar { padding: 14px; border: 1px solid var(--ds-line); border-radius: var(--ds-radius); }
+.dashboard-command-actions { display: grid; grid-template-columns: 1fr; gap: 7px; }
+.operations-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-height: 0; overflow: auto; }
+.operation-card { min-width: 0; min-height: 110px; padding: 13px; border: 1px solid var(--ds-line); border-radius: 12px; }
+.operation-card strong { font-size: 21px; }
+.temperature-card { grid-column: 1 / -1; }
+.dashboard-lower { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; margin-top: 12px; }
+.dashboard-lower > .panel { min-width: 0; min-height: 250px; max-height: 360px; overflow: hidden; }
+
+/* ---- Betrieb / Stellwerk --------------------------------------------------- */
+#page-track.active { overflow: hidden; }
+#page-track.active > .panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  column-gap: 12px;
+  row-gap: 10px;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 14px;
+  overflow: hidden;
+}
+#page-track .track-page-header { grid-column: 1 / -1; grid-row: 1; margin: 0; padding-bottom: 10px; border-bottom: 1px solid var(--ds-line); }
+#page-track .track-page-header h2 { margin-bottom: 2px; }
+#page-track .track-system-notice {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 48px;
+  margin: 0;
+  padding: 9px 11px;
+  background: var(--ds-surface);
+  border-color: var(--ds-line);
+}
+#page-track .track-plan-wrapper {
+  grid-column: 1;
+  grid-row: 3 / span 2;
+  width: 100%;
+  height: 100%;
+  min-height: 0 !important;
+  overflow: hidden;
+  background: #07090d;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+#page-track #trackSvg { display: block; width: 100%; height: 100%; touch-action: manipulation; }
+#page-track .cs3-tile-panel {
+  grid-column: 2;
+  grid-row: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  overflow: hidden;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+#page-track .cs3-tile-header { flex: 0 0 auto; gap: 8px; margin-bottom: 8px; }
+#page-track .cs3-tile-header > div:first-child { display: grid; gap: 2px; }
+#page-track .cs3-tile-header strong { font-size: 13px; }
+#page-track .cs3-tile-header span { color: var(--ds-muted-2); font-size: 10px; }
+#page-track .route-legend { display: none; }
+#page-track .cs3-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  grid-auto-flow: row;
+  grid-auto-columns: auto;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
+}
+#page-track .cs3-tile {
+  min-width: 0;
+  min-height: 126px;
+  padding: 10px;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-line);
+  border-radius: 12px;
+}
+#page-track .cs3-tile:hover { background: var(--ds-surface-3); border-color: var(--ds-line-strong); }
+#page-track .cs3-tile.active { border-color: rgba(138,167,255,.48); background: linear-gradient(180deg, rgba(138,167,255,.12), var(--ds-surface-2)); }
+#page-track .cs3-tile-heading b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#page-track .control-symbol { width: 100%; max-width: 108px; height: 48px; }
+#page-track .cs3-tile-state b { overflow: hidden; color: var(--ds-muted-2); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+
+#page-track .track-light-panel {
+  grid-column: 2;
+  grid-row: 4;
+  margin: 0;
+  padding: 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+.track-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.track-section-heading > div { display: grid; gap: 1px; }
+.track-section-heading strong { font-size: 12px; }
+.track-section-heading span,
+.track-section-heading small { color: var(--ds-muted-2); font-size: 9px; }
+#page-track .track-light-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+#page-track .light-toggle-btn { min-height: 42px; background: var(--ds-surface-2); border: 1px solid var(--ds-line); border-radius: 10px; }
+#page-track .light-toggle-btn.active { color: #eafff4; background: rgba(101,209,154,.14); border-color: rgba(101,209,154,.36); }
+#page-track #trackMessage { grid-column: 1 / -1; grid-row: 5; min-height: 0; }
+
+#page-track.plan-focus {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: block;
+  padding: 8px;
+  background: var(--ds-bg);
+}
+#page-track.plan-focus > .panel {
+  grid-template-columns: minmax(0,1fr);
+  grid-template-rows: auto minmax(0,1fr);
+  height: 100%;
+  padding: 8px;
+}
+#page-track.plan-focus .track-page-header { grid-column: 1; grid-row: 1; padding: 4px 4px 8px; }
+#page-track.plan-focus .track-page-header .eyebrow,
+#page-track.plan-focus .track-page-header p,
+#page-track.plan-focus .track-system-notice,
+#page-track.plan-focus .track-light-panel,
+#page-track.plan-focus .cs3-tile-panel,
+#page-track.plan-focus #trackMessage { display: none; }
+#page-track.plan-focus .track-plan-wrapper { grid-column: 1; grid-row: 2; border-radius: 12px; }
+
+/* ---- builder --------------------------------------------------------------- */
+#page-builder.active { overflow: hidden; }
+#page-builder .builder-shell { display: grid; grid-template-rows: auto minmax(0,1fr); height: 100%; min-height: 0; overflow: hidden; }
+.builder-header { min-height: 60px; padding: 10px 12px; border-color: var(--ds-line); }
+.builder-header-actions { gap: 6px; }
+.builder-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0,1fr) 300px;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+/* Authoritative desktop order: library | canvas | inspector. Older theme layers
+   used explicit grid columns in a different order, so reset them here. */
+.builder-sidebar { grid-column: 1; grid-row: 1; }
+.builder-canvas-area { grid-column: 2; grid-row: 1; }
+.inspector { grid-column: 3; grid-row: 1; }
+.builder-sidebar,
+.inspector { min-width: 0; overflow: auto; background: #0e1117; border-color: var(--ds-line); }
+.builder-sidebar { border-right: 1px solid var(--ds-line); }
+.inspector { border-left: 1px solid var(--ds-line); }
+.search-hidden { display: none !important; }
+.builder-sidebar-head { background: #0e1117 !important; }
+.builder-search { background: var(--ds-surface); border-color: var(--ds-line); }
+.builder-library-group { border-color: var(--ds-line); }
+.builder-library-group > summary { color: #dbe1ea; }
+.catalog-group { border-color: var(--ds-line); }
+.custom-select-trigger,
+.custom-select-list { background: var(--ds-surface-2); border-color: var(--ds-line); }
+.custom-select-option:hover,
+.custom-select-option.active { background: var(--ds-surface-3); }
+.builder-canvas-area { min-width: 0; min-height: 0; background: #07090d; }
+.canvas-toolbar { background: #10141a; border-color: var(--ds-line); }
+.canvas-viewport { background: #07090d; }
+.builder-mobile-tabs { display: none; }
+
+/* ---- system/settings ------------------------------------------------------- */
+#page-settings.active { overflow: auto; padding-bottom: 16px; }
+.hardware-center-head { margin-bottom: 10px; border-color: var(--ds-line); }
+.hardware-summary-grid { grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; margin-bottom: 12px; }
+.hardware-summary-grid > article { min-width: 0; min-height: 88px; padding: 12px; border: 1px solid var(--ds-line); border-radius: 12px; }
+.hardware-summary-grid > article strong { font-size: 19px; }
+.settings-workspace {
+  display: grid;
+  grid-template-columns: 220px minmax(0,1fr);
+  gap: 12px;
+  align-items: start;
+}
+.settings-tabs {
+  position: sticky;
+  top: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  width: 220px;
+  padding: 6px;
+  overflow: visible;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+.settings-tab {
+  display: grid;
+  grid-template-columns: 32px minmax(0,1fr);
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  min-height: 52px;
+  padding: 7px 9px;
+  color: var(--ds-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  text-align: left;
+}
+.settings-tab:hover { color: #e9edf4; background: var(--ds-surface-2); }
+.settings-tab.active { color: #fff; background: var(--ds-surface-3); border-color: var(--ds-line-strong); }
+.settings-icon { display: grid; place-items: center; width: 30px; height: 30px; color: var(--ds-muted-2); background: #0d1016; border: 1px solid var(--ds-line); border-radius: 9px; font-size: 9px; }
+.settings-tab.active .settings-icon { color: var(--ds-accent-strong); border-color: rgba(138,167,255,.35); background: rgba(138,167,255,.08); }
+.settings-tab b { font-size: 12px; }
+.settings-tab small { font-size: 9px; }
+.settings-content { min-width: 0; }
+#page-settings .settings-section.active { margin: 0; }
+#page-settings .settings-section > .panel-header { gap: 14px; }
+#page-settings .module-management-grid { grid-template-columns: repeat(auto-fit, minmax(300px,1fr)); }
+.relay-grid,
+.sensor-grid,
+.light-config-grid,
+.default-state-grid { grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 10px; }
+
+/* ---- events ---------------------------------------------------------------- */
+#page-events .panel { min-height: min(650px, calc(100dvh - 180px)); }
+#page-events .event-toolbar { grid-template-columns: minmax(220px,1fr) 220px auto; }
+
+/* ---- desktop pressure points: hide secondary chrome before nav labels ------- */
+@media (max-width: 1240px) and (min-width: 901px) {
+  .global-header { grid-template-columns: 175px minmax(max-content,1fr) auto; gap: 8px; padding-inline: 10px; }
+  .last-sync { display: none; }
+  .status-pill { display: none; }
+  .nav-button { padding-inline: 9px; gap: 6px; }
+  .dashboard-workspace { grid-template-columns: minmax(0,1.6fr) minmax(300px,.72fr); }
+  .builder-layout { grid-template-columns: 220px minmax(0,1fr) 250px; }
+  .hardware-summary-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+}
+
+@media (max-width: 1030px) and (min-width: 901px) {
+  .global-header { grid-template-columns: 155px minmax(max-content,1fr) auto; }
+  .brand-text small { display: none; }
+  .nav-button { padding-inline: 8px; }
+  .nav-button .nav-icon { display: none; }
+  .module-center-button { padding-inline: 9px; }
+  #page-track.active > .panel { grid-template-columns: minmax(0,1fr) 300px; }
+  #page-track .cs3-tile-grid { grid-template-columns: 1fr; }
+}
+
+/* ========================================================================== */
+/* Mobile app                                                                  */
+/* ========================================================================== */
+@media (max-width: 900px) {
+  :root { --ds-header-h: 58px; --ds-mobile-nav-h: 68px; }
+
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body { min-width: 0; overscroll-behavior: none; }
+  .app-shell { grid-template-rows: var(--ds-header-h) minmax(0,1fr); height: 100dvh; min-height: 100dvh; }
+
+  .global-header {
+    position: relative;
+    z-index: 600;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    height: var(--ds-header-h);
+    min-height: var(--ds-header-h);
+    gap: 7px;
+    padding: 0 max(8px, env(safe-area-inset-left)) 0 max(10px, env(safe-area-inset-left));
+    background: rgba(11,14,19,.97);
+  }
+  .brand-bar { grid-template-columns: 34px minmax(0,1fr); gap: 8px; min-width: 0; }
+  .brand-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .brand-text strong { font-size: 14px; }
+  .brand-text small { display: block; overflow: hidden; max-width: 145px; font-size: 7px; text-overflow: ellipsis; white-space: nowrap; }
+  .main-nav { display: none; }
+  .global-actions { gap: 5px; }
+  .global-actions .last-sync,
+  .global-actions .status-pill { display: none; }
+  .module-center-button {
+    display: inline-flex;
+    min-width: 56px;
+    min-height: 38px;
+    padding: 0 8px;
+    gap: 5px;
+    font-size: 9px;
+  }
+  .module-center-dot { width: 6px; height: 6px; }
+  .danger-button { min-width: 70px; min-height: 38px; padding: 0 8px; font-size: 9px; }
+
+  .system-drawer {
+    top: var(--ds-header-h);
+    bottom: var(--ds-mobile-nav-h);
+    width: min(92vw, 390px);
+    padding: 14px;
+    border-radius: 18px 0 0 0;
+  }
+  body.sidebar-open::after { inset: var(--ds-header-h) 0 var(--ds-mobile-nav-h); }
+
+  .main-area {
+    height: 100%;
+    min-height: 0;
+    padding: 8px 8px calc(var(--ds-mobile-nav-h) + env(safe-area-inset-bottom) + 8px);
+    overflow: hidden;
+  }
+  .topbar {
+    min-height: 48px;
+    margin-bottom: 7px;
+    padding: 1px 2px 7px;
+    border-bottom-color: var(--ds-line);
+  }
+  .topbar .eyebrow,
+  #pageSubtitle,
+  .page-context-actions { display: none !important; }
+  #pageTitle { font-size: 20px; }
+  .page.active { height: 100%; min-height: 0; overflow: auto; overscroll-behavior-y: contain; }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    z-index: 700;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: grid !important;
+    grid-template-columns: repeat(5,minmax(0,1fr));
+    height: calc(var(--ds-mobile-nav-h) + env(safe-area-inset-bottom));
+    min-height: calc(var(--ds-mobile-nav-h) + env(safe-area-inset-bottom));
+    padding: 5px max(5px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(5px, env(safe-area-inset-left));
+    gap: 2px;
+    background: rgba(12,15,21,.97);
+    border-top: 1px solid var(--ds-line);
+    box-shadow: 0 -12px 36px rgba(0,0,0,.3);
+    backdrop-filter: blur(18px);
+  }
+  .mobile-nav-button {
+    display: grid;
+    grid-template-rows: 24px auto;
+    place-items: center;
+    align-content: center;
+    gap: 3px;
+    min-width: 0;
+    min-height: 54px;
+    padding: 5px 2px;
+    color: #7f8997;
+    background: transparent;
+    border: 0;
+    border-radius: 12px;
+  }
+  .mobile-nav-button .mobile-nav-icon { display: grid; place-items: center; width: 22px; height: 22px; }
+  .mobile-nav-button .mobile-nav-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .mobile-nav-button:first-child .mobile-nav-icon svg path { fill: currentColor; stroke: none; }
+  .mobile-nav-button small { overflow: hidden; max-width: 100%; font-size: 9px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-nav-button.active { color: #eaf0ff; background: rgba(138,167,255,.12); }
+  .mobile-nav-button.active .mobile-nav-icon { color: var(--ds-accent-strong); }
+
+  button,
+  .primary-button,
+  .secondary-button,
+  .danger-button,
+  .small-button,
+  .tool-button,
+  .icon-button,
+  input,
+  select,
+  textarea { min-height: 44px; }
+  input, select, textarea { max-width: 100%; font-size: 16px !important; }
+  .panel { padding: 11px; border-radius: 14px; }
+  .panel-header { gap: 8px; }
+
+  /* Dashboard: vertical, predictable, no nested clipping. */
+  #page-dashboard.active { overflow: auto; }
+  .dashboard-workspace { display: flex; flex-direction: column; height: auto; min-height: 0; gap: 8px; }
+  .dashboard-plan-panel { min-height: 400px; height: 48dvh; padding: 11px; }
+  .dashboard-plan { min-height: 0; }
+  .dashboard-control-stack { display: contents; }
+  .dashboard-commandbar { order: 2; padding: 11px; }
+  .dashboard-command-actions { grid-template-columns: 1fr 1fr; }
+  .operations-grid { order: 3; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; overflow: visible; }
+  .operation-card { min-height: 94px; padding: 10px; }
+  .temperature-card { grid-column: 1 / -1; }
+  .dashboard-lower { grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+  .dashboard-lower > .panel { max-height: none; min-height: 220px; }
+
+  /* Betrieb: plan first, then quick controls. No sideways card carousel. */
+  #page-track.active { overflow: auto; }
+  #page-track.active > .panel {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100%;
+    padding: 8px;
+    gap: 8px;
+    overflow: visible;
+  }
+  #page-track .track-page-header {
+    order: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 1px 1px 8px;
+    border-bottom: 1px solid var(--ds-line);
+  }
+  #page-track .track-page-header > div { min-width: 0; }
+  #page-track .track-page-header .eyebrow,
+  #page-track .track-page-header p { display: none; }
+  #page-track .track-page-header h2 { margin: 0; font-size: 17px; }
+  #page-track .track-focus-button { flex: 0 0 auto; min-height: 38px; padding: 0 10px; font-size: 10px; }
+  #page-track .track-system-notice {
+    order: 2;
+    grid-template-columns: auto minmax(0,1fr);
+    min-height: 46px;
+    margin: 0;
+    padding: 8px 10px;
+  }
+  #page-track .track-system-notice .text-button { display: none; }
+  #page-track .track-system-notice small { white-space: normal; }
+  #page-track .track-plan-wrapper {
+    order: 3;
+    width: 100%;
+    height: clamp(330px, 48dvh, 520px);
+    min-height: 330px !important;
+    flex: 0 0 auto;
+    border-radius: 13px;
+  }
+  #page-track #trackSvg { touch-action: manipulation; }
+  #page-track .track-light-panel { order: 4; padding: 9px; }
+  #page-track .track-section-heading { margin-bottom: 7px; }
+  #page-track .track-light-grid { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+  #page-track .light-toggle-btn { min-width: 0; min-height: 48px; padding: 6px 3px; font-size: 10px; }
+  #page-track .cs3-tile-panel { order: 5; display: block; overflow: visible; padding: 9px; }
+  #page-track .cs3-tile-header { display: flex; align-items: flex-end; justify-content: space-between; }
+  #page-track .cs3-tile-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    grid-auto-flow: row;
+    gap: 7px;
+    overflow: visible;
+  }
+  #page-track .cs3-tile {
+    min-width: 0;
+    min-height: 118px;
+    padding: 9px;
+    touch-action: manipulation;
+  }
+  #page-track .control-symbol { max-width: 96px; height: 46px; }
+  #page-track #trackMessage { order: 6; }
+  #page-track .track-control-element { cursor: pointer; touch-action: manipulation; }
+
+  /* Focus mode = actual mobile signal box fullscreen. */
+  #page-track.plan-focus {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    height: 100dvh;
+    padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+  #page-track.plan-focus > .panel {
+    display: grid;
+    grid-template-rows: auto minmax(0,1fr);
+    height: 100%;
+    min-height: 0;
+    padding: 6px;
+    overflow: hidden;
+  }
+  #page-track.plan-focus .track-page-header { display: flex; grid-row: 1; order: initial; padding: 0 0 6px; }
+  #page-track.plan-focus .track-system-notice,
+  #page-track.plan-focus .track-light-panel,
+  #page-track.plan-focus .cs3-tile-panel,
+  #page-track.plan-focus #trackMessage { display: none; }
+  #page-track.plan-focus .track-plan-wrapper {
+    display: block;
+    grid-row: 2;
+    order: initial;
+    width: 100%;
+    height: 100%;
+    min-height: 0 !important;
+  }
+
+  /* Builder uses explicit three-mode mobile navigation. */
+  #page-builder.active { overflow: hidden; }
+  #page-builder .builder-shell { grid-template-rows: auto auto minmax(0,1fr); }
+  .builder-header { min-height: 48px; padding: 7px; }
+  .builder-header > div:first-child { display: none; }
+  .builder-header-actions { width: 100%; display: flex; gap: 5px; overflow-x: auto; }
+  .builder-header-actions > * { flex: 0 0 auto; }
+  .builder-mobile-tabs {
+    position: static;
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    gap: 5px;
+    padding: 5px;
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-line);
+    border-radius: 12px;
+  }
+  .builder-mobile-tabs button { min-width: 0; min-height: 42px; color: var(--ds-muted); background: transparent; border: 1px solid transparent; border-radius: 9px; font-size: 10px; font-weight: 650; }
+  .builder-mobile-tabs button.active { color: #fff; background: var(--ds-surface-3); border-color: var(--ds-line-strong); }
+  #page-builder .builder-layout { display: block; width: 100%; height: 100%; overflow: hidden; }
+  #page-builder .builder-layout > .builder-sidebar,
+  #page-builder .builder-layout > .builder-canvas-area,
+  #page-builder .builder-layout > .inspector { display: none; width: 100%; height: 100%; max-height: none; }
+  #page-builder .builder-layout[data-mobile-panel="library"] > .builder-sidebar { display: block; overflow: auto; border: 0; }
+  #page-builder .builder-layout[data-mobile-panel="canvas"] > .builder-canvas-area { display: flex; overflow: hidden; }
+  #page-builder .builder-layout[data-mobile-panel="inspector"] > .inspector { display: block; overflow: auto; border: 0; }
+  .builder-sidebar-head { position: static; }
+  .custom-select-list { max-height: 300px; }
+  .canvas-toolbar { flex: 0 0 auto; padding: 6px; }
+  .canvas-toolbar .toolbar-group { display: grid; grid-template-columns: 44px minmax(48px,1fr) 44px 56px 1fr; gap: 4px; width: 100%; }
+  .canvas-toolbar .pan-hint,
+  .builder-hint { display: none; }
+  .canvas-viewport { flex: 1 1 auto; width: 100%; height: auto !important; min-height: 0 !important; }
+  #builderSvg { width: 100%; height: 100%; touch-action: none; }
+
+  /* Settings becomes a compact category scroller on phones. */
+  .hardware-center-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .hardware-center-head h2 { font-size: 20px; }
+  .hardware-center-head p { font-size: 11px; }
+  .hardware-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+  .hardware-summary-grid > article { min-height: 82px; padding: 10px; }
+  .settings-workspace { display: block; }
+  .settings-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    width: 100%;
+    gap: 5px;
+    margin-bottom: 8px;
+    padding: 5px;
+    overflow-x: auto;
+    background: rgba(17,20,27,.96);
+    border: 1px solid var(--ds-line);
+    border-radius: 12px;
+    backdrop-filter: blur(16px);
+    scrollbar-width: none;
+  }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-tab { flex: 0 0 132px; grid-template-columns: 28px minmax(0,1fr); min-height: 48px; padding: 6px 8px; }
+  .settings-icon { width: 27px; height: 27px; }
+  .settings-tab small { display: none; }
+  #page-settings .settings-section > .panel-header { align-items: stretch; flex-direction: column; }
+  .settings-section-actions { width: 100%; display: grid; grid-template-columns: 1fr; gap: 6px; }
+  .module-management-grid,
+  .relay-grid,
+  .sensor-grid,
+  .light-config-grid,
+  .default-state-grid { grid-template-columns: 1fr !important; }
+
+  #page-events .event-toolbar { grid-template-columns: 1fr; }
+  .event-row { grid-template-columns: 1fr; }
+  .toast-stack { top: calc(var(--ds-header-h) + 6px); right: 8px; left: 8px; width: auto; }
+}
+
+@media (max-width: 520px) {
+  .brand-text small { max-width: 118px; }
+  .module-center-button { min-width: 44px; width: 44px; padding: 0; font-size: 0; justify-content: center; }
+  .module-center-dot { width: 8px; height: 8px; }
+  .danger-button { min-width: 65px; }
+  .dashboard-plan-panel { height: 44dvh; min-height: 330px; }
+  .dashboard-command-actions { grid-template-columns: 1fr; }
+  .operations-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #page-track .track-plan-wrapper { height: clamp(310px, 45dvh, 440px); min-height: 310px !important; }
+  #page-track .track-light-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #page-track .cs3-tile-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #page-track .cs3-tile { min-height: 112px; }
+  .hardware-summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .canvas-toolbar .toolbar-group { grid-template-columns: 44px 1fr 44px 52px; }
+  #centerLayoutButton { grid-column: 1 / -1; }
+}
+
+@media (max-width: 370px) {
+  .brand-text small { display: none; }
+  .mobile-nav-button small { font-size: 8px; }
+  #page-track .cs3-tile-grid { grid-template-columns: 1fr; }
+  #page-track .track-light-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .operations-grid { grid-template-columns: 1fr; }
+  .temperature-card { grid-column: auto; }
+  .hardware-summary-grid { grid-template-columns: 1fr; }
+}
+
+/* Short landscape phones: keep the plan usable, controls remain below it. */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 560px) {
+  :root { --ds-header-h: 50px; --ds-mobile-nav-h: 58px; }
+  .global-header { height: var(--ds-header-h); min-height: var(--ds-header-h); }
+  .brand-icon { width: 30px; height: 30px; }
+  .brand-text small { display: none; }
+  .module-center-button,
+  .danger-button { min-height: 34px; }
+  .topbar { display: none; }
+  .main-area { padding-top: 6px; }
+  #page-track .track-plan-wrapper { height: calc(100dvh - var(--ds-header-h) - var(--ds-mobile-nav-h) - 88px); min-height: 230px !important; }
+  #page-track.plan-focus .track-plan-wrapper { height: 100%; min-height: 0 !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}
+
+
+/* Ereignisse + CS3-inspirierte Icon-Badges */
+.settings-tab .settings-icon { font-size: 14px; font-weight: 700; }
+.builder-library-group > summary { letter-spacing: .01em; }
+.catalog-group > label { display: flex; align-items: center; gap: 6px; }
+.element-glyph { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.automation-name span, .automation-step p, .automation-card-footer { text-wrap: pretty; }
+
+
+/* Unified Stellwerk workspace: Betrieb + Bearbeiten */
+.track-header-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.track-edit-button { border-color: rgba(138,167,255,.32); }
+.track-edit-button:hover { border-color: rgba(138,167,255,.58); background: rgba(138,167,255,.08); }
+body.track-edit-mode .page-context-actions [data-page-link="builder"] { display: none; }
+body.track-edit-mode .page-context-actions [data-page-link="track"] { display: inline-flex; }
+body:not(.track-edit-mode)[data-page="track"] .page-context-actions [data-page-link="track"] { display: none; }
+body[data-page="track"] .page-context-actions [data-page-link="builder"] { display: inline-flex; }
+.edit-mode-exit { border-color: rgba(138,167,255,.32); }
+
+@media (max-width: 760px) {
+  .mobile-bottom-nav { grid-template-columns: repeat(4,minmax(0,1fr)) !important; }
+  #page-track .track-page-header { align-items: flex-start; }
+  #page-track .track-header-actions { margin-left: auto; justify-content: flex-end; gap: 5px; }
+  #page-track .track-edit-button,
+  #page-track .track-focus-button { min-height: 38px; padding: 0 9px; font-size: 10px; }
+  body.track-edit-mode .topbar { display: none; }
+  body.track-edit-mode #page-builder.active { height: calc(100dvh - var(--mobile-nav-height, 64px)); }
+  .edit-mode-exit { position: sticky; left: 0; }
+}
+
+/* Unified SVG icon system */
+.ui-icon {
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  flex: 0 0 auto;
+  vertical-align: -0.16em;
+  color: currentColor;
+  overflow: visible;
+}
+/* The sprite itself uses currentColor. Give icon-only surfaces an explicit
+   readable foreground so browser defaults can never turn them black. */
+.builder-tool-grid .ui-icon,
+.element-glyph .ui-icon,
+.builder-action-grid .ui-icon,
+.icon-button .ui-icon,
+.tool-button .ui-icon,
+.settings-icon .ui-icon,
+.inspector-empty-icon .ui-icon,
+.custom-select-symbol .ui-icon,
+.custom-select-item-symbol .ui-icon { color: #c8d2dc; }
+.add-element-icon .ui-icon { color: #90a4b7; }
+.delete-button .ui-icon,
+.icon-danger-button .ui-icon { color: #ff818d; }
+.nav-icon .ui-icon,
+.mobile-nav-icon .ui-icon { width: 100%; height: 100%; vertical-align: 0; }
+.danger-button > .ui-icon,
+.primary-button > .ui-icon,
+.secondary-button > .ui-icon,
+.text-button > .ui-icon { width: 16px; height: 16px; vertical-align: 0; }
+.tool-button > .ui-icon,
+.icon-button > .ui-icon,
+.close-button > .ui-icon,
+.drawer-close > .ui-icon,
+.icon-danger-button > .ui-icon { width: 18px; height: 18px; vertical-align: 0; }
+.builder-search > .ui-icon { width: 17px; height: 17px; color: var(--muted); }
+.builder-tool-grid .ui-icon { width: 18px; height: 18px; }
+.element-glyph .ui-icon { width: 21px; height: 21px; }
+.add-element-icon { display: grid; place-items: center; width: 24px; height: 24px; margin-left: auto; }
+.add-element-icon .ui-icon { width: 16px; height: 16px; }
+.builder-action-grid .ui-icon { width: 20px; height: 20px; }
+.settings-icon .ui-icon { width: 17px; height: 17px; }
+.catalog-group > label > .ui-icon { width: 15px; height: 15px; color: #8fa4b5; }
+.builder-library-group > summary::before { content: none !important; }
+.builder-library-group > summary { justify-content: flex-start; }
+.builder-library-group > summary > .ui-icon:not(.summary-chevron) { width: 17px; height: 17px; color: #8fa4b5; }
+.builder-library-group > summary > .summary-title { margin-left: 0 !important; color: inherit; font-size: inherit; font-weight: inherit; }
+.builder-library-group > summary > .summary-title + span { margin-left: auto; }
+.builder-library-group > summary > .summary-chevron { width: 15px; height: 15px; margin-left: 2px; color: #71899c; transition: transform .15s ease; }
+.builder-library-group[open] > summary > .summary-chevron { transform: rotate(180deg); }
+.icon-button-text { width: auto; padding-inline: 9px; gap: 5px; }
+.track-header-actions button,
+.dashboard-command-actions button,
+.rules-actions button,
+.inspector-actions button { gap: 7px; }
+.custom-select-caret { display: grid; place-items: center; }
+.custom-select-caret .ui-icon { width: 15px; height: 15px; }
+.catalog-svg-icon { width: 22px; height: 22px; }
+.custom-select-symbol .catalog-svg-icon,
+.custom-select-item-symbol .catalog-svg-icon { width: 24px; height: 24px; }
+.automation-arrow .ui-icon { width: 22px; height: 22px; }
+.automation-empty-icon { width: 34px; height: 34px; }
+.validation-status .ui-icon,
+.plan-validation-ok > span .ui-icon { width: 18px; height: 18px; }
+.inspector-empty-icon .ui-icon { width: 30px; height: 30px; }
+
+/* SVG-only icon cleanup */
+.custom-select-thumb:not(.hidden) + .custom-select-symbol { display: none; }
+@media (max-width: 900px) {
+  .mobile-bottom-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #serverStatus::after {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 16%, transparent);
+  }
+}
+
+/* ========================================================================== */
+/* Compact UI pass                                                             */
+/* ========================================================================== */
+:root {
+  --ds-bg: #0b1016;
+  --ds-surface: #121821;
+  --ds-surface-2: #171f29;
+  --ds-surface-3: #1d2733;
+  --ds-line: #293646;
+  --ds-line-strong: #3a4d64;
+  --ds-text: #edf2f8;
+  --ds-muted: #9aa8ba;
+  --ds-muted-2: #718096;
+  --ds-accent: #7ea7ff;
+  --ds-accent-strong: #b9ceff;
+  --ds-accent-soft: rgba(126,167,255,.12);
+}
+
+/* Keep the palette calm; use color mostly as information, not decoration. */
+.global-header { background: #0d1219; }
+.panel,
+.dashboard-commandbar,
+.operation-card,
+.settings-tabs,
+#page-settings .settings-section,
+.relay-item,
+.sensor-item,
+.light-config-card,
+.led-channel-card,
+.module-management-card,
+.custom-select-btn,
+.custom-select-list,
+.catalog-group { box-shadow: none; }
+
+.nav-button[data-page="dashboard"] .nav-icon,
+.mobile-nav-button[data-page-link="dashboard"] .mobile-nav-icon { color: #84a8ff; }
+.nav-button[data-page="track"] .nav-icon,
+.mobile-nav-button[data-page-link="track"] .mobile-nav-icon { color: #75cdbf; }
+.nav-button[data-page="settings"] .nav-icon,
+.mobile-nav-button[data-page-link="settings"] .mobile-nav-icon { color: #e4b766; }
+.nav-button[data-page="events"] .nav-icon,
+.mobile-nav-button[data-page-link="events"] .mobile-nav-icon { color: #b79be8; }
+
+/* Builder: compact dropdowns with consistent image/text rhythm. */
+.custom-select-btn {
+  min-height: 38px;
+  padding: 5px 7px;
+  background: var(--ds-surface-2);
+}
+.custom-select-value {
+  grid-template-columns: 42px minmax(0,1fr);
+  gap: 8px;
+}
+.custom-select-thumb {
+  width: 42px;
+  height: 27px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #0e141c;
+}
+.custom-select-title { font-size: 11px; font-weight: 700; line-height: 1.15; }
+.custom-select-meta { display: block; margin-top: 1px; color: var(--ds-muted); font-size: 9px; line-height: 1.15; }
+.custom-select-list {
+  padding: 5px;
+  max-height: min(320px, 55vh);
+  border-radius: 10px;
+  background: #121922;
+}
+.custom-select-item {
+  grid-template-columns: 56px minmax(0,1fr) !important;
+  gap: 8px;
+  min-height: 50px;
+  padding: 5px 6px;
+  align-items: center;
+  border-radius: 8px;
+}
+.custom-select-item-visual {
+  width: 56px;
+  height: 36px;
+  flex: 0 0 56px;
+  border-radius: 7px;
+  background: #0f151d;
+  border-color: var(--ds-line);
+}
+.custom-select-item img,
+.custom-select-item-thumb { width: 100%; height: 100%; object-fit: contain; background: transparent; }
+.custom-select-item-text { display: grid; gap: 1px; align-content: center; min-width: 0; }
+.custom-select-item-text b { font-size: 11px; line-height: 1.2; color: var(--ds-text); }
+.custom-select-item-text small { font-size: 9px; line-height: 1.2; color: var(--ds-muted); white-space: normal; }
+.custom-select-item:hover,
+.custom-select-item.active { background: rgba(126,167,255,.08); border-color: rgba(126,167,255,.22); }
+.custom-select-caret .ui-icon { color: #91a2b8; }
+
+/* Semantic icon colors: subtle and consistent. */
+.element-glyph.straight .ui-icon { color: #82a9ff; }
+.element-glyph.curve .ui-icon { color: #6fc9bc; }
+.element-glyph.turnout .ui-icon { color: #e6b762; }
+.element-glyph.crossing .ui-icon { color: #b69ae6; }
+.element-glyph.bumper .ui-icon { color: #e89182; }
+.element-glyph.uncoupler .ui-icon { color: #7bcf9b; }
+.add-element-icon .ui-icon { color: #aab9cb; }
+
+/* Dashboard: no fixed-height overlap; compact cards on the right. */
+#page-dashboard .dashboard-workspace {
+  display: grid;
+  grid-template-columns: minmax(0,1.75fr) minmax(320px,.72fr);
+  gap: 10px;
+  height: auto;
+  min-height: 0;
+  align-items: stretch;
+}
+#page-dashboard .dashboard-plan-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+}
+#page-dashboard .dashboard-plan {
+  flex: 1 1 auto;
+  min-height: 300px;
+  max-height: 500px;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  margin-top: 8px;
+  background: #080c11;
+}
+#page-dashboard .dashboard-control-stack {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
+  min-width: 0;
+  align-content: start;
+}
+#page-dashboard .dashboard-commandbar { padding: 10px; }
+#page-dashboard .dashboard-command-actions { gap: 5px; }
+#page-dashboard .operations-grid {
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  grid-auto-rows: auto;
+  gap: 6px;
+  min-height: 0;
+  overflow: visible;
+}
+#page-dashboard .operation-card {
+  min-height: 78px;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--ds-surface);
+}
+#page-dashboard .operation-card strong { font-size: 17px; }
+#page-dashboard .operation-card small { font-size: 9px; }
+#page-dashboard .temperature-card { grid-column: 1 / -1; min-height: 72px; }
+#page-dashboard .dashboard-lower {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+  margin-top: 10px;
+  align-items: start;
+}
+#page-dashboard .dashboard-lower > .panel {
+  min-width: 0;
+  min-height: 190px;
+  max-height: 300px;
+  overflow: hidden;
+  padding: 11px;
+}
+#dashboardModuleList,
+#dashboardEventList { min-height: 0; max-height: 220px; overflow: auto; }
+
+/* System: compact desktop control center. */
+@media (min-width: 901px) {
+  .settings-workspace {
+    display: grid;
+    grid-template-columns: 210px minmax(0,1fr);
+    gap: 10px;
+    align-items: start;
+  }
+  .settings-tabs {
+    position: sticky;
+    top: calc(var(--ds-header-h) + 12px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px;
+    max-height: calc(100dvh - 100px);
+    overflow: auto;
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-line);
+    border-radius: 11px;
+  }
+  .settings-tab { min-height: 42px; padding: 6px 8px; gap: 8px; }
+  .settings-icon { width: 27px; height: 27px; border-radius: 8px; }
+  .settings-tab b { font-size: 11px; }
+  .settings-tab small { font-size: 8px; }
+  .settings-content { min-width: 0; }
+  #page-settings .settings-section { padding: 11px; border-radius: 11px; }
+  .hardware-summary-grid { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 6px; }
+  .hardware-summary-grid > article { min-height: 72px; padding: 9px 10px; border-radius: 9px; }
+  .hardware-summary-grid > article strong { font-size: 16px; }
+  .hardware-summary-grid > article span { font-size: 9px; }
+  .hardware-summary-grid > article small { font-size: 8px; }
+  .relay-module-grid { grid-template-columns: repeat(auto-fit,minmax(215px,1fr)); gap: 7px; }
+  .led-channel-grid { grid-template-columns: repeat(auto-fit,minmax(230px,1fr)); gap: 7px; }
+  #sensorGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(215px,1fr)); gap: 7px; }
+  #page-settings .module-management-grid { grid-template-columns: 1fr; }
+}
+.settings-module-picker {
+  grid-template-columns: auto minmax(220px,380px);
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.settings-module-picker label,
+.relay-module-summary { font-size: 10px; color: var(--ds-muted); }
+.relay-module-summary { margin-bottom: 7px; }
+.relay-item,
+.sensor-item,
+.light-config-card,
+.led-channel-card {
+  gap: 5px;
+  padding: 8px;
+  border-radius: 9px;
+  background: var(--ds-surface-2);
+  border-color: var(--ds-line);
+}
+.relay-item label,
+.sensor-item label,
+.light-config-card label,
+.led-channel-card label > span { font-size: 9px; }
+.relay-item input,
+.relay-item select,
+.sensor-item input,
+.light-config-card input,
+.light-config-card select,
+.led-channel-card input,
+.led-channel-card select,
+.settings-module-picker select {
+  min-height: 30px;
+  padding: 4px 6px;
+  font-size: 10px;
+  background: #0e141c;
+  border-color: var(--ds-line);
+}
+.relay-item .secondary-button,
+.led-channel-card .secondary-button { min-height: 32px; padding: 5px 8px; font-size: 10px; }
+.badge-on { color: #85dca3; background: rgba(66,150,96,.12); border-color: rgba(86,196,125,.25); }
+.badge-off { color: #aab6c6; background: rgba(105,119,139,.12); border-color: rgba(105,119,139,.22); }
+
+.settings-tab[data-settings-view="modules"] .settings-icon { color: #82a9ff; }
+.settings-tab[data-settings-view="lights"] .settings-icon { color: #e7c06f; }
+.settings-tab[data-settings-view="relays"] .settings-icon { color: #8ed6ef; }
+.settings-tab[data-settings-view="sensors"] .settings-icon { color: #7bcf9b; }
+.settings-tab[data-settings-view="leds"] .settings-icon { color: #e4b766; }
+.settings-tab[data-settings-view="rules"] .settings-icon { color: #b69ae6; }
+.settings-tab[data-settings-view="defaults"] .settings-icon { color: #e89282; }
+
+/* An unconfigured plan element is still part of the track diagram and must stay visible. */
+.track-control-element.control-unconfigured {
+  opacity: 1 !important;
+  filter: none !important;
+  cursor: default;
+  pointer-events: auto;
+}
+
+@media (max-width: 1240px) and (min-width: 901px) {
+  .hardware-summary-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  #page-dashboard .dashboard-workspace { grid-template-columns: minmax(0,1.5fr) 310px; }
 }
 
 @media (max-width: 900px) {
-  :root { --app-header-h:60px; }
-  html, body { overflow:hidden; }
-  .global-header { grid-template-columns:minmax(0,1fr) auto; min-height:60px; }
-  .brand-text small { display:block; font-size:9px; }
-  .brand-text small::after { content:" · Analog"; }
-  .global-actions .module-center-button { display:none; }
-  .global-actions .danger-button { min-height:38px; padding:6px 10px; }
-  .main-area { padding:8px 8px calc(76px + env(safe-area-inset-bottom)); overflow:hidden; }
-  .topbar { min-height:52px; margin-bottom:7px; padding-bottom:7px; }
-  #pageTitle { font-size:21px; }
-  #pageSubtitle { font-size:11px; }
-  .page.active { overflow:auto; overscroll-behavior:contain; }
-  .mobile-bottom-nav { padding-bottom:env(safe-area-inset-bottom); }
-  .dashboard-workspace, .dashboard-control-stack { display:flex; flex-direction:column; min-height:0; }
-  .dashboard-plan-panel { min-height:440px; }
-  .dashboard-plan { min-height:330px; }
-  .operations-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  #page-builder.active { overflow:hidden; }
-  #page-builder .builder-shell { height:100%; }
-  #page-builder .builder-layout { display:block; }
-  #page-builder .builder-layout > .builder-sidebar,
-  #page-builder .builder-layout > .builder-canvas-area,
-  #page-builder .builder-layout > .inspector { width:100%; height:100%; }
-  #page-builder .builder-layout[data-mobile-panel="canvas"] > .builder-sidebar,
-  #page-builder .builder-layout[data-mobile-panel="canvas"] > .inspector,
-  #page-builder .builder-layout[data-mobile-panel="library"] > .builder-canvas-area,
-  #page-builder .builder-layout[data-mobile-panel="library"] > .inspector,
-  #page-builder .builder-layout[data-mobile-panel="inspector"] > .builder-canvas-area,
-  #page-builder .builder-layout[data-mobile-panel="inspector"] > .builder-sidebar { display:none; }
-  #page-builder .builder-layout[data-mobile-panel="library"] > .builder-sidebar,
-  #page-builder .builder-layout[data-mobile-panel="inspector"] > .inspector { display:block; overflow:auto; }
-  .canvas-toolbar .pan-hint, .builder-hint { display:none; }
-  #page-track.active { overflow:auto; }
-  #page-track.active > .panel { display:flex; flex-direction:column; height:auto; min-height:100%; padding:7px; }
-  #page-track .track-plan-wrapper { order:2; height:58dvh; min-height:420px !important; flex:none; }
-  #page-track .track-system-notice { order:1; }
-  #page-track .track-light-panel { order:3; }
-  #page-track .cs3-tile-panel { order:4; max-height:none; }
-  #page-track #trackMessage { order:5; }
-  .hardware-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .settings-workspace { display:block; }
-  .settings-tabs { position:sticky; top:0; z-index:5; display:flex; gap:5px; margin-bottom:8px; overflow-x:auto; }
-  .settings-tab { flex:0 0 150px; width:auto; }
-  #page-settings .settings-section > .panel-header { gap:10px; flex-direction:column; }
+  .custom-select-item { grid-template-columns: 52px minmax(0,1fr) !important; min-height: 48px; }
+  .custom-select-item-visual { width: 52px; height: 34px; }
+  #page-dashboard .dashboard-workspace { display: flex; flex-direction: column; }
+  #page-dashboard .dashboard-plan { min-height: 240px; max-height: none; }
+  #page-dashboard .dashboard-lower { grid-template-columns: 1fr; }
+  #page-dashboard .dashboard-lower > .panel { max-height: none; min-height: 170px; }
 }
 
-@media (max-width: 560px) {
-  .brand-icon { width:34px; height:34px; }
-  .brand-text strong { font-size:14px; }
-  .brand-text small { font-size:8px; }
-  .global-actions .danger-button { font-size:10px; }
-  .page-context-actions { display:none !important; }
-  .topbar { min-height:46px; }
-  #pageSubtitle { display:none; }
-  .dashboard-plan-panel { min-height:390px; }
-  .dashboard-plan { min-height:300px; }
-  .operations-grid, .hardware-summary-grid { grid-template-columns:1fr 1fr; }
-  .dashboard-lower { display:block; }
-  .dashboard-lower > * + * { margin-top:8px; }
-  .builder-header { padding:8px; }
-  .builder-header-actions .secondary-button { display:none; }
-  .canvas-toolbar { padding:6px; }
-  .canvas-toolbar .icon-button { min-width:40px; }
-  #page-track .track-plan-wrapper { height:54dvh; min-height:360px !important; }
-  .hardware-center-head h2 { font-size:20px; }
-  .hardware-center-head p { font-size:11px; }
-  .hardware-summary-grid > article { min-height:82px; padding:10px; }
+
+/* ========================================================================== */
+/* System layout pass: readable density on desktop / ultrawide                 */
+/* ========================================================================== */
+#page-settings.active {
+  --system-max-width: 1780px;
+}
+#page-settings .hardware-center-head,
+#page-settings .hardware-summary-grid,
+#page-settings .settings-workspace {
+  width: min(100%, var(--system-max-width));
+  margin-left: auto;
+  margin-right: auto;
+}
+#page-settings .hardware-center-head {
+  padding-inline: 2px;
+}
+#page-settings .hardware-summary-grid {
+  margin-bottom: 12px;
 }
 
-/* ===== DynoraStation UI rework ===== */
-/* DynoraStation 3.2 — unified workstation UI */
-:root{
-  --ds-bg:#0b0d10;--ds-panel:#13161b;--ds-panel-2:#181c22;--ds-line:#2a3038;
-  --ds-text:#eef1f4;--ds-muted:#8d97a3;--ds-accent:#e0b85a;--ds-header:68px;
-  --ds-gap:14px;--ds-radius:12px;
+@media (min-width: 901px) {
+  #page-settings .settings-workspace {
+    grid-template-columns: 196px minmax(0,1fr);
+    gap: 12px;
+  }
+  #page-settings .settings-tabs {
+    flex: none;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    align-self: start;
+    overflow: visible;
+    padding: 5px;
+  }
+  #page-settings .settings-tab {
+    flex: 0 0 auto !important;
+    min-height: 44px;
+    padding: 6px 8px;
+  }
+  #page-settings .settings-content {
+    max-width: 100%;
+  }
+  #page-settings .settings-section {
+    min-height: 0;
+  }
+  #page-settings .hardware-summary-grid {
+    grid-template-columns: repeat(6, minmax(0,1fr));
+    gap: 7px;
+  }
+  #page-settings .relay-module-grid {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 9px;
+  }
+  #page-settings .led-channel-grid {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 9px;
+  }
+  #page-settings #sensorGrid {
+    grid-template-columns: repeat(4, minmax(0,1fr));
+    gap: 9px;
+  }
 }
-*{box-sizing:border-box}
-html{font-size:15px}
-body{background:var(--ds-bg)}
-.app-shell{grid-template-rows:var(--ds-header) minmax(0,1fr)}
-.global-header{height:var(--ds-header);min-height:var(--ds-header);grid-template-columns:220px minmax(420px,1fr) auto;gap:18px;padding:0 18px;background:#0f1216;border-bottom:1px solid var(--ds-line)}
-.brand-icon{width:40px;height:40px;border-radius:9px}.brand-text strong{font-size:17px}.brand-text small{font-size:9px;color:var(--ds-muted)}.brand-text small::after{content:" · Analog-Stellwerk";color:var(--ds-accent)}
-.main-nav{height:100%;gap:3px;overflow:visible}.nav-button{height:44px;min-height:44px;padding:0 14px;gap:9px;border-radius:8px}.nav-button .nav-icon,.nav-button .nav-icon svg{width:20px;height:20px}.nav-copy b{font-size:13px;line-height:1;white-space:nowrap}.nav-button.active{background:#22272e;border-color:#343b45;color:#fff}
-.global-actions{gap:7px}.last-sync{display:none}.status-pill{white-space:nowrap}.module-center-button,.danger-button{white-space:nowrap}
-.main-area{padding:14px 18px 18px}.topbar{min-height:62px;margin-bottom:12px;padding-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:16px}.topbar-title-group{gap:2px}#pageTitle{font-size:24px}#pageSubtitle{max-width:760px;white-space:normal;line-height:1.35}.page.active{min-height:0}
-.panel,.builder-shell,#page-settings .settings-section,.dashboard-commandbar,.operation-card{border:1px solid var(--ds-line)!important;border-radius:var(--ds-radius)!important;background:var(--ds-panel)!important;box-shadow:none!important}
-.panel-header{gap:14px}.panel-header h2{margin-top:2px}.eyebrow{color:var(--ds-accent)!important;letter-spacing:.07em}
 
-/* Dashboard: one strong visual hierarchy, no nested collisions. */
-#page-dashboard.active{overflow:auto}.dashboard-workspace{display:grid;grid-template-columns:minmax(0,2fr) minmax(310px,.72fr);gap:var(--ds-gap);height:min(58vh,620px);min-height:470px}.dashboard-plan-panel{padding:16px;overflow:hidden}.dashboard-plan{height:100%;min-height:0;margin-top:10px;border-radius:9px}.dashboard-control-stack{display:flex;flex-direction:column;gap:var(--ds-gap);min-width:0}.dashboard-commandbar{padding:15px;gap:13px}.dashboard-command-actions{display:grid;grid-template-columns:1fr;gap:7px}.operations-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-height:0;overflow:auto}.operation-card{min-height:112px;padding:13px;overflow:hidden}.operation-card strong{font-size:21px}.dashboard-lower{display:grid;grid-template-columns:1fr 1fr;gap:var(--ds-gap);margin-top:var(--ds-gap)}.dashboard-lower>.panel{margin:0;min-height:260px;max-height:360px;overflow:hidden}
-
-/* Betrieb: track diagram dominates the page. */
-#page-track.active{overflow:hidden}#page-track.active>.panel{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:8px;padding:10px;overflow:hidden}#page-track .panel-header{padding:2px 3px 5px}#page-track .track-light-panel{display:none}.track-system-notice{margin:0!important;min-height:40px!important;padding:6px 10px!important}.cs3-tile-panel{order:4;margin:0!important;padding:7px!important;max-height:118px!important;overflow:auto}.track-plan-wrapper{order:3;height:100%!important;min-height:0!important;border:1px solid #333b45!important;border-radius:10px!important;background:#090b0e!important}#page-track #trackSvg{width:100%;height:100%;display:block}.track-focus #page-track .panel-header,.track-focus #page-track .track-system-notice,.track-focus #page-track .cs3-tile-panel{display:none!important}.track-focus #page-track.active>.panel{grid-template-rows:minmax(0,1fr);padding:4px}
-
-/* Builder: tools | canvas | properties, canvas receives the majority of space. */
-#page-builder.active{overflow:hidden}#page-builder .builder-shell{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}.builder-header{min-height:58px;padding:9px 12px}.builder-header h2{font-size:18px}.builder-header p{display:none}.builder-header-actions{display:flex;align-items:center;flex-wrap:nowrap;gap:6px}.builder-header-actions button{min-height:34px;padding:6px 10px}.builder-layout{display:grid!important;grid-template-columns:250px minmax(0,1fr) 280px!important;height:100%;min-height:0;overflow:hidden}.builder-sidebar{grid-column:1!important;min-width:0;overflow:auto;border-right:1px solid var(--ds-line);background:#101318}.builder-sidebar-head{position:sticky;top:0;z-index:3;padding:12px;background:#101318!important}.builder-search{margin:9px}.builder-tool-grid{margin:0 9px 9px}.builder-library-group{margin:0;border-top:1px solid var(--ds-line)}.builder-library-group>summary{padding:11px 10px}.catalog-group{padding:8px 10px}.builder-canvas-area{grid-column:2!important;display:flex!important;flex-direction:column;min-width:0;min-height:0;background:#090b0e}.canvas-toolbar{flex:0 0 auto;min-height:46px;padding:6px 9px;border-bottom:1px solid var(--ds-line);background:#111419}.canvas-viewport{flex:1 1 auto;height:auto!important;min-height:0!important}.inspector{grid-column:3!important;min-width:0;overflow:auto;border-left:1px solid var(--ds-line);background:#101318}.builder-mobile-tabs{display:none}
-
-/* Settings: permanent section rail on desktop, content gets the width. */
-#page-settings.active{overflow:auto}.hardware-center-head{margin-bottom:10px}.hardware-summary-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;margin-bottom:10px}.hardware-summary-grid>article{min-width:0;min-height:82px;padding:10px}.hardware-summary-grid strong{font-size:18px}.settings-workspace{display:grid;grid-template-columns:190px minmax(0,1fr);gap:10px;align-items:start}.settings-tabs{position:sticky;top:0;display:grid;grid-template-columns:1fr;gap:3px;padding:5px;overflow:visible}.settings-tab{width:100%;min-height:48px;justify-content:flex-start;padding:7px 9px}.settings-tab b{font-size:12px}.settings-content{min-width:0}#page-settings .settings-section{padding:14px}#page-settings .settings-section>.panel-header{margin-bottom:12px}.module-management-grid,.relay-grid,.sensor-grid,.led-grid,.light-config-grid,.default-state-grid{gap:9px!important}
-
-@media(max-width:1180px){
- .global-header{grid-template-columns:185px minmax(0,1fr) auto;padding:0 10px;gap:8px}.nav-button{padding:0 9px;gap:6px}.nav-copy b{font-size:12px}.status-pill{display:none}.builder-layout{grid-template-columns:220px minmax(0,1fr) 250px!important}.hardware-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (min-width: 1580px) {
+  #page-settings .relay-module-grid,
+  #page-settings .led-channel-grid,
+  #page-settings #sensorGrid {
+    grid-template-columns: repeat(5, minmax(0,1fr));
+  }
 }
-@media(max-width:900px){
- :root{--ds-header:58px}.app-shell{grid-template-rows:var(--ds-header) minmax(0,1fr)}.global-header{grid-template-columns:minmax(0,1fr) auto;height:58px;min-height:58px}.main-nav{display:none}.brand-icon{width:34px;height:34px}.brand-text strong{font-size:15px}.brand-text small{font-size:8px}.global-actions .module-center-button,.global-actions .status-pill{display:none}.danger-button{min-height:36px;padding:5px 9px;font-size:10px}.main-area{padding:8px 8px calc(72px + env(safe-area-inset-bottom))}.topbar{min-height:48px;margin-bottom:7px;padding-bottom:7px}#pageTitle{font-size:20px}#pageSubtitle{display:none}.page-context-actions{display:none!important}.mobile-bottom-nav{display:grid!important;z-index:500}
- #page-dashboard.active{overflow:auto}.dashboard-workspace{display:flex;height:auto;min-height:0;flex-direction:column}.dashboard-plan-panel{height:52dvh;min-height:350px}.dashboard-control-stack{display:block}.dashboard-commandbar{margin-top:8px}.operations-grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:8px;overflow:visible}.dashboard-lower{grid-template-columns:1fr}.dashboard-lower>.panel{max-height:none}
- #page-track.active{overflow:hidden}#page-track.active>.panel{display:grid;height:100%;min-height:0;grid-template-rows:auto minmax(0,1fr) auto;padding:5px}#page-track .panel-header{display:none}.track-system-notice{grid-row:1}.track-plan-wrapper{grid-row:2;order:initial;height:100%!important;min-height:0!important}.cs3-tile-panel{grid-row:3;order:initial;max-height:126px!important}.track-light-panel{display:none!important}
- #page-builder .builder-shell{grid-template-rows:auto auto minmax(0,1fr)}.builder-header{min-height:46px}.builder-header>div:first-child{display:none}.builder-header-actions{overflow-x:auto}.builder-header-actions>*{flex:0 0 auto}.builder-mobile-tabs{display:grid!important;grid-template-columns:repeat(3,1fr);padding:5px}.builder-layout{display:block!important}.builder-layout>.builder-sidebar,.builder-layout>.builder-canvas-area,.builder-layout>.inspector{width:100%;height:100%;border:0}.builder-layout[data-mobile-panel="canvas"]>.builder-sidebar,.builder-layout[data-mobile-panel="canvas"]>.inspector,.builder-layout[data-mobile-panel="library"]>.builder-canvas-area,.builder-layout[data-mobile-panel="library"]>.inspector,.builder-layout[data-mobile-panel="inspector"]>.builder-canvas-area,.builder-layout[data-mobile-panel="inspector"]>.builder-sidebar{display:none!important}.builder-layout[data-mobile-panel="canvas"]>.builder-canvas-area{display:flex!important}.builder-layout[data-mobile-panel="library"]>.builder-sidebar,.builder-layout[data-mobile-panel="inspector"]>.inspector{display:block!important;overflow:auto}.canvas-toolbar .pan-hint,.builder-hint{display:none}
- .hardware-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-workspace{display:block}.settings-tabs{position:sticky;top:0;z-index:10;display:flex;overflow-x:auto;margin-bottom:7px}.settings-tab{flex:0 0 140px;width:auto}#page-settings .settings-section>.panel-header{flex-direction:column}
+
+@media (min-width: 901px) and (max-width: 1260px) {
+  #page-settings .settings-workspace { grid-template-columns: 180px minmax(0,1fr); }
+  #page-settings .relay-module-grid,
+  #page-settings .led-channel-grid,
+  #page-settings #sensorGrid { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  #page-settings .hardware-summary-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }
 }
-@media(max-width:520px){.brand-text small::after{content:" · Stellwerk"}.dashboard-plan-panel{height:46dvh;min-height:310px}.operations-grid{grid-template-columns:1fr 1fr}.operation-card{min-height:96px;padding:10px}.hardware-summary-grid{grid-template-columns:1fr 1fr}.hardware-summary-grid>article{min-height:72px}.builder-header-actions #exportPlanButton,.builder-header-actions #validatePlanButton{display:none}.cs3-tile-header{display:none}}
+
+/* System navigation should read as a compact menu, not a tall stretched rail. */
+#page-settings .settings-tab > span:last-child {
+  min-width: 0;
+}
+#page-settings .settings-tab b {
+  font-size: 11px;
+  line-height: 1.2;
+}
+#page-settings .settings-tab small {
+  margin-top: 1px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+#page-settings .settings-tab.active {
+  box-shadow: inset 2px 0 0 currentColor;
+}
+
+/* Relay/sensor cards: channel first, repeated module name removed from every card. */
+.io-channel-card {
+  min-width: 0;
+  gap: 7px !important;
+  padding: 9px !important;
+  border-radius: 10px !important;
+  background: #151d27 !important;
+}
+.io-channel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.055);
+}
+.io-channel-title {
+  min-width: 0;
+}
+.io-channel-title small,
+.io-channel-title strong {
+  display: block;
+  min-width: 0;
+}
+.io-channel-title small {
+  margin-bottom: 2px;
+  color: var(--ds-muted-2);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.io-channel-title strong {
+  overflow: hidden;
+  color: var(--ds-text);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.io-channel-head .badge-on,
+.io-channel-head .badge-off {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+.io-field {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.io-field > span {
+  color: var(--ds-muted);
+  font-size: 8px;
+  line-height: 1.2;
+}
+.io-field > input {
+  width: 100%;
+  min-width: 0;
+}
+.io-channel-action {
+  width: 100%;
+  margin-top: 1px;
+}
+.relay-conflict-warning {
+  padding: 5px 6px;
+  border-radius: 6px;
+  font-size: 8px;
+  line-height: 1.25;
+}
+
+/* Header/picker hierarchy inside settings sections. */
+#page-settings .settings-section > .panel-header {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ds-line);
+}
+#page-settings .settings-section > .panel-header h2 {
+  font-size: 15px;
+}
+#page-settings .settings-section > .panel-header p {
+  font-size: 10px;
+}
+#page-settings .settings-module-picker {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0 0 5px;
+}
+#page-settings .settings-module-picker select {
+  width: min(100%, 360px);
+}
+#page-settings .relay-module-summary {
+  margin-bottom: 8px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(255,255,255,.045);
+}
+
+@media (max-width: 900px) {
+  #page-settings .hardware-center-head,
+  #page-settings .hardware-summary-grid,
+  #page-settings .settings-workspace { width: 100%; }
+  #page-settings .settings-module-picker {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+  #page-settings .settings-module-picker select { width: 100%; }
+  .io-channel-title strong { font-size: 12px; }
+}
+
+
+/* Gleisstrom / Stromabschnitte im Betrieb */
+@media (min-width: 901px) {
+  #page-track.active > .panel {
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto auto;
+  }
+  #page-track .track-plan-wrapper {
+    grid-row: 3 / span 3;
+  }
+  #page-track .cs3-tile-panel { grid-row: 3; }
+  #page-track .track-power-panel { grid-column: 2; grid-row: 4; }
+  #page-track .track-light-panel { grid-column: 2; grid-row: 5; }
+  #page-track #trackMessage { grid-row: 6; }
+}
+#page-track .track-power-panel {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius);
+}
+.track-power-grid { display: grid; gap: 6px; }
+.track-power-section {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 30px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  color: var(--ds-text);
+  text-align: left;
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-line);
+  border-radius: 10px;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+.track-power-section:not(:disabled):hover {
+  background: var(--ds-surface-3);
+  border-color: var(--ds-line-strong);
+}
+.track-power-section:not(:disabled):active { transform: translateY(1px); }
+.track-power-section.on {
+  background: linear-gradient(180deg, rgba(62,170,111,.12), var(--ds-surface-2));
+  border-color: rgba(91,211,139,.34);
+}
+.track-power-section:disabled { cursor: not-allowed; opacity: .6; }
+.track-power-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  color: #8fa5ba;
+  background: rgba(143,165,186,.08);
+  border: 1px solid rgba(143,165,186,.14);
+  border-radius: 8px;
+}
+.track-power-section.on .track-power-icon {
+  color: #76dda3;
+  background: rgba(83,193,130,.1);
+  border-color: rgba(83,193,130,.2);
+}
+.track-power-icon .ui-icon { width: 18px; height: 18px; }
+.track-power-copy { min-width: 0; display: grid; gap: 1px; }
+.track-power-copy strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.track-power-copy small { overflow: hidden; color: var(--ds-muted-2); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.track-power-copy em { overflow: hidden; color: #e6c67b; font-size: 8px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.track-power-state {
+  min-width: 44px;
+  padding: 4px 6px;
+  color: #aeb9c8;
+  font-size: 8px;
+  font-weight: 850;
+  text-align: center;
+  letter-spacing: .06em;
+  background: rgba(110,122,139,.1);
+  border: 1px solid rgba(110,122,139,.18);
+  border-radius: 999px;
+}
+.track-power-section.on .track-power-state {
+  color: #9be6b9;
+  background: rgba(60,166,105,.12);
+  border-color: rgba(79,196,128,.24);
+}
+.track-power-section.pending .track-power-state { color: #f3cd82; }
+.track-power-empty {
+  padding: 8px 9px;
+  color: var(--ds-muted-2);
+  font-size: 9px;
+  line-height: 1.4;
+  background: rgba(255,255,255,.018);
+  border: 1px dashed var(--ds-line);
+  border-radius: 9px;
+}
+
+@media (max-width: 900px) {
+  #page-track .track-power-panel { order: 4; padding: 9px; }
+  #page-track .track-light-panel { order: 5; }
+  #page-track .cs3-tile-panel { order: 6; }
+  #page-track #trackMessage { order: 7; }
+  .track-power-grid { grid-template-columns: 1fr; gap: 7px; }
+  .track-power-section { min-height: 52px; padding: 8px 10px; }
+  .track-power-copy strong { font-size: 12px; }
+  .track-power-copy small, .track-power-copy em { font-size: 9px; }
+  .track-power-state { min-width: 48px; min-height: 28px; display: grid; place-items: center; }
+  #page-track.plan-focus .track-power-panel { display: none; }
+}
+
+/* ========================================================================== */
+/* Betrieb: kompakte Overlay-Steuerung über dem Gleisbild                    */
+/* ========================================================================== */
+#page-track .track-plan-wrapper { position: relative; }
+
+@media (min-width: 901px) {
+  #page-track.active > .panel {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    column-gap: 0;
+  }
+
+  #page-track .track-plan-wrapper {
+    grid-column: 1;
+    grid-row: 3;
+    min-height: 0 !important;
+  }
+
+  #page-track .track-light-panel {
+    grid-column: 1;
+    grid-row: 4;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+  }
+
+  #page-track .track-light-panel .track-section-heading {
+    min-width: 150px;
+    margin: 0;
+  }
+
+  #page-track .track-light-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  #page-track .light-toggle-btn { min-height: 36px; }
+  #page-track #trackMessage { grid-column: 1; grid-row: 5; }
+
+  #page-track .track-plan-overlay {
+    position: absolute;
+    z-index: 25;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, .85fr);
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  #page-track .track-overlay-controls,
+  #page-track .track-overlay-power { min-width: 0; pointer-events: auto; }
+
+  #page-track .cs3-tile-panel,
+  #page-track .track-power-panel {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 7px 8px;
+    overflow: hidden;
+    background: rgba(14, 20, 29, .90);
+    border: 1px solid rgba(73, 91, 116, .72);
+    border-radius: 11px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .22);
+    backdrop-filter: blur(8px);
+  }
+
+  #page-track .cs3-tile-header,
+  #page-track .track-power-panel .track-section-heading {
+    min-height: 20px;
+    margin: 0 0 5px;
+  }
+
+  #page-track .cs3-tile-header strong,
+  #page-track .track-power-panel .track-section-heading strong { font-size: 10px; }
+
+  #page-track .cs3-tile-header span,
+  #page-track .track-power-panel .track-section-heading span,
+  #page-track .track-power-panel .track-section-heading small { font-size: 7px; }
+
+  #page-track .cs3-tile-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(122px, 150px);
+    grid-template-columns: none;
+    gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 0 2px;
+    scrollbar-width: thin;
+  }
+
+  #page-track .cs3-tile {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    min-width: 0;
+    min-height: 54px;
+    height: 54px;
+    padding: 5px 6px;
+    gap: 2px 6px;
+    border-radius: 9px;
+  }
+
+  #page-track .cs3-tile-heading {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    gap: 0;
+    padding: 0;
+    align-content: end;
+  }
+
+  #page-track .cs3-tile-heading b { font-size: 9px; line-height: 1.1; }
+  #page-track .cs3-tile-heading small { display: none; }
+
+  #page-track .cs3-tile-visual {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    min-height: 0;
+    height: 34px;
+    padding: 0;
+    align-self: center;
+  }
+
+  #page-track .control-symbol {
+    width: 34px;
+    max-width: 34px;
+    height: 30px;
+  }
+
+  #page-track .cs3-tile-state {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  #page-track .cs3-tile-state i { width: 5px; height: 5px; }
+  #page-track .cs3-tile-state span { font-size: 8px; }
+  #page-track .cs3-tile-state b { display: none; }
+
+  #page-track .track-power-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(142px, 1fr);
+    grid-template-columns: none;
+    gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  #page-track .track-power-section {
+    min-width: 142px;
+    min-height: 54px;
+    height: 54px;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    gap: 6px;
+    padding: 5px 7px;
+    border-radius: 9px;
+  }
+
+  #page-track .track-power-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+  }
+  #page-track .track-power-icon .ui-icon { width: 14px; height: 14px; }
+  #page-track .track-power-copy strong { font-size: 9px; }
+  #page-track .track-power-copy small { font-size: 7px; }
+  #page-track .track-power-copy em { display: none; }
+  #page-track .track-power-state {
+    min-width: 34px;
+    padding: 3px 4px;
+    font-size: 7px;
+  }
+
+  #page-track.plan-focus .track-plan-overlay { display: none; }
+}
+
+@media (max-width: 900px) {
+  #page-track .track-plan-wrapper { position: relative; }
+  #page-track .track-plan-overlay {
+    position: absolute;
+    z-index: 30;
+    left: 7px;
+    right: 7px;
+    bottom: 7px;
+    display: grid;
+    gap: 6px;
+    pointer-events: none;
+  }
+  #page-track .track-overlay-controls,
+  #page-track .track-overlay-power { min-width: 0; pointer-events: auto; }
+  #page-track .cs3-tile-panel,
+  #page-track .track-power-panel {
+    margin: 0;
+    padding: 6px;
+    background: rgba(13, 18, 26, .93);
+    border: 1px solid rgba(73, 91, 116, .72);
+    border-radius: 10px;
+    backdrop-filter: blur(8px);
+  }
+  #page-track .cs3-tile-header,
+  #page-track .track-power-panel .track-section-heading { margin-bottom: 4px; }
+  #page-track .cs3-tile-header strong,
+  #page-track .track-power-panel .track-section-heading strong { font-size: 10px; }
+  #page-track .cs3-tile-header span,
+  #page-track .track-power-panel .track-section-heading span,
+  #page-track .track-power-panel .track-section-heading small { font-size: 7px; }
+  #page-track .cs3-tile-grid,
+  #page-track .track-power-grid {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 5px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 1px;
+  }
+  #page-track .cs3-tile-grid { grid-auto-columns: 118px; }
+  #page-track .track-power-grid { grid-auto-columns: 138px; }
+  #page-track .cs3-tile {
+    min-height: 52px;
+    height: 52px;
+    padding: 5px;
+  }
+  #page-track .cs3-tile-visual { min-height: 28px; }
+  #page-track .cs3-tile-heading b { font-size: 9px; }
+  #page-track .cs3-tile-heading small,
+  #page-track .cs3-tile-state b { display: none; }
+  #page-track .track-power-section {
+    min-height: 50px;
+    height: 50px;
+    padding: 5px 7px;
+  }
+  #page-track .track-power-copy strong { font-size: 9px; }
+  #page-track .track-power-copy small { font-size: 7px; }
+  #page-track .track-power-copy em { display: none; }
+  #page-track.plan-focus .track-plan-overlay { display: none; }
+}
+
+
+/* Overlay darf den Plan optisch nicht auffressen; die ViewBox reserviert den belegten Bereich. */
+#page-track .track-plan-overlay { max-height: 108px; }
+@media (max-width: 900px) {
+  #page-track .track-plan-overlay { max-height: min(176px, 34dvh); }
+}
+\n\n/* ========================================================================== */\n/* True track fullscreen + transient command feedback                          */\n/* ========================================================================== */\n.track-focus-exit { display: none; }\nbody.track-focus-active { overflow: hidden !important; }\n\n#page-track.plan-focus {\n  position: fixed !important;\n  z-index: 2100 !important;\n  inset: 0 !important;\n  width: 100vw !important;\n  height: 100dvh !important;\n  margin: 0 !important;\n  padding: 0 !important;\n  background: #05080d !important;\n  overflow: hidden !important;\n}\n#page-track.plan-focus > .panel {\n  display: block !important;\n  width: 100% !important;\n  height: 100% !important;\n  min-height: 0 !important;\n  margin: 0 !important;\n  padding: 0 !important;\n  border: 0 !important;\n  border-radius: 0 !important;\n  background: transparent !important;\n  overflow: hidden !important;\n}\n#page-track.plan-focus > .panel > :not(.track-plan-wrapper) {\n  display: none !important;\n}\n#page-track.plan-focus .track-plan-wrapper {\n  position: fixed !important;\n  z-index: 2200 !important;\n  inset: 0 !important;\n  display: block !important;\n  width: 100vw !important;\n  height: 100dvh !important;\n  min-height: 0 !important;\n  margin: 0 !important;\n  padding: 0 !important;\n  border: 0 !important;\n  border-radius: 0 !important;\n  background: #05080d !important;\n  overflow: hidden !important;\n}\n#page-track.plan-focus .track-plan-overlay { display: none !important; }\n#page-track.plan-focus #trackSvg {\n  display: block !important;\n  width: 100% !important;\n  height: 100% !important;\n}\n#page-track.plan-focus .track-focus-exit {\n  position: absolute;\n  z-index: 2300;\n  top: max(12px, env(safe-area-inset-top));\n  right: max(12px, env(safe-area-inset-right));\n  display: inline-flex !important;\n  align-items: center;\n  gap: 7px;\n  min-height: 40px;\n  padding: 8px 12px;\n  color: #eef3fb;\n  background: rgba(16, 22, 31, .9);\n  border: 1px solid rgba(126, 167, 255, .34);\n  border-radius: 10px;\n  box-shadow: 0 8px 28px rgba(0,0,0,.32);\n  backdrop-filter: blur(12px);\n}\n#page-track.plan-focus .track-focus-exit:hover {\n  background: rgba(28, 37, 51, .96);\n  border-color: rgba(126, 167, 255, .56);\n}\n#page-track.plan-focus .track-focus-exit .ui-icon {\n  width: 16px;\n  height: 16px;\n  color: #9fbbff;\n}\n@media (max-width: 900px) {\n  #page-track.plan-focus .track-focus-exit {\n    top: max(8px, env(safe-area-inset-top));\n    right: max(8px, env(safe-area-inset-right));\n    min-height: 38px;\n    padding: 7px 10px;\n  }\n}\n

@@ -34,16 +34,29 @@ export function setupBuilderButtons() {
     });
   });
   const componentSearch = document.getElementById("componentSearch");
-  componentSearch?.addEventListener("input", () => {
-    const query = componentSearch.value.trim().toLocaleLowerCase("de");
-    document.querySelectorAll(".builder-library-group .catalog-group, .builder-control-grid .add-element-button").forEach((item) => {
-      const text = `${item.textContent || ""} ${item.dataset.searchable || ""}`.toLocaleLowerCase("de");
-      item.classList.toggle("search-hidden", Boolean(query && !text.includes(query)));
+  const applyComponentSearch = () => {
+    if (!componentSearch) return;
+    const query = componentSearch.value.trim().toLocaleLowerCase("de-DE");
+    const groups = Array.from(document.querySelectorAll(".builder-library-group"));
+
+    groups.forEach((group) => {
+      const catalogItems = Array.from(group.querySelectorAll(":scope > .catalog-group"));
+      const controlItems = Array.from(group.querySelectorAll(":scope > .builder-control-grid > .add-element-button"));
+      const searchableItems = [...catalogItems, ...controlItems];
+
+      searchableItems.forEach((item) => {
+        const text = `${item.textContent || ""} ${item.dataset.searchable || ""}`.toLocaleLowerCase("de-DE");
+        item.classList.toggle("search-hidden", Boolean(query && !text.includes(query)));
+      });
+
+      if (!searchableItems.length) return;
+      const hasVisibleResult = searchableItems.some((item) => !item.classList.contains("search-hidden"));
+      group.classList.toggle("search-hidden", Boolean(query && !hasVisibleResult));
+      if (query && hasVisibleResult) group.open = true;
     });
-    document.querySelectorAll(".builder-library-group").forEach((group) => {
-      if (query && group.querySelector(":scope > .catalog-group:not(.search-hidden), :scope > .builder-control-grid .add-element-button:not(.search-hidden)")) group.open = true;
-    });
-  });
+  };
+  componentSearch?.addEventListener("input", applyComponentSearch);
+  componentSearch?.addEventListener("search", applyComponentSearch);
   bindPlacementCanvas();
 
   // Save Layout
@@ -66,7 +79,7 @@ export function setupBuilderButtons() {
         }
       } catch (e) {
         console.error(e);
-        showToast("❌ Fehler beim Speichern!", "error");
+        showToast("Fehler beim Speichern!", "error");
       }
     });
   }
@@ -89,7 +102,7 @@ export function setupBuilderButtons() {
         state.selectedElement = null;
         renderCanvas();
         inspectorLeer();
-        showToast("🗑️ Layout geleert");
+        showToast("Layout geleert");
       }
     });
   }

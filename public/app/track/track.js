@@ -3,11 +3,11 @@
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
 import { showToast } from "../ui/toast.js";
-import { commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
+import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
-  localConnectionPorts, worldConnectionPort
+  localConnectionPorts, worldConnectionPort, appendElementHitTarget
 } from "../builder/shapes.js";
 
 function uiType(type) {
@@ -18,6 +18,103 @@ function uiType(type) {
 
 const pendingControlIds = new Set();
 
+const pendingPowerSections = new Set();
+
+function esc(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+}
+
+function relayState(moduleId, channel) {
+  const relay = state.hardware?.modules?.[String(moduleId || "")]?.relays?.[Number(channel || 0) - 1];
+  return typeof relay === "boolean" ? relay : Boolean(relay?.active ?? relay?.state);
+}
+
+function collectPowerSections() {
+  const groups = new Map();
+  const elements = Array.isArray(state.layout?.elemente) ? state.layout.elemente : [];
+  for (const element of elements) {
+    const type = uiType(element.typ);
+    if (!["track", "curve"].includes(type)) continue;
+    if (type === "track" && String(element.trackCode || element.catalogCode || "") === "5112") continue;
+    const moduleId = String(element.module || "");
+    const channel = Number(element.relay || 0);
+    if (!moduleId || channel <= 0) continue;
+    const key = `${moduleId}:${channel}`;
+    if (!groups.has(key)) groups.set(key, { key, moduleId, channel, elements: [], names: [] });
+    const group = groups.get(key);
+    group.elements.push(element);
+    const name = String(element.stromkreis || "").trim();
+    if (name && !group.names.includes(name)) group.names.push(name);
+  }
+  return Array.from(groups.values()).map((section, index) => {
+    const relayCfg = state.relayConfig?.[section.key] || {};
+    const module = state.hardware?.modules?.[section.moduleId];
+    const fallback = String(relayCfg.name || "").trim() || `Stromabschnitt ${index + 1}`;
+    const name = section.names[0] || fallback;
+    const control = moduleControlInfo(section.moduleId);
+    const feedback = commandFeedbackForRelay(section.moduleId, section.channel);
+    return {
+      ...section,
+      name,
+      moduleName: module?.name || section.moduleId,
+      on: relayState(section.moduleId, section.channel) || section.elements.some((element) => Boolean(element.powerState)),
+      control,
+      feedback
+    };
+  });
+}
+
+async function controlPowerSection(key) {
+  const section = collectPowerSections().find((item) => item.key === key);
+  if (!section || pendingPowerSections.has(key)) return;
+  if (!section.control.enabled) {
+    showToast(section.control.reason || "Stromabschnitt nicht schaltbereit", "warning");
+    return;
+  }
+  if (section.feedback?.status === "pending") {
+    showToast("Stromabschnitt wird bereits geschaltet", "warning");
+    return;
+  }
+  const representative = section.elements[0];
+  if (!representative?.id) return;
+  pendingPowerSections.add(key);
+  renderTrackPowerSections();
+  try {
+    const result = await apiCall("/track/control", { method: "POST", body: { elementId: representative.id, toggle: true } });
+    rememberPendingCommands(result);
+  } catch (error) {
+    showToast(error?.message || "Gleisstrom konnte nicht geschaltet werden", "error");
+  } finally {
+    pendingPowerSections.delete(key);
+    renderTrackPowerSections();
+  }
+}
+
+export function renderTrackPowerSections() {
+  const root = document.getElementById("trackPowerGrid");
+  if (!root) return;
+  const sections = collectPowerSections();
+  if (!sections.length) {
+    root.innerHTML = `<div class="track-power-empty">Keine schaltbaren Stromabschnitte. Im Bearbeiten-Modus einem Gleis oder einer Kurve ein Relais zuweisen.</div>`;
+    return;
+  }
+  root.innerHTML = sections.map((section) => {
+    const pending = pendingPowerSections.has(section.key) || section.feedback?.status === "pending";
+    const disabled = !section.control.enabled || pending;
+    const status = pending ? "SCHALTET" : section.on ? "EIN" : "AUS";
+    const detail = `${section.elements.length} ${section.elements.length === 1 ? "Gleiselement" : "Gleiselemente"} · ${section.moduleName} · R${section.channel}`;
+    const feedbackText = section.feedback && section.feedback.status !== "confirmed" ? commandStatusText(section.feedback) : "";
+    return `<button class="track-power-section ${section.on ? "on" : "off"} ${pending ? "pending" : ""}" type="button" data-power-section="${esc(section.key)}" ${disabled ? "disabled" : ""} aria-pressed="${section.on ? "true" : "false"}">
+      <span class="track-power-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=3#icon-power"></use></svg></span>
+      <span class="track-power-copy"><strong>${esc(section.name)}</strong><small>${esc(detail)}</small>${feedbackText ? `<em>${esc(feedbackText)}</em>` : ""}</span>
+      <span class="track-power-state">${status}</span>
+    </button>`;
+  }).join("");
+  root.querySelectorAll("[data-power-section]").forEach((button) => {
+    button.addEventListener("click", () => controlPowerSection(button.dataset.powerSection));
+  });
+}
+
 function catalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
   return (state.catalog?.[group] || []).find((item) => String(item.code) === String(code)) || {};
@@ -27,6 +124,21 @@ function elementCatalogItem(element) {
   const type = uiType(element.typ);
   const group = type === "track" ? "tracks" : type === "curve" ? "curves" : type === "switch" ? "switches" : type === "crossing" ? "crossings" : type === "bumper" ? "bumpers" : "";
   return group ? catalogItem(element, group) : {};
+}
+
+function hasControlAssignment(element) {
+  if (!element || !String(element.module || "")) return false;
+  const type = uiType(element.typ);
+  const channel = (value) => Number(value || 0) > 0;
+  if (type === "track" || type === "curve" || type === "transformer") return channel(element.relay);
+  if (type === "switch") return channel(element.relayStraight) && channel(element.relayBranch);
+  if (type === "crossing") return channel(element.relayA) && channel(element.relayB);
+  if (type === "signal") return channel(element.relayHp0) && channel(element.relayHp1);
+  if (type === "espSignal") {
+    const base = channel(element.ledChannelRed) && channel(element.ledChannelGreen);
+    return base && (element.signalAspectMode !== "rgy" || channel(element.ledChannelYellow));
+  }
+  return false;
 }
 
 function isSensorTriggered(element) {
@@ -54,6 +166,36 @@ function drawOccupancyBadge(group, rotation) {
   group.appendChild(badge);
 }
 
+
+const TRACK_FEEDBACK_TTL_MS = 3000;
+let trackFeedbackExpiryTimer = 0;
+let trackFeedbackExpiryAt = 0;
+
+function trackFeedbackVisible(feedback) {
+  if (!feedback) return false;
+  if (feedback.status === "pending") return true;
+  const updatedAt = Number(feedback.updatedAt || 0);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) return true;
+  return Date.now() - updatedAt < TRACK_FEEDBACK_TTL_MS;
+}
+
+function scheduleTrackFeedbackExpiry(feedback) {
+  if (!feedback || feedback.status === "pending") return;
+  const updatedAt = Number(feedback.updatedAt || 0);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) return;
+  const remaining = TRACK_FEEDBACK_TTL_MS - (Date.now() - updatedAt);
+  if (remaining <= 0) return;
+
+  const expiryAt = updatedAt + TRACK_FEEDBACK_TTL_MS;
+  if (trackFeedbackExpiryTimer && trackFeedbackExpiryAt <= expiryAt) return;
+  if (trackFeedbackExpiryTimer) clearTimeout(trackFeedbackExpiryTimer);
+  trackFeedbackExpiryAt = expiryAt;
+  trackFeedbackExpiryTimer = window.setTimeout(() => {
+    trackFeedbackExpiryTimer = 0;
+    trackFeedbackExpiryAt = 0;
+    renderTrackLayout();
+  }, remaining + 40);
+}
 
 function drawCommandBadge(group, feedback, rotation, disabledReason = "") {
   const text = disabledReason || commandStatusText(feedback);
@@ -195,6 +337,30 @@ async function controlElement(element, group) {
 }
 
 
+function trackOverlayInsets(svgRoot) {
+  const wrapper = svgRoot?.closest(".track-plan-wrapper");
+  const overlay = wrapper?.querySelector(".track-plan-overlay");
+  if (!wrapper || !overlay || getComputedStyle(overlay).display === "none") return { top: 0, bottom: 0 };
+
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const overlayRect = overlay.getBoundingClientRect();
+  if (wrapperRect.height <= 0 || overlayRect.height <= 0) return { top: 0, bottom: 0 };
+
+  const overlapTop = Math.max(wrapperRect.top, overlayRect.top);
+  const overlapBottom = Math.min(wrapperRect.bottom, overlayRect.bottom);
+  const overlapHeight = Math.max(0, overlapBottom - overlapTop);
+  if (overlapHeight <= 0) return { top: 0, bottom: 0 };
+
+  const gap = 10;
+  const maxInset = wrapperRect.height * 0.45;
+  const overlayCenter = (overlayRect.top + overlayRect.bottom) / 2;
+  const wrapperCenter = (wrapperRect.top + wrapperRect.bottom) / 2;
+  if (overlayCenter <= wrapperCenter) {
+    return { top: Math.min(maxInset, Math.max(0, overlayRect.bottom - wrapperRect.top + gap)), bottom: 0 };
+  }
+  return { top: 0, bottom: Math.min(maxInset, Math.max(0, wrapperRect.bottom - overlayRect.top + gap)) };
+}
+
 function fitTrackViewBox(svgRoot, elements) {
   if (!svgRoot || !elements.length) {
     svgRoot?.setAttribute("viewBox", "0 0 1600 900");
@@ -209,8 +375,11 @@ function fitTrackViewBox(svgRoot, elements) {
   let maxY = Math.max(...ys) + padding;
   let width = Math.max(360, maxX - minX);
   let height = Math.max(240, maxY - minY);
+
   const rect = svgRoot.getBoundingClientRect();
-  const aspect = rect.width > 0 && rect.height > 0 ? rect.width / rect.height : 16 / 9;
+  const insets = trackOverlayInsets(svgRoot);
+  const usableHeight = Math.max(140, rect.height - insets.top - insets.bottom);
+  const aspect = rect.width > 0 && usableHeight > 0 ? rect.width / usableHeight : 16 / 9;
   const current = width / height;
   if (current < aspect) {
     const expanded = height * aspect;
@@ -222,7 +391,6 @@ function fitTrackViewBox(svgRoot, elements) {
     height = expanded;
   }
 
-  // Nur wenig Sicherheitsrand: Das Gleisbild soll die verfügbare Fläche ausnutzen.
   const zoomOut = 1.02;
   const extraW = width * (zoomOut - 1);
   const extraH = height * (zoomOut - 1);
@@ -230,6 +398,12 @@ function fitTrackViewBox(svgRoot, elements) {
   minY -= extraH / 2;
   width += extraW;
   height += extraH;
+
+  const topPad = usableHeight > 0 ? height * (insets.top / usableHeight) : 0;
+  const bottomPad = usableHeight > 0 ? height * (insets.bottom / usableHeight) : 0;
+  minY -= topPad;
+  height += topPad + bottomPad;
+
   svgRoot.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
 }
 export function renderTrackLayout() {
@@ -250,38 +424,40 @@ export function renderTrackLayout() {
     const group = svg("g");
     const control = moduleControlInfo(element.module);
     const feedback = commandFeedbackForElement(element.id);
+    const visibleFeedback = trackFeedbackVisible(feedback) ? feedback : null;
     const hardwareInteractive = uiType(element.typ) !== "bumper";
-    const interactive = hardwareInteractive && control.enabled && feedback?.status !== "pending";
+    const controlAssigned = hardwareInteractive && hasControlAssignment(element);
+    const interactive = controlAssigned && control.enabled && feedback?.status !== "pending";
     const rotation = Number(element.rotation ?? element.winkel ?? 0);
     const occupied = isSensorTriggered(element);
     if (hardwareInteractive) group.classList.add("track-control-element");
-    if (!control.enabled && hardwareInteractive) group.classList.add("control-disabled", control.module?.online ? "incompatible" : "offline");
-    if (feedback?.status) group.classList.add(`command-${feedback.status}`);
+    if (hardwareInteractive && !controlAssigned) group.classList.add("control-unconfigured");
+    if (controlAssigned && !control.enabled) group.classList.add("control-disabled", control.module?.online ? "incompatible" : "offline");
+    if (visibleFeedback?.status) group.classList.add(`command-${visibleFeedback.status}`);
     if (pendingControlIds.has(element.id) || feedback?.status === "pending") group.classList.add("busy");
     if (occupied) group.classList.add("sensor-triggered");
     group.dataset.id = element.id;
     group.setAttribute("transform", `translate(${Number(element.x || 0)}, ${Number(element.y || 0)}) rotate(${rotation})`);
-    group.setAttribute("role", hardwareInteractive ? "button" : "img");
-    if (hardwareInteractive) group.setAttribute("tabindex", interactive ? "0" : "-1");
-    if (hardwareInteractive && !interactive) group.setAttribute("aria-disabled", "true");
-    const feedbackText = commandStatusText(feedback);
-    const disabledText = !control.enabled && hardwareInteractive ? control.reason : "";
+    group.setAttribute("role", controlAssigned ? "button" : "img");
+    if (controlAssigned) group.setAttribute("tabindex", interactive ? "0" : "-1");
+    if (controlAssigned && !interactive) group.setAttribute("aria-disabled", "true");
+    const feedbackText = commandStatusText(visibleFeedback);
+    const disabledText = controlAssigned && !control.enabled ? control.reason : "";
+    const unconfiguredText = hardwareInteractive && !controlAssigned ? ", keine Schaltkanäle zugewiesen" : "";
     group.setAttribute("aria-label", hardwareInteractive
-      ? `${element.name || uiType(element.typ)}${occupied ? ", Sensor belegt" : ""}${disabledText ? `, ${disabledText}` : ""}${feedbackText ? `, ${feedbackText}` : ""}`
+      ? `${element.name || uiType(element.typ)}${occupied ? ", Sensor belegt" : ""}${unconfiguredText}${disabledText ? `, ${disabledText}` : ""}${feedbackText ? `, ${feedbackText}` : ""}`
       : `${element.name || "Prellbock"} 5129`);
 
-    const hitbox = svg("rect");
-    const is5141 = uiType(element.typ) === "switch" && elementCatalogItem(element).switchGeometry === "5141";
-    attrs(hitbox, is5141
-      ? { x: -68, y: -55, width: 140, height: 85, fill: "transparent", "pointer-events": "all" }
-      : { x: -80, y: -55, width: 160, height: 115, fill: "transparent", "pointer-events": "all" });
-    group.appendChild(hitbox);
     drawShape(group, element, occupied);
+    if (controlAssigned) appendElementHitTarget(group, element, elementCatalogItem(element), 18);
     if (occupied) drawOccupancyBadge(group, rotation);
     drawTransformerTemperature(group, element, rotation);
     // Verbindungsprobleme werden einmal zentral über dem Gleisbild angezeigt.
     // Direkt am Element erscheinen nur laufende bzw. bestätigte Schaltvorgänge.
-    if (hardwareInteractive && feedback) drawCommandBadge(group, feedback, rotation);
+    if (hardwareInteractive && visibleFeedback) {
+      drawCommandBadge(group, visibleFeedback, rotation);
+      scheduleTrackFeedbackExpiry(visibleFeedback);
+    }
     drawLabel(group, element, rotation);
     if (interactive) group.addEventListener("click", () => controlElement(element, group));
     if (interactive) group.addEventListener("keydown", (event) => {
@@ -291,4 +467,6 @@ export function renderTrackLayout() {
     });
     elementLayer.appendChild(group);
   });
+  renderTrackPowerSections();
+  requestAnimationFrame(() => fitTrackViewBox(document.getElementById("trackSvg"), elements));
 }

@@ -349,6 +349,81 @@ export function drawCrossingShape(g, geometry = {}, xState = "gerade", occupied 
   g.appendChild(positionMarker);
 }
 
+
+export function appendElementHitTarget(g, element, catalogItem = {}, hitWidth = 20) {
+  if (!g || !element) return;
+  const type = element.typ === "xtrack" ? "crossing" : element.typ === "ledSignal" ? "espSignal" : element.typ;
+  const addStroke = (tag, attributes) => {
+    const node = svg(tag);
+    attrs(node, {
+      ...attributes,
+      fill: "none",
+      stroke: "transparent",
+      "stroke-width": hitWidth,
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      "pointer-events": "stroke",
+      class: "element-hit-target"
+    });
+    g.prepend(node);
+  };
+  const addArea = (attributes) => {
+    const node = svg("rect");
+    attrs(node, {
+      ...attributes,
+      fill: "transparent",
+      stroke: "none",
+      "pointer-events": "fill",
+      class: "element-hit-target"
+    });
+    g.prepend(node);
+  };
+
+  if (type === "track") {
+    const half = Math.max(12, Number(catalogItem.length || 180) * .25);
+    addStroke("line", { x1: -half, y1: 0, x2: half, y2: 0 });
+    return;
+  }
+  if (type === "curve") {
+    const radius = Math.max(35, Number(catalogItem.radius || 360) * .5);
+    const angle = Math.max(2, Math.min(90, Number(catalogItem.angleDeg) || 30));
+    const chord = 2 * radius * Math.sin((angle * Math.PI / 180) / 2);
+    addStroke("path", { d: `M ${-chord / 2} 0 A ${radius} ${radius} 0 0 1 ${chord / 2} 0` });
+    return;
+  }
+  if (type === "switch") {
+    const ports = localConnectionPorts(element, catalogItem);
+    const start = ports[0] || { x: -45, y: 0 };
+    for (const end of ports.slice(1)) addStroke("line", { x1: start.x, y1: start.y, x2: end.x, y2: end.y });
+    return;
+  }
+  if (type === "crossing") {
+    const ports = localConnectionPorts(element, catalogItem);
+    if (ports.length >= 4) {
+      addStroke("line", { x1: ports[0].x, y1: ports[0].y, x2: ports[1].x, y2: ports[1].y });
+      addStroke("line", { x1: ports[2].x, y1: ports[2].y, x2: ports[3].x, y2: ports[3].y });
+    }
+    return;
+  }
+  if (type === "bumper") {
+    const length = Math.max(45, Number(catalogItem.length) || 70) * .5;
+    addStroke("line", { x1: -length / 2, y1: 0, x2: length / 2 + 4, y2: 0 });
+    return;
+  }
+  if (type === "signal") {
+    addArea({ x: -22, y: -36, width: 44, height: 106, rx: 10 });
+    return;
+  }
+  if (type === "espSignal") {
+    const threeAspect = element.signalAspectMode === "rgy";
+    addArea({ x: -23, y: threeAspect ? -44 : -36, width: 46, height: threeAspect ? 118 : 106, rx: 10 });
+    return;
+  }
+  if (type === "transformer") {
+    addArea({ x: -52, y: -38, width: 104, height: 76, rx: 10 });
+  }
+}
+
 export function localConnectionPorts(element, catalogItem = {}) {
   const type = element.typ === "xtrack" ? "crossing" : element.typ;
   if (type === "track") {

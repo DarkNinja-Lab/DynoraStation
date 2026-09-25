@@ -45,6 +45,12 @@ function configureApp(app, context) {
   if (env.ENABLE_SECURITY_HEADERS) configureSecurityHeaders(app);
   if (env.CORS_ENABLED) configureCors(app, env);
 
+  // Compatibility for clients with an older cached HTML shell. Keep one physical CSS file.
+  app.get("/station-v4.css", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.redirect(302, "/style.css");
+  });
+
   app.use(express.static(publicDir, {
     etag: true,
     maxAge: env.NODE_ENV === "production" ? "1h" : 0,

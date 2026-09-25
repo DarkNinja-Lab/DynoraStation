@@ -5,7 +5,7 @@ import { showInspector, inspectorLeer } from "./inspect.js";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
-  localConnectionPorts, worldConnectionPort
+  localConnectionPorts, worldConnectionPort, appendElementHitTarget
 } from "./shapes.js";
 import { recordHistory } from "./history.js";
 import { refreshPlanValidation } from "./validation.js";
@@ -261,13 +261,8 @@ function drawElement(root, element, layer) {
   group.dataset.id = element.id;
   group.setAttribute("transform", `translate(${element.x}, ${element.y}) rotate(${element.rotation})`);
 
-  const hitbox = svg("rect");
-  const is5141 = element.typ === "switch" && elementCatalogItem(element).switchGeometry === "5141";
-  attrs(hitbox, is5141
-    ? { x: -68, y: -55, width: 140, height: 85, rx: 12, fill: "transparent", "pointer-events": "all" }
-    : { x: -80, y: -55, width: 160, height: 110, rx: 12, fill: "transparent", "pointer-events": "all" });
-  group.appendChild(hitbox);
   drawElementShape(group, element);
+  appendElementHitTarget(group, element, elementCatalogItem(element), 18);
   if (state.showLabels !== false) drawLabel(group, element, element.rotation);
 
   let drag = null;

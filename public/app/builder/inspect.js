@@ -6,6 +6,7 @@ import { renderCanvas } from "./render.js";
 import { showToast } from "../ui/toast.js";
 import { renderCs3Tiles } from "../ui/render.js";
 import { recordHistory } from "./history.js";
+import { icon } from "../ui/icons.js";
 
 export function showInspector(element) {
   if (!element) return;
@@ -51,7 +52,7 @@ export function showInspector(element) {
     state.selectedElement = null;
     renderCanvas();
     inspectorLeer();
-    showToast("🗑️ Element gelöscht");
+    showToast("Element gelöscht");
   });
 }
 
@@ -63,7 +64,7 @@ function inspectorHtmlForElement(el) {
         <strong>${getTypName(el.typ)}</strong>
         <small>${el.id}</small>
       </div>
-      <button id="inspectorCloseBtn" class="close-button" type="button">×</button>
+      <button id="inspectorCloseBtn" class="close-button" type="button" aria-label="Eigenschaften schließen">${icon("close")}</button>
     </div>
   `;
 
@@ -123,7 +124,7 @@ function inspectorHtmlForElement(el) {
 
   html += `
     <div class="inspector-actions">
-      <button id="inspectorDeleteBtn" class="danger-button" type="button">⌫ Löschen</button>
+      <button id="inspectorDeleteBtn" class="danger-button" type="button">${icon("trash")}<span>Löschen</span></button>
     </div>
   `;
 
@@ -146,7 +147,11 @@ function inspectorTrack(el) {
       ${isUncoupler ? `<label class="inspector-field">
         <span>Impulsdauer (ms)</span>
         <input type="number" id="inspUncouplerDuration" min="100" max="3000" step="50" value="${Math.max(100, Math.min(3000, Number(el.uncouplerDurationMs) || 450))}">
-      </label>` : ""}
+      </label>` : `<label class="inspector-field">
+        <span>Stromabschnitt (optional)</span>
+        <input type="text" id="inspCircuit" list="powerSectionNames" value="${escape(el.stromkreis || "")}" placeholder="z. B. Bahnhof Gleis 1">
+        ${powerSectionDatalist()}
+      </label>`}
 
       <label class="inspector-field">
         <span>Belegtsensor</span>
@@ -174,6 +179,12 @@ function inspectorCurve(el) {
         <select id="inspRelay">
           ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
+      </label>
+
+      <label class="inspector-field">
+        <span>Stromabschnitt (optional)</span>
+        <input type="text" id="inspCircuit" list="powerSectionNames" value="${escape(el.stromkreis || "")}" placeholder="z. B. Nebenbahn">
+        ${powerSectionDatalist()}
       </label>
 
       <label class="inspector-field">
@@ -395,6 +406,9 @@ function saveInspectorChanges(element) {
     case "curve":
       element.relay = parseInt(document.getElementById("inspRelay")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
+      if (!(element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112")) {
+        element.stromkreis = String(document.getElementById("inspCircuit")?.value || "").trim().slice(0, 80);
+      }
       if (element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112") {
         element.uncouplerDurationMs = Math.max(100, Math.min(3000, parseInt(document.getElementById("inspUncouplerDuration")?.value || 450)));
       }
@@ -438,7 +452,7 @@ function saveInspectorChanges(element) {
   state.layoutDirty = true;
   renderCanvas();
   renderCs3Tiles();
-  showToast("✅ Änderungen übernommen");
+  showToast("Änderungen übernommen");
 }
 
 export function inspectorLeer() {
@@ -446,7 +460,7 @@ export function inspectorLeer() {
   if (inspector) {
     inspector.innerHTML = `
       <div class="inspector-empty">
-        <div class="inspector-empty-icon">◇</div>
+        <div class="inspector-empty-icon">${icon("empty")}</div>
         <strong>Kein Element ausgewählt</strong>
         <span>Klicke ein Element an zum Bearbeiten.</span>
       </div>
@@ -468,6 +482,15 @@ function getTypName(typ) {
     transformer: "Transformator"
   };
   return map[typ] || "Element";
+}
+
+function powerSectionDatalist() {
+  const names = Array.from(new Set((state.layout?.elemente || [])
+    .map((element) => String(element?.stromkreis || "").trim())
+    .filter(Boolean)))
+    .sort((a, b) => a.localeCompare(b, "de"));
+  if (!names.length) return "";
+  return `<datalist id="powerSectionNames">${names.map((name) => `<option value="${escape(name)}"></option>`).join("")}</datalist>`;
 }
 
 function escape(str) {

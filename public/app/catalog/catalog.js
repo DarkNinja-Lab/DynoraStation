@@ -2,6 +2,7 @@
 
 import { state } from "../core/state.js";
 import { apiCall } from "../core/api.js";
+import { icon } from "../ui/icons.js";
 
 export async function katalogLaden() {
   try {
@@ -40,13 +41,13 @@ function imageMarkup(item, className, deferred = false) {
     : `<img class="${className}" src="${image}" alt="" decoding="async">`;
 }
 
-function itemSymbol(kind, item) {
-  if (kind === "track" && item.trackStyle === "uncoupler") return "⇡";
-  if (kind === "curve") return "⌒";
-  if (kind === "switch") return item.handed === "right" ? "⑃" : "⑂";
-  if (kind === "crossing") return "╳";
-  if (kind === "bumper") return "⊣";
-  return "━";
+function itemIcon(kind, item) {
+  if (kind === "track" && item.trackStyle === "uncoupler") return "uncoupler";
+  if (kind === "curve") return "track-curve";
+  if (kind === "switch") return item.handed === "right" ? "turnout-right" : "turnout-left";
+  if (kind === "crossing") return "crossing";
+  if (kind === "bumper") return "bumper";
+  return "track-straight";
 }
 
 function itemMeta(item, kind) {
@@ -74,21 +75,21 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
       <button class="custom-select-btn" type="button" aria-haspopup="listbox" aria-expanded="false">
         <span class="custom-select-value">
           ${imageMarkup(first, "custom-select-thumb", false)}
-          <span class="custom-select-symbol" aria-hidden="true">${itemSymbol(kind, first)}</span>
+          <span class="custom-select-symbol" aria-hidden="true">${icon(itemIcon(kind, first), "ui-icon catalog-svg-icon")}</span>
           <span>
             <span class="custom-select-title">${first.label}</span>
             <small class="custom-select-meta">${itemMeta(first, kind)}</small>
           </span>
         </span>
-        <span class="custom-select-caret">▾</span>
+        <span class="custom-select-caret">${icon("chevron-down")}</span>
       </button>
       <div class="custom-select-list hidden" role="listbox">
         ${items.map((item, index) => `
           <button class="custom-select-item ${index === 0 ? "active" : ""}" type="button" role="option"
-                  data-value="${itemCode(item)}" data-meta="${itemMeta(item, kind)}" data-image="${itemImage(item)}" data-symbol="${itemSymbol(kind, item)}">
+                  data-value="${itemCode(item)}" data-meta="${itemMeta(item, kind)}" data-image="${itemImage(item)}" data-icon="${itemIcon(kind, item)}">
             <span class="custom-select-item-visual" aria-hidden="true">
               ${imageMarkup(item, "custom-select-item-thumb", true)}
-              <span class="custom-select-item-symbol">${itemSymbol(kind, item)}</span>
+              <span class="custom-select-item-symbol">${icon(itemIcon(kind, item), "ui-icon catalog-svg-icon")}</span>
             </span>
             <span class="custom-select-item-text">
               <b>${item.label}</b>
@@ -144,7 +145,7 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
     } else {
       thumb.removeAttribute("src");
       thumb.classList.add("hidden");
-      selectedSymbol.textContent = option.dataset.symbol || "━";
+      selectedSymbol.innerHTML = icon(option.dataset.icon || "track-straight", "ui-icon catalog-svg-icon");
       selectedSymbol.classList.remove("hidden");
     }
     list.querySelectorAll(".custom-select-item").forEach((x) => x.classList.toggle("active", x === option));

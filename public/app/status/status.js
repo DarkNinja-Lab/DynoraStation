@@ -5,7 +5,7 @@ import { state } from "../core/state.js";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js";
 import { refreshSettingsHardwareStatus } from "../ui/events.js";
 import { renderTrackLightButtons } from "../track/lights.js";
-import { renderTrackLayout } from "../track/track.js";
+import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js";
 import { layoutNormalisieren } from "../layout/layout.js";
 
 function escapeHtml(value) {
@@ -282,6 +282,7 @@ export async function statusLaden({ ruhig = true } = {}) {
     if (settingsSnapshotIsFresh && !state.settingsDirty?.relays) {
       state.relayConfig = {};
       for (const r of hwRelays) state.relayConfig[`${r.module}:${r.channel}`] = { name: r.name || "", role: r.role || "" };
+      renderTrackPowerSections();
     }
     const hwSensors = Array.isArray(data?.hardware?.sensors) ? data.hardware.sensors : [];
     if (settingsSnapshotIsFresh && !state.settingsDirty?.sensors) {

@@ -117,7 +117,7 @@ export function initializeTools() {
   if (duplicateBtn) {
     duplicateBtn.addEventListener("click", () => {
       if (!state.selectedElement) {
-        showToast("⚠️ Bitte zuerst Element auswählen!", "warning");
+        showToast("Bitte zuerst Element auswählen!", "warning");
         return;
       }
       duplicateElement();
@@ -129,7 +129,7 @@ export function initializeTools() {
   if (rotateLeftBtn) {
     rotateLeftBtn.addEventListener("click", () => {
       if (!state.selectedElement) {
-        showToast("⚠️ Bitte zuerst Element auswählen!", "warning");
+        showToast("Bitte zuerst Element auswählen!", "warning");
         return;
       }
       rotateElement(-15);
@@ -141,7 +141,7 @@ export function initializeTools() {
   if (rotateRightBtn) {
     rotateRightBtn.addEventListener("click", () => {
       if (!state.selectedElement) {
-        showToast("⚠️ Bitte zuerst Element auswählen!", "warning");
+        showToast("Bitte zuerst Element auswählen!", "warning");
         return;
       }
       rotateElement(15);
@@ -153,7 +153,7 @@ export function initializeTools() {
   if (deleteBtn) {
     deleteBtn.addEventListener("click", () => {
       if (!state.selectedElement) {
-        showToast("⚠️ Bitte zuerst Element auswählen!", "warning");
+        showToast("Bitte zuerst Element auswählen!", "warning");
         return;
       }
       deleteElement();
@@ -265,7 +265,7 @@ function duplicateElement() {
   state.selectedElement = newElement.id;
   state.layoutDirty = true;
   renderCanvas();
-  showToast("✅ Element dupliziert");
+  showToast("Element dupliziert");
 }
 
 function rotateElement(degrees) {
@@ -276,7 +276,7 @@ function rotateElement(degrees) {
   el.rotation = (el.rotation + degrees) % 360;
   state.layoutDirty = true;
   renderCanvas();
-  showToast(`↻ Rotiert um ${degrees}°`);
+  showToast(`Rotiert um ${degrees}°`);
 }
 
 function deleteElement() {
@@ -292,7 +292,7 @@ function deleteElement() {
   state.layoutDirty = true;
   state.selectedElement = null;
   renderCanvas();
-  showToast("🗑️ Element gelöscht");
+  showToast("Element gelöscht");
 }
 
 function updateZoom() {
