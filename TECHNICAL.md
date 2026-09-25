@@ -22,6 +22,8 @@ installer/DynoraStation-Windows.cmd
 
 Die komplette Installations-, Update- und Deinstallationslogik steckt in diesen beiden Dateien. Separate Root-Skripte wie `install.sh`, `update.sh`, `uninstall.sh` oder `install.ps1` existieren nicht mehr. Auch ein separater `release/`-Quellordner ist nicht erforderlich.
 
+Die Release-Quelle ist in beiden Installern fest auf `DarkNinja-Lab/DynoraStation` gesetzt. Weder interaktive Repository-Abfragen noch `--repo`-Overrides oder `DYNORA_RELEASE_REPO` werden unterstützt. Installation, Reparatur und Updates verwenden dadurch immer die offiziellen Release-Artefakte dieses Repositorys.
+
 Der GitHub-Workflow `.github/workflows/release.yml` wird bei `v*`-Tags ausgeführt. Er prüft, dass der Tag zur Version in `package.json` passt, installiert Abhängigkeiten, führt `npm test`, Shell-/PowerShell-Parserchecks und JavaScript-Syntaxchecks aus und baut danach:
 
 ```text
@@ -45,6 +47,8 @@ Die Runtime-Archive enthalten weder `.git`, `.github`, `node_modules`, `data`, `
 ```bash
 ./DynoraStation-Linux.sh
 ```
+
+Beim Start ohne Argumente wird der gespeicherte Installationspfad aus `/etc/dynorastation/installer.conf` berücksichtigt und anhand von `package.json` plus `src/server.js` geprüft, ob DynoraStation installiert ist. Ohne Installation zeigt das Menü nur **Installieren / Abbrechen**; bei vorhandener Installation **Aktualisieren / Reparieren / Deinstallieren / Abbrechen**. Eine Reparatur übernimmt die gespeicherten Installationsparameter als Vorgaben.
 
 Direkte Aktionen:
 
@@ -70,6 +74,8 @@ Wenn nginx aktiviert wird, setzt eine neu erzeugte `.env` `TRUST_PROXY=true`. Oh
 ## Windows: Installieren, Aktualisieren, Entfernen
 
 Öffentlicher Einstieg ist ausschließlich `DynoraStation-Windows.cmd`. Die Datei besteht aus einem kleinen CMD-Bootstrap und einer direkt eingebetteten PowerShell-Implementierung. Der Bootstrap extrahiert diesen Abschnitt zur Laufzeit in eine temporäre `.ps1`, führt ihn aus und löscht die temporäre Datei anschließend wieder. Im Repository und im Runtime-Paket existiert keine separate PowerShell-Installerdatei.
+
+Beim Start per Doppelklick liest die eingebettete PowerShell zuerst `%ProgramData%\DynoraStation-installer\config.json`, ermittelt damit den tatsächlichen Installationspfad und prüft dort `package.json` sowie `src\server.js`. Das Menü zeigt anschließend nur die zum Zustand passenden Aktionen.
 
 Beispiele:
 

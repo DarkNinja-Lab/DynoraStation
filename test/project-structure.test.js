@@ -51,6 +51,39 @@ test("Browser-Mutationen sind bei deaktiviertem CORS Same-Origin-geschützt", ()
   assert.match(app, /key: \(_req, ip\) => ip/);
 });
 
+test("Installer-Menüs reagieren auf den Installationsstatus", () => {
+  const linux = read("installer/DynoraStation-Linux.sh");
+  const windows = read("installer/DynoraStation-Windows.cmd");
+
+  assert.match(linux, /is_installed\(\) \{[\s\S]*?package\.json[\s\S]*?src\/server\.js/);
+  assert.match(linux, /Status: Installiert[\s\S]*?Aktualisieren[\s\S]*?Reparieren \/ darüber installieren[\s\S]*?Deinstallieren/);
+  assert.match(linux, /Status: Nicht installiert[\s\S]*?Installieren[\s\S]*?Abbrechen/);
+  assert.match(linux, /install_action\(\) \{[\s\S]*?if \[ -f "\$CONFIG_FILE" \]; then[\s\S]*?load_config/, "Reparatur muss gespeicherte Installationsparameter übernehmen");
+  assert.match(
+    linux,
+    /choose_action\(\) \{[\s\S]*?\} >&2[\s\S]*?IFS= read -r choice/,
+    "Linux-Menü und Prompt müssen auf stderr geschrieben werden, damit ACTION=$(choose_action) nur die Aktion einfängt"
+  );
+
+  assert.match(windows, /set "DYNORA_ARGS=menu"/);
+  assert.match(windows, /function Test-DynoraInstalled[\s\S]*?package\.json[\s\S]*?src\\server\.js/);
+  assert.match(windows, /Status: Installiert[\s\S]*?Aktualisieren[\s\S]*?Reparieren \/ darueber installieren[\s\S]*?Deinstallieren/);
+  assert.match(windows, /Status: Nicht installiert[\s\S]*?Installieren[\s\S]*?Abbrechen/);
+});
+
+
+test("Installer verwenden ausschließlich das feste DynoraStation-Repository", () => {
+  const linux = read("installer/DynoraStation-Linux.sh");
+  const windows = read("installer/DynoraStation-Windows.cmd");
+  const expectedRepo = "DarkNinja-Lab/DynoraStation";
+
+  assert.match(linux, new RegExp(`FIXED_RELEASE_REPO="${expectedRepo}"`));
+  assert.match(windows, new RegExp(`\\$ReleaseRepo = '${expectedRepo}'`));
+  for (const source of [linux, windows]) {
+    assert.doesNotMatch(source, /__GITHUB_REPOSITORY__|DYNORA_RELEASE_REPO|--repo|GitHub Repository \(OWNER\/REPO\)/);
+  }
+});
+
 test("öffentliche Installer erzwingen SHA-256-Prüfung", () => {
   const linux = read("installer/DynoraStation-Linux.sh");
   const windows = read("installer/DynoraStation-Windows.cmd");

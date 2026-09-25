@@ -15,7 +15,7 @@ chmod +x DynoraStation-Linux.sh
 ./DynoraStation-Linux.sh
 ```
 
-Ohne Parameter erscheint ein Menü für **Installieren / darüber installieren**, **Aktualisieren** und **Deinstallieren**. Direkt geht es ebenfalls:
+Ohne Parameter erkennt der Installer zuerst den Installationsstatus. Ist DynoraStation noch nicht installiert, werden nur **Installieren** und **Abbrechen** angeboten. Bei einer vorhandenen Installation erscheinen **Aktualisieren**, **Reparieren / darüber installieren**, **Deinstallieren** und **Abbrechen**. Direkt geht es ebenfalls:
 
 ```bash
 ./DynoraStation-Linux.sh install
@@ -39,7 +39,7 @@ Der Updater erstellt vor Änderungen ein Backup, führt Syntaxchecks, Tests und 
 
 ### Windows 10 / 11
 
-`DynoraStation-Windows.cmd` herunterladen und per Doppelklick starten. Das Menü bietet **Installieren / darüber installieren**, **Aktualisieren** und **Deinstallieren**. Alternativ in `cmd.exe`:
+`DynoraStation-Windows.cmd` herunterladen und per Doppelklick starten. Auch unter Windows erkennt das Menü den Installationsstatus: ohne Installation gibt es **Installieren / Abbrechen**, mit vorhandener Installation **Aktualisieren**, **Reparieren / darüber installieren**, **Deinstallieren** und **Abbrechen**. Alternativ in `cmd.exe`:
 
 ```bat
 DynoraStation-Windows.cmd install
@@ -64,23 +64,23 @@ Bei einem Tag wie `v3.1.2` prüft `.github/workflows/release.yml` Version, Tests
 
 `SHA256SUMS.txt` enthält Prüfsummen für beide Runtime-Archive und beide Installer. Die Runtime-Pakete enthalten den Ordner `installer/` nicht; Installer und Anwendungscode bleiben damit sauber getrennt.
 
-Es gibt keinen `release/`-Quellordner mehr. Der Workflow baut alle Release-Artefakte direkt aus dem Repository und ersetzt in den beiden Installern `__GITHUB_REPOSITORY__` durch das aktuelle Repository.
+Es gibt keinen `release/`-Quellordner mehr. Der Workflow baut alle Release-Artefakte direkt aus dem Repository. Beide Installer verwenden fest `DarkNinja-Lab/DynoraStation` als Release-Quelle; eine Repository-Abfrage oder `--repo`-Option gibt es nicht.
 
 ## Installation direkt aus dem Repository
 
-Auch aus einem Checkout werden nur die beiden Dateien unter `installer/` verwendet. Da der Repository-Platzhalter dort noch nicht durch den Release-Workflow ersetzt wurde, muss das GitHub-Repository angegeben werden:
+Auch aus einem Checkout werden nur die beiden Dateien unter `installer/` verwendet. Beide Installer laden das aktuelle Runtime-Release immer aus `https://github.com/DarkNinja-Lab/DynoraStation`; eine Repository-Auswahl ist nicht erforderlich.
 
 ```bash
-sudo ./installer/DynoraStation-Linux.sh install --repo OWNER/REPO
+sudo ./installer/DynoraStation-Linux.sh install
 ```
 
 Unter Windows:
 
 ```bat
-installer\DynoraStation-Windows.cmd install --repo OWNER/REPO
+installer\DynoraStation-Windows.cmd install
 ```
 
-Die Installer laden anschließend das aktuelle Runtime-Release. Für reine Entwicklung ist kein Installer nötig.
+Für reine Entwicklung ist kein Installer nötig.
 
 ## Entwicklung
 
