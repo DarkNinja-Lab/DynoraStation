@@ -63,13 +63,36 @@ test("Browser-Mutationen sind bei deaktiviertem CORS Same-Origin-geschützt", ()
   assert.match(app, /key: \(_req, ip\) => ip/);
 });
 
-test("Dokumentation beschreibt Release-only Installer und main als Updatekanal", () => {
+test("Dokumentation liegt zentral unter docs und beschreibt den Release-Kanal", () => {
+  const requiredDocs = [
+    "docs/README.md",
+    "docs/INSTALLATION.md",
+    "docs/CONFIGURATION.md",
+    "docs/OPERATIONS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/API.md",
+    "docs/HARDWARE.md",
+    "docs/SECURITY.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/DEVELOPMENT.md",
+    "docs/RELEASES.md",
+    "esp8266_code/README.md",
+    "esp8266_code/MCP23017_ANSCHLUSS.md",
+  ];
+  for (const relativePath of requiredDocs) {
+    assert.equal(fs.existsSync(path.join(root, relativePath)), true, `${relativePath} fehlt`);
+  }
+
+  assert.equal(fs.existsSync(path.join(root, "TECHNICAL.md")), false);
+
   const readme = read("README.md");
-  const technical = read("TECHNICAL.md");
-  for (const source of [readme, technical]) {
+  const installation = read("docs/INSTALLATION.md");
+  const releases = read("docs/RELEASES.md");
+  for (const source of [readme, installation, releases]) {
     assert.match(source, /DarkNinja-Lab\/DynoraStation/);
     assert.match(source, /main/);
   }
-  assert.match(readme, /ausschließlich[\s\S]*DynoraStation-Linux\.sh[\s\S]*DynoraStation-Windows\.cmd/i);
-  assert.match(readme, /keine Runtime-Archive/);
+  assert.match(readme, /DynoraStation-Linux\.sh/);
+  assert.match(readme, /DynoraStation-Windows\.cmd/);
+  assert.match(releases, /Runtime-ZIPs/);
 });
