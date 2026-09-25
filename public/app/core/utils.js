@@ -1,6 +1,6 @@
 "use strict";
 
-import { CONST } from "./state.js";
+import { CONST } from "./state.js?v=mobile-v5-cachefix";
 
 export function clone(v) { return JSON.parse(JSON.stringify(v)); }
 export function nummer(v, d) { const n = Number(v); return Number.isFinite(n) ? n : d; }

@@ -1,8 +1,8 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { renderCanvas, canvasSize } from "./render.js";
-import { showToast } from "../ui/toast.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { renderCanvas, canvasSize } from "./render.js?v=mobile-v5-cachefix";
+import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));

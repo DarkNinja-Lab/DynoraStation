@@ -1,11 +1,11 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { renderCanvas, canvasSize } from "./render.js";
-import { showToast } from "../ui/toast.js";
-import { recordHistory } from "./history.js";
-import { cancelPlacement, rotatePlacement } from "./canvas.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { renderCanvas, canvasSize } from "./render.js?v=mobile-v5-cachefix";
+import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
+import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
+import { cancelPlacement, rotatePlacement } from "./canvas.js?v=mobile-v5-cachefix";
 
 
 function isTypingTarget(target) {

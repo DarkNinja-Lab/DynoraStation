@@ -1,6 +1,6 @@
 "use strict";
 
-import { state } from "./state.js";
+import { state } from "./state.js?v=mobile-v5-cachefix";
 
 function commandTime(command) {
   return Number(command?.createdAt || command?.updatedAt || 0);

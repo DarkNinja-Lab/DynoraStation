@@ -1,9 +1,9 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js";
-import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js";
-import { icon } from "./icons.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=mobile-v5-cachefix";
+import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=mobile-v5-cachefix";
+import { icon } from "./icons.js?v=mobile-v5-cachefix";
 
 function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
 

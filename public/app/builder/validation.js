@@ -1,7 +1,7 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { icon } from "../ui/icons.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
 
 const TRACK_TYPES = new Set(["track", "curve", "switch", "crossing", "xtrack", "bumper"]);
 

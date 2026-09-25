@@ -1,12 +1,12 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { renderCanvas } from "./render.js";
-import { showToast } from "../ui/toast.js";
-import { renderCs3Tiles } from "../ui/render.js";
-import { recordHistory } from "./history.js";
-import { icon } from "../ui/icons.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { renderCanvas } from "./render.js?v=mobile-v5-cachefix";
+import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
+import { renderCs3Tiles } from "../ui/render.js?v=mobile-v5-cachefix";
+import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
+import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
 
 export function showInspector(element) {
   if (!element) return;

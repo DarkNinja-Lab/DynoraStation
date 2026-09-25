@@ -1,14 +1,14 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { showInspector, inspectorLeer } from "./inspect.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { showInspector, inspectorLeer } from "./inspect.js?v=mobile-v5-cachefix";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "./shapes.js";
-import { recordHistory } from "./history.js";
-import { refreshPlanValidation } from "./validation.js";
+} from "./shapes.js?v=mobile-v5-cachefix";
+import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
+import { refreshPlanValidation } from "./validation.js?v=mobile-v5-cachefix";
 
 export function canvasSize() {
   return {

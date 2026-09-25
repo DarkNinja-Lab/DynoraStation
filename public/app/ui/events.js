@@ -1,13 +1,13 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { renderTrackLightButtons } from "../track/lights.js";
-import { renderRulesGrid } from "../rules/rules.js";
-import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js";
-import { renderTrackLayout } from "../track/track.js";
-import { showToast } from "./toast.js";
-import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { renderTrackLightButtons } from "../track/lights.js?v=mobile-v5-cachefix";
+import { renderRulesGrid } from "../rules/rules.js?v=mobile-v5-cachefix";
+import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=mobile-v5-cachefix";
+import { renderTrackLayout } from "../track/track.js?v=mobile-v5-cachefix";
+import { showToast } from "./toast.js?v=mobile-v5-cachefix";
+import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }

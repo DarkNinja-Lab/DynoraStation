@@ -1,8 +1,8 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { icon } from "../ui/icons.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
 
 function esc(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");

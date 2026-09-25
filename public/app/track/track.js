@@ -1,14 +1,14 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { showToast } from "../ui/toast.js";
-import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
+import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "../builder/shapes.js";
+} from "../builder/shapes.js?v=mobile-v5-cachefix";
 
 function uiType(type) {
   if (type === "xtrack") return "crossing";
@@ -19,6 +19,20 @@ function uiType(type) {
 const pendingControlIds = new Set();
 
 const pendingPowerSections = new Set();
+
+let trackViewportFrame = 0;
+function scheduleTrackViewportRefit() {
+  if (trackViewportFrame) cancelAnimationFrame(trackViewportFrame);
+  trackViewportFrame = requestAnimationFrame(() => {
+    trackViewportFrame = 0;
+    if (!document.getElementById("page-track")?.classList.contains("active")) return;
+    renderTrackLayout();
+  });
+}
+
+window.addEventListener("resize", scheduleTrackViewportRefit, { passive: true });
+window.addEventListener("orientationchange", scheduleTrackViewportRefit, { passive: true });
+window.visualViewport?.addEventListener("resize", scheduleTrackViewportRefit, { passive: true });
 
 function esc(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");

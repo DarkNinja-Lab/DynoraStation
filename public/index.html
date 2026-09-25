@@ -2,14 +2,17 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0b0c0f">
   <meta name="color-scheme" content="dark">
   <title>DynoraStation • Märklin M-Gleis Steuerung</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/style.css?v=maximize-2">
+  <link rel="manifest" href="/manifest.webmanifest?v=mobile-v5-cachefix">
+  <link rel="stylesheet" href="/style.css?v=mobile-v5-cachefix">
 </head>
 <body>
   <div class="app-shell">
@@ -23,31 +26,31 @@
       </div>
 
       <nav class="main-nav" aria-label="Hauptnavigation">
-        <button class="nav-button active" data-page="dashboard" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-dashboard"></use></svg></span><span class="nav-copy"><b>Übersicht</b></span></button>
-        <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stellwerk"></use></svg></span><span class="nav-copy"><b>Betrieb</b></span></button>
-        <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-settings"></use></svg></span><span class="nav-copy"><b>System</b></span></button>
-        <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-logbook"></use></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
+        <button class="nav-button active" data-page="dashboard" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-dashboard"></use></svg></span><span class="nav-copy"><b>Übersicht</b></span></button>
+        <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-stellwerk"></use></svg></span><span class="nav-copy"><b>Betrieb</b></span></button>
+        <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-settings"></use></svg></span><span class="nav-copy"><b>System</b></span></button>
+        <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-logbook"></use></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
       </nav>
 
       <div class="global-actions">
         <span id="lastSyncStatus" class="last-sync"><i aria-hidden="true"></i> Synchronisierung läuft</span>
         <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
         <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span> Geräte</button>
-        <button id="emergencyButton" class="danger-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stop"></use></svg><span>NOT-AUS</span></button>
+        <button id="emergencyButton" class="danger-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-stop"></use></svg><span>NOT-AUS</span></button>
       </div>
     </header>
 
     <aside class="system-drawer" id="sidebar" aria-label="Gerätecenter">
-      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-close"></use></svg></button></div>
+      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-close"></use></svg></button></div>
       <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">WebServer wird geladen</strong><small>Systemverbindung</small></div></div>
       <div class="sidebar-esp-box"><div class="sidebar-esp-title"><span>ESP-Module</span><small>Live</small></div><div id="sidebarEspList" class="sidebar-esp-list"><div class="sidebar-esp-empty">Noch kein ESP verbunden.</div></div></div>
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
-      <button class="mobile-nav-button active" data-page-link="dashboard" type="button" aria-label="Übersicht öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-dashboard"></use></svg></span><small>Übersicht</small></button>
-      <button class="mobile-nav-button" data-page-link="track" type="button" aria-label="Betrieb öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-stellwerk"></use></svg></span><small>Betrieb</small></button>
-      <button class="mobile-nav-button" data-page-link="settings" type="button" aria-label="System öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-settings"></use></svg></span><small>System</small></button>
-      <button class="mobile-nav-button" data-page-link="events" type="button" aria-label="Logbuch öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-logbook"></use></svg></span><small>Logbuch</small></button>
+      <button class="mobile-nav-button active" data-page-link="dashboard" type="button" aria-label="Übersicht öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-dashboard"></use></svg></span><small>Übersicht</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button" aria-label="Betrieb öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-stellwerk"></use></svg></span><small>Betrieb</small></button>
+      <button class="mobile-nav-button" data-page-link="settings" type="button" aria-label="System öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-settings"></use></svg></span><small>System</small></button>
+      <button class="mobile-nav-button" data-page-link="events" type="button" aria-label="Logbuch öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-logbook"></use></svg></span><small>Logbuch</small></button>
     </nav>
 
     <main class="main-area">
@@ -65,13 +68,13 @@
       <section id="page-dashboard" class="page active">
         <div class="dashboard-workspace">
           <section class="panel dashboard-plan-panel">
-            <div class="panel-header"><div><div class="eyebrow">ANALOG-STELLWERK · MÄRKLIN M-GLEIS</div><h2>Betriebsbild</h2><p>Fahrwege, Rückmelder und Schaltzustände auf einen Blick.</p></div><button class="text-button" data-page-link="track" type="button">Öffnen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
+            <div class="panel-header"><div><div class="eyebrow">ANALOG-STELLWERK · MÄRKLIN M-GLEIS</div><h2>Betriebsbild</h2><p>Fahrwege, Rückmelder und Schaltzustände auf einen Blick.</p></div><button class="text-button" data-page-link="track" type="button">Öffnen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-right"></use></svg></button></div>
             <div class="dashboard-plan"><svg id="dashboardTrackSvg" viewBox="0 0 1600 900" aria-label="Vorschau des Gleisbilds"><g id="dashboardTrackElements"></g><text id="dashboardTrackEmpty" x="800" y="450" text-anchor="middle">Noch kein Gleisbild erstellt</text></svg></div>
           </section>
           <aside class="dashboard-control-stack">
             <section class="dashboard-commandbar">
               <div class="commandbar-status"><span class="dashboard-live-dot"></span><div><span class="commandbar-kicker">ANLAGENSTATUS</span><strong>Betriebszentrale</strong><small id="dashboardSummary">Systemstatus wird geladen …</small></div></div>
-              <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-play"></use></svg><span>Steuerung starten</span></button><button class="secondary-button" data-page-link="settings" type="button">System prüfen</button></div>
+              <div class="dashboard-command-actions"><button class="primary-button" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-play"></use></svg><span>Steuerung starten</span></button><button class="secondary-button" data-page-link="settings" type="button">System prüfen</button></div>
             </section>
             <div class="operations-grid">
               <article class="operation-card server"><div class="operation-card-head"><i aria-hidden="true">SYS</i><span>Server</span></div><strong id="serverCardStatus">OFFLINE</strong><small>API-Verbindung</small><span class="metric-line"></span></article>
@@ -84,11 +87,11 @@
         </div>
         <div class="dashboard-lower">
           <section class="panel dashboard-modules-panel">
-            <div class="panel-header"><div><div class="eyebrow">GERÄTE</div><h2>Verbundene Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
+            <div class="panel-header"><div><div class="eyebrow">GERÄTE</div><h2>Verbundene Module</h2></div><button class="text-button" data-page-link="settings" type="button">Verwalten <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-right"></use></svg></button></div>
             <div id="dashboardModuleList" class="dashboard-module-list"></div>
           </section>
           <section class="panel dashboard-events-panel">
-            <div class="panel-header"><div><div class="eyebrow">LOGBUCH</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle anzeigen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button></div>
+            <div class="panel-header"><div><div class="eyebrow">LOGBUCH</div><h2>Letzte Ereignisse</h2></div><button class="text-button" data-page-link="events" type="button">Alle anzeigen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-right"></use></svg></button></div>
             <div id="dashboardEventList" class="dashboard-event-list"></div>
           </section>
         </div>
@@ -104,19 +107,19 @@
             </div>
             <div class="builder-header-actions">
               <span id="layoutMessage" class="builder-message" aria-live="polite"></span>
-              <button id="exitEditModeButton" class="secondary-button edit-mode-exit" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-left"></use></svg><span>Betrieb</span></button>
+              <button id="exitEditModeButton" class="secondary-button edit-mode-exit" data-page-link="track" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-left"></use></svg><span>Betrieb</span></button>
               <button id="validatePlanButton" class="plan-check-button secondary-button" type="button" aria-controls="planValidationPanel" aria-expanded="false"><span>Planprüfung</span><b id="planIssueCount">0</b></button>
               <button id="exportPlanButton" class="secondary-button" type="button">Bauplan exportieren</button>
               <button id="saveLayoutButton" class="primary-button" type="button">Plan speichern</button>
-              <button id="undoButton" class="tool-button" type="button" aria-label="Rückgängig"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-undo"></use></svg></button>
-              <button id="redoButton" class="tool-button" type="button" aria-label="Wiederholen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-redo"></use></svg></button>
+              <button id="undoButton" class="tool-button" type="button" aria-label="Rückgängig"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-undo"></use></svg></button>
+              <button id="redoButton" class="tool-button" type="button" aria-label="Wiederholen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-redo"></use></svg></button>
             </div>
           </div>
 
           <section id="planValidationPanel" class="plan-validation-panel" aria-label="Planprüfung" hidden>
             <div class="plan-validation-head">
               <div><span class="palette-kicker">QUALITÄTSCHECK</span><strong>Planprüfung</strong><small id="planValidationSummary">Plan wird analysiert …</small></div>
-              <button id="closePlanValidation" class="close-button" type="button" aria-label="Planprüfung schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-close"></use></svg></button>
+              <button id="closePlanValidation" class="close-button" type="button" aria-label="Planprüfung schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-close"></use></svg></button>
             </div>
             <div id="planValidationList" class="plan-validation-list"></div>
           </section>
@@ -135,70 +138,70 @@
               </div>
 
               <label class="builder-search">
-                <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-search"></use></svg>
+                <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-search"></use></svg>
                 <input id="componentSearch" type="search" placeholder="Bauteil suchen …" autocomplete="off">
               </label>
 
               <div class="builder-tool-grid" aria-label="Editorwerkzeuge">
-                <button id="selectToolButton" class="palette-button active" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-pointer"></use></svg><span>Auswählen</span></button>
-                <button id="connectToolButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-link"></use></svg><span>Verbinden</span></button>
+                <button id="selectToolButton" class="palette-button active" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-pointer"></use></svg><span>Auswählen</span></button>
+                <button id="connectToolButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-link"></use></svg><span>Verbinden</span></button>
               </div>
 
               <details class="builder-library-group" open>
-                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg><span class="summary-title">Gleise & Fahrwege</span><span>6 Gruppen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-track-straight"></use></svg><span class="summary-title">Gleise & Fahrwege</span><span>6 Gruppen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-chevron-down"></use></svg></summary>
                 <div class="catalog-group">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg><span>Gerades Gleis</span></label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-track-straight"></use></svg><span>Gerades Gleis</span></label>
                   <div id="trackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-straight"></use></svg></span><span>Gerade auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="track" type="button"><span class="element-glyph straight"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-track-straight"></use></svg></span><span>Gerade auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-curve"></use></svg><span>Kurve</span></label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-track-curve"></use></svg><span>Kurve</span></label>
                   <div id="curveTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-track-curve"></use></svg></span><span>Kurve auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="curve" type="button"><span class="element-glyph curve"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-track-curve"></use></svg></span><span>Kurve auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-turnout-left"></use></svg><span>Weiche</span></label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-turnout-left"></use></svg><span>Weiche</span></label>
                   <div id="switchTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-turnout-left"></use></svg></span><span>Weiche auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="switch" type="button"><span class="element-glyph turnout"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-turnout-left"></use></svg></span><span>Weiche auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-crossing"></use></svg><span>Kreuzungsweiche</span></label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-crossing"></use></svg><span>Kreuzungsweiche</span></label>
                   <div id="xTrackTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-crossing"></use></svg></span><span>Kreuzung auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="crossing" type="button"><span class="element-glyph crossing"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-crossing"></use></svg></span><span>Kreuzung auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-bumper"></use></svg><span>Gleisabschluss</span></label>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-bumper"></use></svg><span>Gleisabschluss</span></label>
                   <div id="bumperTypeSelectHost"></div>
-                  <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-bumper"></use></svg></span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="bumper" type="button"><span class="element-glyph bumper"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-bumper"></use></svg></span><span>Prellbock auswählen<small>Danach im Plan positionieren</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
                 <div class="catalog-group catalog-featured" data-searchable="Entkupplungsgleis 5112 Kupplung Relais Sensor">
-                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-uncoupler"></use></svg><span>Entkupplungsgleis</span></label>
-                  <button class="palette-button add-element-button" data-add="track" data-catalog-code="5112" type="button"><span class="element-glyph uncoupler"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-uncoupler"></use></svg></span><span>5112 Entkupplungsgleis<small>Relais + Belegtsensor zuweisbar</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <label><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-uncoupler"></use></svg><span>Entkupplungsgleis</span></label>
+                  <button class="palette-button add-element-button" data-add="track" data-catalog-code="5112" type="button"><span class="element-glyph uncoupler"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-uncoupler"></use></svg></span><span>5112 Entkupplungsgleis<small>Relais + Belegtsensor zuweisbar</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
               </details>
 
               <details class="builder-library-group" open>
-                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg><span class="summary-title">Signale & Versorgung</span><span>4 Typen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg><span class="summary-title">Signale & Versorgung</span><span>4 Typen</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-chevron-down"></use></svg></summary>
                 <div class="builder-control-grid">
-                  <button class="palette-button add-element-button" data-add="signal" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>Hauptsignal</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
-                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
-                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rgy" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Gelb / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
-                  <button class="palette-button add-element-button" data-add="transformer" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-transformer"></use></svg></span><span>Trafo 6631</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="signal" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg></span><span>Hauptsignal</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rg" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="espSignal" data-signal-aspects="rgy" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg></span><span>ESP-Signal<small>Rot / Gelb / Grün</small></span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
+                  <button class="palette-button add-element-button" data-add="transformer" type="button"><span class="element-glyph"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-transformer"></use></svg></span><span>Trafo 6631</span><b class="add-element-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></b></button>
                 </div>
               </details>
 
               <details class="builder-library-group builder-selection-group" open>
-                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-pointer"></use></svg><span class="summary-title">Ausgewähltes Element</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-pointer"></use></svg><span class="summary-title">Ausgewähltes Element</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-chevron-down"></use></svg></summary>
                 <div class="builder-action-grid">
-                  <button id="duplicateButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-duplicate"></use></svg><small>Duplizieren</small></button>
-                  <button id="rotateLeftButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-left"></use></svg><small>Links</small></button>
-                  <button id="rotateRightButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-right"></use></svg><small>Rechts</small></button>
-                  <button id="deleteButton" class="palette-button delete-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-trash"></use></svg><small>Löschen</small></button>
+                  <button id="duplicateButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-duplicate"></use></svg><small>Duplizieren</small></button>
+                  <button id="rotateLeftButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-rotate-left"></use></svg><small>Links</small></button>
+                  <button id="rotateRightButton" class="palette-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-rotate-right"></use></svg><small>Rechts</small></button>
+                  <button id="deleteButton" class="palette-button delete-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-trash"></use></svg><small>Löschen</small></button>
                 </div>
               </details>
 
               <details class="builder-library-group">
-                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fit"></use></svg><span class="summary-title">Plan & Raster</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-chevron-down"></use></svg></summary>
+                <summary><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-fit"></use></svg><span class="summary-title">Plan & Raster</span><svg class="ui-icon summary-chevron" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-chevron-down"></use></svg></summary>
                 <div class="board-settings">
                   <div class="board-settings-title"><strong>Anlagenplatte</strong><span id="boardAreaLabel">3,20 × 1,80 m</span></div>
                   <div class="board-size-fields">
@@ -220,11 +223,11 @@
             <section class="builder-canvas-area">
               <div class="canvas-toolbar">
                 <div class="toolbar-group">
-                  <button id="zoomOutButton" class="icon-button" type="button" aria-label="Verkleinern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-minus"></use></svg></button>
+                  <button id="zoomOutButton" class="icon-button" type="button" aria-label="Verkleinern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-minus"></use></svg></button>
                   <strong id="zoomLabel">100 %</strong>
-                  <button id="zoomInButton" class="icon-button" type="button" aria-label="Vergrößern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-plus"></use></svg></button>
+                  <button id="zoomInButton" class="icon-button" type="button" aria-label="Vergrößern"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-plus"></use></svg></button>
                   <button id="zoomResetButton" class="icon-button" type="button">100 %</button>
-                  <button id="centerLayoutButton" class="icon-button icon-button-text" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fit"></use></svg><span>Einpassen</span></button>
+                  <button id="centerLayoutButton" class="icon-button icon-button-text" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-fit"></use></svg><span>Einpassen</span></button>
                   <span class="pan-hint">Mausrad zoomt · freie Fläche verschiebt</span>
                 </div>
 
@@ -242,8 +245,8 @@
                 <div id="placementBar" class="placement-bar" hidden>
                   <div class="placement-info"><span class="placement-dot"></span><div><strong id="placementTitle">Bauteil platzieren</strong><small id="placementHint">Position anklicken · nahe Enden verbinden automatisch</small></div></div>
                   <div class="placement-actions">
-                    <button id="placementRotateLeft" class="icon-button" type="button" aria-label="Vorschau nach links drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-left"></use></svg></button>
-                    <button id="placementRotateRight" class="icon-button" type="button" aria-label="Vorschau nach rechts drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-rotate-right"></use></svg></button>
+                    <button id="placementRotateLeft" class="icon-button" type="button" aria-label="Vorschau nach links drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-rotate-left"></use></svg></button>
+                    <button id="placementRotateRight" class="icon-button" type="button" aria-label="Vorschau nach rechts drehen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-rotate-right"></use></svg></button>
                     <button id="placementDone" class="primary-button" type="button">Fertig</button>
                   </div>
                 </div>
@@ -276,7 +279,7 @@
 
             <aside id="inspector" class="inspector" aria-label="Eigenschaften">
               <div class="inspector-empty">
-                <div class="inspector-empty-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-empty"></use></svg></div>
+                <div class="inspector-empty-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-empty"></use></svg></div>
                 <strong>Nichts ausgewählt</strong>
                 <span>Element im Plan anklicken, um Position und Hardware zu konfigurieren.</span>
               </div>
@@ -293,13 +296,13 @@
               <h2>Stellwerk</h2>
               <p>Gleisbild bedienen, Weichen und Signale schalten, Anlagenlicht steuern.</p>
             </div>
-            <div class="track-header-actions"><button id="enterEditModeButton" class="secondary-button track-edit-button" data-page-link="builder" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-edit"></use></svg><span>Bearbeiten</span></button><button id="toggleTrackFocusButton" class="secondary-button track-focus-button" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-fullscreen"></use></svg><span>Gleisbild maximieren</span></button></div>
+            <div class="track-header-actions"><button id="enterEditModeButton" class="secondary-button track-edit-button" data-page-link="builder" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-edit"></use></svg><span>Bearbeiten</span></button><button id="toggleTrackFocusButton" class="secondary-button track-focus-button" type="button" aria-pressed="false"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-fullscreen"></use></svg><span>Gleisbild maximieren</span></button></div>
           </div>
 
           <div id="trackSystemNotice" class="track-system-notice" role="status" aria-live="polite">
             <span class="track-system-indicator" aria-hidden="true"></span>
             <div><strong>Hardwarestatus wird geprüft</strong><small>Der Gleisplan bleibt unabhängig vom Verbindungsstatus sichtbar.</small></div>
-            <button class="text-button" data-page-link="settings" type="button">Geräte prüfen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-right"></use></svg></button>
+            <button class="text-button" data-page-link="settings" type="button">Geräte prüfen <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-right"></use></svg></button>
           </div>
 
           <div class="track-light-panel">
@@ -314,7 +317,7 @@
 
           <div class="track-plan-wrapper">
             <button id="trackFocusExitButton" class="track-focus-exit" type="button" aria-label="Maximiertes Gleisbild schließen">
-              <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-arrow-left"></use></svg>
+              <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-arrow-left"></use></svg>
               <span>Zurück</span>
             </button>
             <div class="track-plan-overlay" aria-label="Schnellsteuerung">
@@ -375,13 +378,13 @@
         </div>
         <div class="settings-workspace">
         <nav class="settings-tabs" aria-label="Einstellungsbereiche">
-          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-device"></use></svg></span><span><b>Geräte</b><small>ESP-Module</small></span></button>
-          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-light"></use></svg></span><span><b>Bedienung</b><small>Lichttasten</small></span></button>
-          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-output"></use></svg></span><span><b>Ausgänge</b><small>Relais</small></span></button>
-          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-sensor"></use></svg></span><span><b>Rückmeldung</b><small>Sensoren</small></span></button>
-          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-signal"></use></svg></span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
-          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-events"></use></svg></span><span><b>Ereignisse</b><small>Wenn-Dann-Abläufe</small></span></button>
-          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=2#icon-home"></use></svg></span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
+          <button class="settings-tab active" data-settings-view="modules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-device"></use></svg></span><span><b>Geräte</b><small>ESP-Module</small></span></button>
+          <button class="settings-tab" data-settings-view="lights" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-light"></use></svg></span><span><b>Bedienung</b><small>Lichttasten</small></span></button>
+          <button class="settings-tab" data-settings-view="relays" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-output"></use></svg></span><span><b>Ausgänge</b><small>Relais</small></span></button>
+          <button class="settings-tab" data-settings-view="sensors" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-sensor"></use></svg></span><span><b>Rückmeldung</b><small>Sensoren</small></span></button>
+          <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg></span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
+          <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-events"></use></svg></span><span><b>Ereignisse</b><small>Wenn-Dann-Abläufe</small></span></button>
+          <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-home"></use></svg></span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
         </nav>
         <div class="settings-content">
 
@@ -497,6 +500,6 @@
 
   <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
-  <script type="module" src="/app/main.js?v=overlay-fit-1"></script>
+  <script type="module" src="/app/main.js?v=mobile-v5-cachefix"></script>
 </body>
 </html>

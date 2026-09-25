@@ -1,6 +1,6 @@
 "use strict";
 
-import { state } from "../core/state.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
 
 const undoStack = [];
 const redoStack = [];

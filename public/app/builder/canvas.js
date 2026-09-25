@@ -1,12 +1,12 @@
 "use strict";
 
-import { state } from "../core/state.js";
-import { apiCall } from "../core/api.js";
-import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js";
-import { showToast } from "../ui/toast.js";
-import { recordHistory, undoHistory, redoHistory } from "./history.js";
-import { exportBuildPlan } from "./export.js";
-import { localConnectionPorts, worldConnectionPort } from "./shapes.js";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js?v=mobile-v5-cachefix";
+import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
+import { recordHistory, undoHistory, redoHistory } from "./history.js?v=mobile-v5-cachefix";
+import { exportBuildPlan } from "./export.js?v=mobile-v5-cachefix";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=mobile-v5-cachefix";
 
 
 export function ensureCanvasGeometry() {

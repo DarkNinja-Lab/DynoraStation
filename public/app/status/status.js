@@ -1,12 +1,12 @@
 "use strict";
 
-import { apiCall } from "../core/api.js";
-import { state } from "../core/state.js";
-import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js";
-import { refreshSettingsHardwareStatus } from "../ui/events.js";
-import { renderTrackLightButtons } from "../track/lights.js";
-import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js";
-import { layoutNormalisieren } from "../layout/layout.js";
+import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=mobile-v5-cachefix";
+import { refreshSettingsHardwareStatus } from "../ui/events.js?v=mobile-v5-cachefix";
+import { renderTrackLightButtons } from "../track/lights.js?v=mobile-v5-cachefix";
+import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=mobile-v5-cachefix";
+import { layoutNormalisieren } from "../layout/layout.js?v=mobile-v5-cachefix";
 
 function escapeHtml(value) {
   return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");

@@ -55,7 +55,12 @@ function configureApp(app, context) {
     etag: true,
     maxAge: env.NODE_ENV === "production" ? "1h" : 0,
     setHeaders(res, filePath) {
-      if (/\.(?:html|webmanifest|js|css)$/i.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+      if (/\.(?:html|webmanifest|js|css|svg)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        res.setHeader("Surrogate-Control", "no-store");
+      }
     }
   }));
 
@@ -69,7 +74,12 @@ function configureApp(app, context) {
     key: (req, ip) => req.body?.module || req.query?.module || ip
   }));
 
-  app.get("/", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
+  app.get("/", (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.sendFile(path.join(publicDir, "index.html"));
+  });
   app.get("/favicon.ico", (req, res) => res.status(204).end());
   app.use(createRoutes(context));
   app.use(errorHandler);
