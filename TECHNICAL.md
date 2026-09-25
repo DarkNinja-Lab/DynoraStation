@@ -13,59 +13,57 @@ Diese Datei bündelt Installation, Release-/Update-Architektur, Konfiguration, H
 
 ## Installer- und Release-Architektur
 
-Es gibt exakt zwei Installer:
-
-```text
-installer/DynoraStation-Linux.sh
-installer/DynoraStation-Windows.cmd
-```
-
-Die komplette Installations-, Update- und Deinstallationslogik steckt in diesen beiden Dateien. Separate Root-Skripte wie `install.sh`, `update.sh`, `uninstall.sh` oder `install.ps1` existieren nicht mehr. Auch ein separater `release/`-Quellordner ist nicht erforderlich.
-
-Die Release-Quelle ist in beiden Installern fest auf `DarkNinja-Lab/DynoraStation` gesetzt. Weder interaktive Repository-Abfragen noch `--repo`-Overrides oder `DYNORA_RELEASE_REPO` werden unterstützt. Installation, Reparatur und Updates verwenden dadurch immer die offiziellen Release-Artefakte dieses Repositorys.
-
-Der GitHub-Workflow `.github/workflows/release.yml` wird bei `v*`-Tags ausgeführt. Er prüft, dass der Tag zur Version in `package.json` passt, installiert Abhängigkeiten, führt `npm test`, Shell-/PowerShell-Parserchecks und JavaScript-Syntaxchecks aus und baut danach:
+Die Installer sind von der Anwendung getrennt. Im Branch `main` liegen **keine Installer-Dateien** und kein `installer/`-Ordner. GitHub Releases werden manuell erstellt und enthalten ausschließlich:
 
 ```text
 DynoraStation-Linux.sh
-dynorastation-linux.tar.gz
 DynoraStation-Windows.cmd
-dynorastation-windows.zip
-SHA256SUMS.txt
 ```
 
-Die Runtime-Archive enthalten weder `.git`, `.github`, `node_modules`, `data`, `.env`, `dist` noch `installer/`. Sie enthalten damit nur Anwendung, Dokumentation und Tests, aber keine zweite Kopie der Installer-Logik.
+Die Installer verwenden fest das Repository `DarkNinja-Lab/DynoraStation` und den Branch `main`. Eine Repository-Auswahl, `--repo`-Option oder alternative Downloadquelle ist nicht vorgesehen.
 
-### Integritätsprüfung
+Die Anwendung selbst wird nicht als Release-Artefakt gebaut. Bei jeder Installation bzw. Update-Prüfung lädt der jeweilige Installer einen GitHub-Source-Archive des aktuellen `main`-Branches:
 
-`SHA256SUMS.txt` enthält Prüfsummen für beide Runtime-Archive und beide Installer. Der Linux-Installer verifiziert sowohl das heruntergeladene Runtime-Archiv als auch die aktuelle Installer-Datei, bevor er den installierten System-Manager ersetzt. Der Windows-Installer verifiziert das Windows-Runtime-Archiv vor Installation oder Update. Ein fehlender oder abweichender Hash bricht die Aktion ab.
+```text
+Linux:   https://github.com/DarkNinja-Lab/DynoraStation/archive/refs/heads/main.tar.gz
+Windows: https://github.com/DarkNinja-Lab/DynoraStation/archive/refs/heads/main.zip
+```
+
+Für die Update-Erkennung wird primär die aktuelle Commit-ID von `main` über die GitHub-API ermittelt. Anschließend lädt der Installer das Source-Archiv exakt dieses Commits. Falls die Branch-Metadaten temporär nicht verfügbar sind, fällt der Installer auf das direkte `main`-Archiv zurück und verwendet dessen lokal berechneten SHA-256-Wert als temporäre Snapshot-ID. Die Transportintegrität basiert auf HTTPS zu GitHub. Da `main` bewusst als Updatekanal verwendet wird, kann jeder neue Commit auf `main` bei der nächsten Update-Prüfung installiert werden.
+
+### Trennung von Installer und Anwendung
+
+Änderungen am Anwendungscode werden über `main` verteilt. Änderungen an der Installationslogik werden durch ein neues manuelles GitHub Release der beiden Installer verteilt. Dadurch muss kein Installer in `main` eingecheckt werden und Releases benötigen weder Runtime-ZIPs noch `SHA256SUMS.txt`.
 
 ## Linux: Installieren, Aktualisieren, Entfernen
 
-Öffentlicher Einstieg:
+Öffentlicher Einstieg ist die aus einem GitHub Release heruntergeladene Datei:
 
 ```bash
-./DynoraStation-Linux.sh
+sudo ./DynoraStation-Linux.sh
 ```
 
-Beim Start ohne Argumente wird der gespeicherte Installationspfad aus `/etc/dynorastation/installer.conf` berücksichtigt und anhand von `package.json` plus `src/server.js` geprüft, ob DynoraStation installiert ist. Ohne Installation zeigt das Menü nur **Installieren / Abbrechen**; bei vorhandener Installation **Aktualisieren / Reparieren / Deinstallieren / Abbrechen**. Eine Reparatur übernimmt die gespeicherten Installationsparameter als Vorgaben.
+Beim Start ohne Argumente wird der gespeicherte Installationspfad aus `/etc/dynorastation/installer.conf` berücksichtigt und anhand von `package.json` plus `src/server.js` geprüft, ob DynoraStation installiert ist. Ohne Installation zeigt das Menü nur **Installieren / Abbrechen**; bei vorhandener Installation **Aktualisieren / Reparieren / Deinstallieren / Abbrechen**. Eine Reparatur übernimmt gespeicherte Installationsparameter als Vorgaben.
 
 Direkte Aktionen:
 
 ```bash
-./DynoraStation-Linux.sh install
-./DynoraStation-Linux.sh update
-./DynoraStation-Linux.sh uninstall
-./DynoraStation-Linux.sh uninstall --purge
+sudo ./DynoraStation-Linux.sh install
+sudo ./DynoraStation-Linux.sh update
+sudo ./DynoraStation-Linux.sh update --check
+sudo ./DynoraStation-Linux.sh uninstall
+sudo ./DynoraStation-Linux.sh uninstall --purge
 ```
 
-`install` lädt das aktuelle Linux-Runtime-Archiv, prüft dessen SHA-256 und installiert den Inhalt direkt. Standardpfad ist `/opt/dynorastation`. Vorhandene `data/`-Daten und eine vorhandene `.env` werden nicht überschrieben. Gefährliche Root-Pfade wie `/`, `/etc`, `/usr` oder `/var` werden als Installationsziel abgewiesen.
+`install` und `update` laden `main.tar.gz` direkt von GitHub, entpacken den enthaltenen Projektordner und prüfen mindestens `package.json` sowie `src/server.js`, bevor Dateien übernommen werden. Standardpfad ist `/opt/dynorastation`. Vorhandene `data/`-Daten und eine vorhandene `.env` werden nicht überschrieben. Gefährliche Root-Pfade wie `/`, `/etc`, `/usr` oder `/var` werden als Installationsziel abgewiesen.
 
-Nach erfolgreicher Installation wird eine verifizierte Kopie desselben Installers unter `/usr/local/lib/dynorastation/DynoraStation-Linux.sh` abgelegt. `/usr/local/sbin/dynora-update` und `/usr/local/sbin/dynora-uninstall` sind Symlinks auf diese Datei. Damit bleibt die Logik an genau einer Stelle implementiert.
+Nach erfolgreicher Installation wird die gerade ausgeführte Installer-Datei unter `/usr/local/lib/dynorastation/DynoraStation-Linux.sh` als lokaler System-Manager gespeichert. `/usr/local/sbin/dynora-update` und `/usr/local/sbin/dynora-uninstall` verweisen auf diese Datei. Der Manager benötigt für Updates keinen Installer im Repository; er lädt ausschließlich den aktuellen `main`-Projektstand.
 
-`dynora-update` lädt Runtime und aktuellen Installer, verifiziert beide, vergleicht Version und Archiv-Hash, erstellt ein Backup, ersetzt nur Programmdateien und führt danach Tests sowie Healthcheck aus. Bei einem Fehler wird die vorherige Programmversion wiederhergestellt. Nach erfolgreichem Update ersetzt die heruntergeladene Installer-Version auch den installierten System-Manager. `dynora-update --check` nimmt keine Programmänderungen vor.
+Der System-Manager aktualisiert seine eigene Installer-Logik nicht aus `main`. Eine neue Installer-Version wird übernommen, indem die neuere Release-Datei manuell gestartet und **Reparieren / darüber installieren** ausgeführt wird.
 
-Die Installation legt einen `systemd`-Dienst und optional eine nginx-Konfiguration an. Automatische Updates verwenden denselben installierten Manager über einen `systemd`-Timer. Installer-Metadaten liegen unter `/etc/dynorastation/`, Backups unter `/var/backups/dynorastation/`.
+`dynora-update` vergleicht primär die aktuelle `main`-Commit-ID mit dem zuletzt erfolgreich installierten Snapshot. Bei einer Änderung erstellt er ein Backup, ersetzt nur Programmdateien und führt anschließend Tests sowie Healthcheck aus. Bei einem Fehler wird die vorherige Programmversion wiederhergestellt. `dynora-update --check` nimmt keine Programmänderungen vor.
+
+Die Installation legt einen `systemd`-Dienst und optional eine nginx-Konfiguration an. Automatische Updates verwenden denselben lokal installierten Manager über einen `systemd`-Timer. Installer-Metadaten liegen unter `/etc/dynorastation/`, Backups unter `/var/backups/dynorastation/`.
 
 `dynora-uninstall` entfernt Programmdateien und Systemintegration, behält standardmäßig `.env` und `data/`. `--purge` entfernt zusätzlich Nutzerdaten, Backups und den Systembenutzer.
 
@@ -73,7 +71,7 @@ Wenn nginx aktiviert wird, setzt eine neu erzeugte `.env` `TRUST_PROXY=true`. Oh
 
 ## Windows: Installieren, Aktualisieren, Entfernen
 
-Öffentlicher Einstieg ist ausschließlich `DynoraStation-Windows.cmd`. Die Datei besteht aus einem kleinen CMD-Bootstrap und einer direkt eingebetteten PowerShell-Implementierung. Der Bootstrap extrahiert diesen Abschnitt zur Laufzeit in eine temporäre `.ps1`, führt ihn aus und löscht die temporäre Datei anschließend wieder. Im Repository und im Runtime-Paket existiert keine separate PowerShell-Installerdatei.
+Öffentlicher Einstieg ist die aus einem GitHub Release heruntergeladene Datei `DynoraStation-Windows.cmd`. Die Datei besteht aus einem kleinen CMD-Bootstrap und einer direkt eingebetteten PowerShell-Implementierung. Der Bootstrap extrahiert diesen Abschnitt zur Laufzeit in eine temporäre `.ps1`, führt ihn aus und löscht die temporäre Datei anschließend wieder.
 
 Beim Start per Doppelklick liest die eingebettete PowerShell zuerst `%ProgramData%\DynoraStation-installer\config.json`, ermittelt damit den tatsächlichen Installationspfad und prüft dort `package.json` sowie `src\server.js`. Das Menü zeigt anschließend nur die zum Zustand passenden Aktionen.
 
@@ -87,7 +85,7 @@ DynoraStation-Windows.cmd uninstall
 DynoraStation-Windows.cmd uninstall --purge
 ```
 
-Der Installer lädt `dynorastation-windows.zip` sowie `SHA256SUMS.txt`, prüft SHA-256 und führt Installation bzw. Update mit Administratorrechten aus. Das konfigurierte Repository und ein abweichender Installationspfad werden unter `%ProgramData%\DynoraStation-installer\config.json` gespeichert, damit spätere Update-/Uninstall-Aufrufe denselben Installationsort wiederfinden.
+Installation und Update laden `main.zip` direkt von GitHub. Nach dem Entpacken wird der enthaltene Projektordner anhand von `package.json` und `src\server.js` validiert. Die `main`-Commit-ID wird zusammen mit dem lokalen ZIP-Hash in der Installer-Konfiguration gespeichert und bei späteren Update-Prüfungen mit dem aktuellen `main`-Snapshot verglichen.
 
 Standardpfad ist `%ProgramData%\DynoraStation`. Beim ersten Setup wird `.env` aus `.env.example` erzeugt, `NODE_ENV=production` gesetzt und `TRUST_PROXY=false` verwendet. Eine bestehende `.env` und `data/` bleiben erhalten.
 
