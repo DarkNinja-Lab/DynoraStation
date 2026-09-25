@@ -14,9 +14,11 @@ process.once("SIGINT", () => lifecycle.stop("SIGINT"));
 process.once("SIGTERM", () => lifecycle.stop("SIGTERM"));
 process.on("unhandledRejection", (error) => {
   console.error("[FATAL] Unbehandelte Promise-Ablehnung:", error);
+  process.exitCode = 1;
   lifecycle.stop("unhandledRejection");
 });
 process.on("uncaughtException", (error) => {
   console.error("[FATAL] Unbehandelter Fehler:", error);
+  process.exitCode = 1;
   lifecycle.stop("uncaughtException");
 });

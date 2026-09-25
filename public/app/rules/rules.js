@@ -3,10 +3,7 @@
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
 import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
-
-function esc(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-}
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 function modules() { return Object.values(state.hardware?.modules || {}); }
 function relayName(moduleId, channel) { return state.relayConfig?.[`${moduleId}:${channel}`]?.name || `Relay ${channel}`; }

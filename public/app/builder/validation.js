@@ -2,6 +2,7 @@
 
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 const TRACK_TYPES = new Set(["track", "curve", "switch", "crossing", "xtrack", "bumper"]);
 
@@ -89,9 +90,6 @@ export function analyzePlan(layout = state.layout) {
   return issues;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
-}
 
 function renderValidationPanel(issues) {
   const list = document.getElementById("planValidationList");
@@ -103,7 +101,7 @@ function renderValidationPanel(issues) {
   list.innerHTML = issues.length ? issues.map((issue) => `
     <article class="plan-validation-item severity-${issue.severity}">
       <span class="validation-status" aria-hidden="true">${icon(issue.severity === "error" ? "close" : issue.severity === "warning" ? "warning" : "info")}</span>
-      <div><strong>${escapeHtml(issue.title)}</strong><small>${escapeHtml(issue.detail)}</small></div>
+      <div><strong>${esc(issue.title)}</strong><small>${esc(issue.detail)}</small></div>
     </article>`).join("") : `
     <div class="plan-validation-ok"><span>${icon("check")}</span><strong>Plan ist bereit</strong><small>Keine fehlenden Hardware-Zuweisungen, Konflikte oder isolierten Gleise erkannt.</small></div>`;
 }

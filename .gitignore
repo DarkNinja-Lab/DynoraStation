@@ -3,5 +3,4 @@ data/
 .env
 npm-debug.log*
 *.log
-package-lock.json
 yarn.lock

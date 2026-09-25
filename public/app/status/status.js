@@ -2,15 +2,12 @@
 
 import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=mobile-v5-cachefix";
 import { refreshSettingsHardwareStatus } from "../ui/events.js?v=mobile-v5-cachefix";
 import { renderTrackLightButtons } from "../track/lights.js?v=mobile-v5-cachefix";
 import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=mobile-v5-cachefix";
 import { layoutNormalisieren } from "../layout/layout.js?v=mobile-v5-cachefix";
-
-function escapeHtml(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-}
 
 function renderEvents() {
   const host = document.getElementById("eventList");
@@ -39,7 +36,7 @@ function renderEvents() {
   host.innerHTML = filtered.length ? filtered.map((event) => {
     const timeValue = event.timestamp || event.time;
     const time = timeValue ? new Date(timeValue).toLocaleTimeString("de-DE") : "–";
-    return `<div class="event-row"><strong>${escapeHtml(event.type || "SYSTEM")}</strong><span>${escapeHtml(event.text || "")}</span><small>${escapeHtml(event.source || "")} · ${time}</small></div>`;
+    return `<div class="event-row"><strong>${esc(event.type || "SYSTEM")}</strong><span>${esc(event.text || "")}</span><small>${esc(event.source || "")} · ${time}</small></div>`;
   }).join("") : `<div class="empty-state">${events.length ? "Keine passenden Ereignisse gefunden." : "Noch keine Ereignisse vorhanden."}</div>`;
 }
 

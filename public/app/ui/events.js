@@ -8,6 +8,7 @@ import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=mobile-v5-
 import { renderTrackLayout } from "../track/track.js?v=mobile-v5-cachefix";
 import { showToast } from "./toast.js?v=mobile-v5-cachefix";
 import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -18,9 +19,6 @@ function hasCapability(module, capability) {
   if (capability === "relay" && ["RELAY_SENSOR", "HYBRID"].includes(module?.kind)) return true;
   if (capability === "led" && ["SIGNAL_LED", "HYBRID"].includes(module?.kind)) return true;
   return module?.kind === "UNKNOWN";
-}
-function esc(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
 
 const PAGE_META = {
@@ -260,7 +258,7 @@ function renderLightConfig() {
     <div class="light-config-card" data-light-index="${i}">
       <h4>Button ${i + 1}</h4>
       <label>Name</label>
-      <input data-field="name" value="${b.name || `Licht ${i + 1}`}">
+      <input data-field="name" value="${esc(b.name || `Licht ${i + 1}`)}">
       <label>Modul</label>
       <select data-field="moduleId">${modOptions(b.moduleId || "")}</select>
       <label>Relay</label>
@@ -354,7 +352,7 @@ function renderRelayGrid() {
         ${availableModules.map((module) => `<option value="${esc(module.id)}" ${module.id === state.settingsRelayModule ? "selected" : ""}>${esc(module.name || module.id)} (${Array.isArray(module.relays) ? module.relays.length : 0} Relais)</option>`).join("")}
       </select>
     </div>
-    <div class="relay-module-summary">${selectedModule ? `${selectedModule.name || selectedModule.id} · ${selectedModule.online ? "online" : "offline"} · ${selectedModule.ip || "keine aktuelle IP"}` : "Kein Relay-Modul verfügbar"}</div>
+    <div class="relay-module-summary">${selectedModule ? `${esc(selectedModule.name || selectedModule.id)} · ${selectedModule.online ? "online" : "offline"} · ${esc(selectedModule.ip || "keine aktuelle IP")}` : "Kein Relay-Modul verfügbar"}</div>
     <div class="relay-module-grid">
     ${rows.length ? rows.map((r) => {
         const key = `${r.m.id}:${r.idx + 1}`;
@@ -365,7 +363,7 @@ function renderRelayGrid() {
         const conflict = (state.relayConflicts || []).find((item) => item.module === r.m.id && Number(item.channel) === r.idx + 1);
         const disabled = !control.enabled || feedback?.status === "pending";
         return `
-          <article class="relay-item io-channel-card ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${r.m.id}" data-relay-index="${r.idx + 1}">
+          <article class="relay-item io-channel-card ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-module-id="${esc(r.m.id)}" data-relay-index="${r.idx + 1}">
             <header class="io-channel-head">
               <div class="io-channel-title"><small>Kanal ${String(r.idx + 1).padStart(2, "0")}</small><strong>${esc(cfg.name || `Relais ${r.idx + 1}`)}</strong></div>
               <span class="${r.on ? "badge-on" : "badge-off"}">${r.on ? "AN" : "AUS"}</span>

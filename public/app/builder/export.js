@@ -3,10 +3,8 @@
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { renderCanvas, canvasSize } from "./render.js?v=mobile-v5-cachefix";
 import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
-}
 
 function articleFor(element) {
   return String(element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode || ({ signal: "7039", transformer: "6631", espSignal: "DIY" }[element.typ]) || "OHNE ART.-NR.");
@@ -83,14 +81,14 @@ export function exportBuildPlan() {
   const metadata = state.layout.metadaten || {};
   const elements = state.layout.elemente || [];
   const parts = partsList(elements);
-  const detailRows = elements.map((element, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(articleFor(element))}</td><td>${escapeHtml(element.name || catalogLabel(element, articleFor(element)))}</td><td>${Math.round(Number(element.x || 0) * 2)}</td><td>${Math.round(Number(element.y || 0) * 2)}</td><td>${Math.round(Number(element.rotation ?? element.winkel ?? 0))}°</td></tr>`).join("");
-  const partRows = parts.map((part) => `<tr><td><b>${escapeHtml(part.article)}</b></td><td>${escapeHtml(part.label)}</td><td>${part.count}</td></tr>`).join("");
-  const title = escapeHtml(metadata.name || "Meine Modellbahn");
+  const detailRows = elements.map((element, index) => `<tr><td>${index + 1}</td><td>${esc(articleFor(element))}</td><td>${esc(element.name || catalogLabel(element, articleFor(element)))}</td><td>${Math.round(Number(element.x || 0) * 2)}</td><td>${Math.round(Number(element.y || 0) * 2)}</td><td>${Math.round(Number(element.rotation ?? element.winkel ?? 0))}°</td></tr>`).join("");
+  const partRows = parts.map((part) => `<tr><td><b>${esc(part.article)}</b></td><td>${esc(part.label)}</td><td>${part.count}</td></tr>`).join("");
+  const title = esc(metadata.name || "Meine Modellbahn");
   const plateWidth = Number(metadata.plateWidthMm) || 3200;
   const plateHeight = Number(metadata.plateHeightMm) || 1800;
-  const scale = escapeHtml(metadata.massstab || "H0");
+  const scale = esc(metadata.massstab || "H0");
   const grid = Number(metadata.rasterMm) || 50;
-  const createdAt = escapeHtml(new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date()));
+  const createdAt = esc(new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date()));
 
   const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${title} – Bauplan</title><style>
     @page{size:A4 landscape;margin:10mm}

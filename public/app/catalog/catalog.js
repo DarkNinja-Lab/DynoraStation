@@ -3,6 +3,7 @@
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
 import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 export async function katalogLaden() {
   try {
@@ -77,8 +78,8 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
           ${imageMarkup(first, "custom-select-thumb", false)}
           <span class="custom-select-symbol" aria-hidden="true">${icon(itemIcon(kind, first), "ui-icon catalog-svg-icon")}</span>
           <span>
-            <span class="custom-select-title">${first.label}</span>
-            <small class="custom-select-meta">${itemMeta(first, kind)}</small>
+            <span class="custom-select-title">${esc(first.label)}</span>
+            <small class="custom-select-meta">${esc(itemMeta(first, kind))}</small>
           </span>
         </span>
         <span class="custom-select-caret">${icon("chevron-down")}</span>
@@ -86,14 +87,14 @@ function renderCatalogSelect(hostId, selectId, items, kind) {
       <div class="custom-select-list hidden" role="listbox">
         ${items.map((item, index) => `
           <button class="custom-select-item ${index === 0 ? "active" : ""}" type="button" role="option"
-                  data-value="${itemCode(item)}" data-meta="${itemMeta(item, kind)}" data-image="${itemImage(item)}" data-icon="${itemIcon(kind, item)}">
+                  data-value="${esc(itemCode(item))}" data-meta="${esc(itemMeta(item, kind))}" data-image="${esc(itemImage(item))}" data-icon="${esc(itemIcon(kind, item))}">
             <span class="custom-select-item-visual" aria-hidden="true">
               ${imageMarkup(item, "custom-select-item-thumb", true)}
               <span class="custom-select-item-symbol">${icon(itemIcon(kind, item), "ui-icon catalog-svg-icon")}</span>
             </span>
             <span class="custom-select-item-text">
-              <b>${item.label}</b>
-              <small>${itemMeta(item, kind)}</small>
+              <b>${esc(item.label)}</b>
+              <small>${esc(itemMeta(item, kind))}</small>
             </span>
           </button>
         `).join("")}

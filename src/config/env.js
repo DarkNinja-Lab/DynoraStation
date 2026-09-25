@@ -18,7 +18,7 @@ const COMMAND_MAX_ATTEMPTS = toInt(process.env.COMMAND_MAX_ATTEMPTS, 40);
 const UI_STATUS_INTERVAL_MS = Math.max(250, toInt(process.env.UI_STATUS_INTERVAL_MS, 400));
 
 const JSON_LIMIT = process.env.JSON_LIMIT || "2mb";
-const TRUST_PROXY = parseState(process.env.TRUST_PROXY ?? "true");
+const TRUST_PROXY = parseState(process.env.TRUST_PROXY ?? "false");
 
 const ENABLE_DEBUG_ENDPOINTS = parseState(process.env.ENABLE_DEBUG_ENDPOINTS ?? "false");
 const ENABLE_SECURITY_HEADERS = parseState(process.env.ENABLE_SECURITY_HEADERS ?? "true");

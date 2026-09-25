@@ -9,6 +9,7 @@ import {
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
 } from "../builder/shapes.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 function uiType(type) {
   if (type === "xtrack") return "crossing";
@@ -33,10 +34,6 @@ function scheduleTrackViewportRefit() {
 window.addEventListener("resize", scheduleTrackViewportRefit, { passive: true });
 window.addEventListener("orientationchange", scheduleTrackViewportRefit, { passive: true });
 window.visualViewport?.addEventListener("resize", scheduleTrackViewportRefit, { passive: true });
-
-function esc(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-}
 
 function relayState(moduleId, channel) {
   const relay = state.hardware?.modules?.[String(moduleId || "")]?.relays?.[Number(channel || 0) - 1];

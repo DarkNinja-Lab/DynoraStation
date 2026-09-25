@@ -1,7 +1,7 @@
 "use strict";
 
 const { parseState } = require("../../utils/parse");
-const { cleanText, validRelay, validLedChannel } = require("../../utils/sanitize");
+const { cleanText, validRelay, validLedChannel, makeOperationId } = require("../../utils/sanitize");
 const { conditionMatches } = require("./conditionMatches");
 
 function executeRulesForTrigger({
@@ -28,10 +28,6 @@ function executeRulesForTrigger({
     return String(rule?.name || rule?.id || "Regel");
   }
 
-  function operationId(prefix) {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  }
-
   function controllable(moduleId, rule) {
     const module = runtimeState.modules?.[moduleId] || moduleRegistry.getOrCreateModule(moduleId);
     if (moduleRegistry.moduleCanControl(module)) return true;
@@ -50,7 +46,7 @@ function executeRulesForTrigger({
       if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
       const state = parseState(action?.state);
       commandQueueApi.createCommand("RELAY_SET", {
-        channel, state, ruleId: rule.id, operationId: operationId("RULE_RELAY")
+        channel, state, ruleId: rule.id, operationId: makeOperationId("RULE_RELAY")
       }, moduleId);
       emit("REGEL-AKTION", `${moduleId}:RELAY_${channel}`, `${getRuleName(rule)}: Relais ${channel} wird ${state ? "ein" : "aus"} geschaltet`);
       return true;
@@ -62,7 +58,7 @@ function executeRulesForTrigger({
       if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
       const state = parseState(action?.state);
       commandQueueApi.createCommand("LED_SET", {
-        channel, state, ruleId: rule.id, operationId: operationId("RULE_LED")
+        channel, state, ruleId: rule.id, operationId: makeOperationId("RULE_LED")
       }, moduleId);
       emit("REGEL-AKTION", `${moduleId}:LED_${channel}`, `${getRuleName(rule)}: LED ${channel} wird ${state ? "ein" : "aus"} geschaltet`);
       return true;
@@ -91,7 +87,7 @@ function executeRulesForTrigger({
       if (!channel) return false;
       commandQueueApi.createCommand("RELAY_PULSE", {
         channel, duration: 220, state, elementId: element.id, ruleId: rule.id,
-        operationId: operationId(`RULE_${kind.toUpperCase()}`)
+        operationId: makeOperationId(`RULE_${kind.toUpperCase()}`)
       }, moduleId);
       emit("REGEL-AKTION", `${moduleId}:${element.id}`, `${getRuleName(rule)}: ${element.name || element.id} wird auf ${state} geschaltet`);
       return true;
@@ -110,7 +106,7 @@ function executeRulesForTrigger({
         fahrt: validLedChannel(element.ledChannelGreen)
       };
       if (!channels[state]) return false;
-      const opId = operationId("RULE_LED_SIGNAL");
+      const opId = makeOperationId("RULE_LED_SIGNAL");
       for (const [aspect, channel] of Object.entries(channels)) {
         if (!channel) continue;
         commandQueueApi.createCommand("LED_SET", {

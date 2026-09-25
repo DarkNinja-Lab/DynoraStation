@@ -7,6 +7,7 @@ import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
 import { renderCs3Tiles } from "../ui/render.js?v=mobile-v5-cachefix";
 import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
 import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 export function showInspector(element) {
   if (!element) return;
@@ -62,7 +63,7 @@ function inspectorHtmlForElement(el) {
     <div class="inspector-header">
       <div>
         <strong>${getTypName(el.typ)}</strong>
-        <small>${el.id}</small>
+        <small>${esc(el.id)}</small>
       </div>
       <button id="inspectorCloseBtn" class="close-button" type="button" aria-label="Eigenschaften schließen">${icon("close")}</button>
     </div>
@@ -72,7 +73,7 @@ function inspectorHtmlForElement(el) {
   html += `
     <label class="inspector-field">
       <span>Name (optional)</span>
-      <input type="text" id="inspName" value="${escape(el.name || "")}">
+      <input type="text" id="inspName" value="${esc(el.name || "")}">
     </label>
     <label class="inspector-field">
       <span>Rotation (°)</span>
@@ -149,7 +150,7 @@ function inspectorTrack(el) {
         <input type="number" id="inspUncouplerDuration" min="100" max="3000" step="50" value="${Math.max(100, Math.min(3000, Number(el.uncouplerDurationMs) || 450))}">
       </label>` : `<label class="inspector-field">
         <span>Stromabschnitt (optional)</span>
-        <input type="text" id="inspCircuit" list="powerSectionNames" value="${escape(el.stromkreis || "")}" placeholder="z. B. Bahnhof Gleis 1">
+        <input type="text" id="inspCircuit" list="powerSectionNames" value="${esc(el.stromkreis || "")}" placeholder="z. B. Bahnhof Gleis 1">
         ${powerSectionDatalist()}
       </label>`}
 
@@ -183,7 +184,7 @@ function inspectorCurve(el) {
 
       <label class="inspector-field">
         <span>Stromabschnitt (optional)</span>
-        <input type="text" id="inspCircuit" list="powerSectionNames" value="${escape(el.stromkreis || "")}" placeholder="z. B. Nebenbahn">
+        <input type="text" id="inspCircuit" list="powerSectionNames" value="${esc(el.stromkreis || "")}" placeholder="z. B. Nebenbahn">
         ${powerSectionDatalist()}
       </label>
 
@@ -242,7 +243,7 @@ function inspectorBumper(el) {
   const article = el.bumperCode || el.catalogCode || "5129";
   return `
     <div class="inspector-info">
-      <strong>Prellbock ${escape(article)}</strong><br>
+      <strong>Prellbock ${esc(article)}</strong><br>
       Passiver Gleisabschluss ohne Relais. Die Artikelnummer wird im Plan und Export ausgewiesen.
     </div>
   `;
@@ -490,18 +491,9 @@ function powerSectionDatalist() {
     .filter(Boolean)))
     .sort((a, b) => a.localeCompare(b, "de"));
   if (!names.length) return "";
-  return `<datalist id="powerSectionNames">${names.map((name) => `<option value="${escape(name)}"></option>`).join("")}</datalist>`;
+  return `<datalist id="powerSectionNames">${names.map((name) => `<option value="${esc(name)}"></option>`).join("")}</datalist>`;
 }
 
-function escape(str) {
-  return String(str || "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[c]));
-}
 
 function getModuleOptions(selected, elementType = "track") {
   const needed = elementType === "espSignal" ? "led" : "io";
@@ -510,7 +502,7 @@ function getModuleOptions(selected, elementType = "track") {
   const unavailable = list.length ? "" : `<option value="" disabled>Kein ${needed === "led" ? "LED-ESP" : "I/O-Modul"} erkannt</option>`;
   return `<option value="">${emptyLabel}</option>${unavailable}` + list.map((module) => {
     const label = moduleKindLabel(module);
-    return `<option value="${escape(module.id)}" ${module.id === selected ? "selected" : ""}>${escape(module.name || module.id)} · ${label}</option>`;
+    return `<option value="${esc(module.id)}" ${module.id === selected ? "selected" : ""}>${esc(module.name || module.id)} · ${label}</option>`;
   }).join("");
 }
 
@@ -519,7 +511,7 @@ function getRelayOptions(module, selected) {
   return `<option value="0">Kein Relais</option>${channels.map((channel) => {
     const configured = state.relayConfig?.[`${module}:${channel}`]?.name;
     const label = configured ? `${configured} (Relay ${channel})` : `Relay ${channel}`;
-    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${escape(label)}</option>`;
+    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${esc(label)}</option>`;
   }).join("")}`;
 }
 
@@ -529,7 +521,7 @@ function getSensorOptions(module, selected) {
     const id = sensor.id;
     const configured = state.sensorConfig?.[`${module}:${id}`]?.name;
     const label = configured || sensor?.name || id;
-    return `<option value="${escape(id)}" ${selected === id ? "selected" : ""}>${escape(label)}</option>`;
+    return `<option value="${esc(id)}" ${selected === id ? "selected" : ""}>${esc(label)}</option>`;
   }).join("")}`;
 }
 
@@ -542,7 +534,7 @@ function getLedOptions(module, selected) {
       || {};
     const name = config.name || hardwareLed.name || `LED ${channel}`;
     const color = config.color ? ` · ${config.color}` : "";
-    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${escape(name)} (Kanal ${channel})${escape(color)}</option>`;
+    return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${esc(name)} (Kanal ${channel})${esc(color)}</option>`;
   }).join("")}`;
 }
 

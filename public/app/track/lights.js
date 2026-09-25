@@ -3,6 +3,7 @@
 import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
 import { commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 export async function lightButtonsLaden() {
   try {
@@ -73,8 +74,8 @@ export function renderTrackLightButtons() {
     const statusText = commandStatusText(feedback) || (!control.enabled ? control.reason : "");
     const disabled = !control.enabled || feedback?.status === "pending";
     return `
-    <button class="light-toggle-btn ${btn?.active ? "active" : ""} ${!configured ? "unconfigured" : ""} ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-light-index="${idx}" type="button" ${disabled ? "disabled" : ""} title="${statusText || "Schalten"}">
-      <span>${btn?.name || `Licht ${idx + 1}`}</span>${statusText ? `<small>${statusText}</small>` : ""}
+    <button class="light-toggle-btn ${btn?.active ? "active" : ""} ${!configured ? "unconfigured" : ""} ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-light-index="${idx}" type="button" ${disabled ? "disabled" : ""} title="${esc(statusText || "Schalten")}">
+      <span>${esc(btn?.name || `Licht ${idx + 1}`)}</span>${statusText ? `<small>${esc(statusText)}</small>` : ""}
     </button>`;
   }).join("");
 

@@ -32,7 +32,7 @@ function normalizeLayout(input) {
     .forEach((e) => {
       const rawTyp = e.typ === "crossing" ? "xtrack" : e.typ === "espSignal" ? "ledSignal" : e.typ;
       const typ = ["track", "xtrack", "curve", "switch", "bumper", "signal", "transformer", "ledSignal"].includes(rawTyp) ? rawTyp : "track";
-      const id = String(e.id || makeId(typ));
+      const id = cleanText(e.id || makeId(typ), 120);
       if (elementMap.has(id)) return;
 
       const trackCode = typ === "track" ? validTrackCode(e.trackCode || e.code || e.catalogCode) : "";
@@ -44,12 +44,12 @@ function normalizeLayout(input) {
       elementMap.set(id, {
         id,
         typ,
-        name: String(e.name ?? ""),
+        name: cleanText(e.name ?? "", 120),
         x: toNumber(e.x, 300),
         y: toNumber(e.y, 250),
         winkel: ((toNumber(e.winkel ?? e.rotation, 0) % 360) + 360) % 360,
         rotation: ((toNumber(e.rotation ?? e.winkel, 0) % 360) + 360) % 360,
-        section: String(e.section || ""),
+        section: cleanText(e.section || "", 80),
         module: cleanText(e.module || "", 48),
 
         trackCode,
@@ -81,7 +81,7 @@ function normalizeLayout(input) {
 
         powerState: Boolean(e.powerState),
         uncouplerDurationMs: Math.max(100, Math.min(3000, toInt(e.uncouplerDurationMs, 450))),
-        stromkreis: String(e.stromkreis || ""),
+        stromkreis: cleanText(e.stromkreis || "", 120),
 
         ledChannelRed: validLedChannel(e.ledChannelRed || 0),
         ledChannelYellow: validLedChannel(e.ledChannelYellow || 0),
@@ -117,10 +117,10 @@ function normalizeLayout(input) {
   out.verbindungen = (Array.isArray(src.verbindungen) ? src.verbindungen : [])
     .filter(Boolean)
     .map((v) => ({
-      id: String(v.id || makeId("CONNECTION")),
-      von: String(v.von || ""),
+      id: cleanText(v.id || makeId("CONNECTION"), 120),
+      von: cleanText(v.von || "", 120),
       vonPort: toInt(v.vonPort, 0),
-      nach: String(v.nach || ""),
+      nach: cleanText(v.nach || "", 120),
       nachPort: toInt(v.nachPort, 0)
     }))
     .filter((v) => {
@@ -135,15 +135,21 @@ function normalizeLayout(input) {
       return true;
     });
 
+  const circuitIds = new Set();
   out.stromkreise = (Array.isArray(src.stromkreise) ? src.stromkreise : [])
     .filter(Boolean)
     .map((s) => ({
-      id: String(s.id || makeId("CIRCUIT")),
+      id: cleanText(s.id || makeId("CIRCUIT"), 120),
       name: cleanText(s.name || s.id || "Stromkreis", 80) || "Stromkreis",
       module: cleanText(s.module || "GLEIS_01", 48) || "GLEIS_01",
       relay: validRelay(s.relay),
       state: Boolean(s.state)
-    }));
+    }))
+    .filter((circuit) => {
+      if (!circuit.id || circuitIds.has(circuit.id)) return false;
+      circuitIds.add(circuit.id);
+      return true;
+    });
 
   return out;
 }

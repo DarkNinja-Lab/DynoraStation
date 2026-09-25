@@ -19,6 +19,22 @@ function configureSecurityHeaders(app) {
   });
 }
 
+
+function configureSameOriginGuard(app, env) {
+  if (env.CORS_ENABLED) return;
+  app.use((req, res, next) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+    const origin = String(req.headers.origin || "").trim();
+    if (!origin) return next(); // ESP/CLI clients normally do not send Origin.
+    try {
+      const originHost = new URL(origin).host;
+      const requestHost = String(req.headers.host || "").trim();
+      if (originHost && requestHost && originHost === requestHost) return next();
+    } catch {}
+    return next(apiError(403, "ORIGIN_FORBIDDEN", "Cross-Origin-Anfrage nicht erlaubt"));
+  });
+}
+
 function configureCors(app, env) {
   app.use((req, res, next) => {
     const origin = String(req.headers.origin || "");
@@ -43,6 +59,7 @@ function configureApp(app, context) {
   app.use(express.urlencoded({ extended: false }));
   if (env.REQUEST_LOGGING) app.use(requestLogger);
   if (env.ENABLE_SECURITY_HEADERS) configureSecurityHeaders(app);
+  configureSameOriginGuard(app, env);
   if (env.CORS_ENABLED) configureCors(app, env);
 
   // Compatibility for clients with an older cached HTML shell. Keep one physical CSS file.
@@ -71,7 +88,7 @@ function configureApp(app, context) {
   }));
   app.use("/api/module", rateLimit({
     keyPrefix: "module", windowMs: env.RL_MODULE_WINDOW_MS, max: env.RL_MODULE_MAX,
-    key: (req, ip) => req.body?.module || req.query?.module || ip
+    key: (_req, ip) => ip
   }));
 
   app.get("/", (req, res) => {

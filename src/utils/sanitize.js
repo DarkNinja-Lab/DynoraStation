@@ -8,16 +8,22 @@ function makeId(prefix) {
   return `${String(prefix || "ID").toUpperCase()}_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
 }
 
-function validRelay(value) {
+function validChannel(value) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1 || n > 256) return 0;
   return n;
 }
 
+function validRelay(value) {
+  return validChannel(value);
+}
+
 function validLedChannel(value) {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 1 || n > 256) return 0;
-  return n;
+  return validChannel(value);
+}
+
+function makeOperationId(prefix = "CMD") {
+  return `${cleanText(prefix || "CMD", 32).toUpperCase() || "CMD"}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function validBrightness(value) {
@@ -33,5 +39,6 @@ module.exports = {
   makeId,
   validRelay,
   validLedChannel,
-  validBrightness
+  validBrightness,
+  makeOperationId
 };

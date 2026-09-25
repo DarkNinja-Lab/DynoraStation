@@ -87,3 +87,29 @@ test("Modul-Kompatibilität sperrt fehlende und abweichende Protokollversionen",
   assert.equal(registry.moduleCanControl(module), true);
   assert.equal(registry.moduleCompatibility(module).status, "compatible");
 });
+
+test("Layout-Normalisierung entfernt doppelte Stromkreis-IDs", () => {
+  const { normalizeLayout } = require("../src/domain/layout/normalizeLayout");
+  const layout = normalizeLayout({
+    stromkreise: [
+      { id: " C1 ", name: "Bahnhof", module: "ESP-A", relay: 1 },
+      { id: "C1", name: "Duplikat", module: "ESP-B", relay: 2 }
+    ]
+  });
+  assert.equal(layout.stromkreise.length, 1);
+  assert.equal(layout.stromkreise[0].id, "C1");
+  assert.equal(layout.stromkreise[0].name, "Bahnhof");
+});
+
+test("Regel-Normalisierung entfernt doppelte Regel-IDs", () => {
+  const { normalizeRules } = require("../src/domain/rules/normalizeRules");
+  const rules = normalizeRules({
+    rules: [
+      { id: " R1 ", name: "Erste", actions: [{ kind: "relay", module: "ESP-A", channel: 1, state: "on" }] },
+      { id: "R1", name: "Duplikat", actions: [{ kind: "relay", module: "ESP-A", channel: 2, state: "on" }] }
+    ]
+  });
+  assert.equal(rules.rules.length, 1);
+  assert.equal(rules.rules[0].id, "R1");
+  assert.equal(rules.rules[0].name, "Erste");
+});

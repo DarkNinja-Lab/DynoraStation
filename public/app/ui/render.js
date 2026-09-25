@@ -4,8 +4,7 @@ import { state } from "../core/state.js?v=mobile-v5-cachefix";
 import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=mobile-v5-cachefix";
 import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=mobile-v5-cachefix";
 import { icon } from "./icons.js?v=mobile-v5-cachefix";
-
-function esc(value) { return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;"); }
+import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
 
 function dashboardCatalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
@@ -14,19 +13,6 @@ function dashboardCatalogItem(element, group) {
 
 function isUncoupler(element) {
   return element?.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112";
-}
-
-export function inspectorLeer() {
-  const inspector = document.getElementById("inspector");
-  if (inspector) {
-    inspector.innerHTML = `
-      <div class="inspector-empty">
-        <div class="inspector-empty-icon">${icon("empty")}</div>
-        <strong>Kein Element ausgewählt</strong>
-        <span>Klicke ein Gleis, eine Kreuzungsweiche, eine Kurve, Weiche, Hauptsignal 7039, ESP-Signalmast oder Trafo an.</span>
-      </div>
-    `;
-  }
 }
 
 export function renderSidebarEspStatus() {
@@ -166,24 +152,6 @@ export function renderCs3Tiles() {
   }).join("");
 
   grid.innerHTML = tiles || '<div class="empty-state">Keine schaltbaren Weichen, Signale oder Entkuppler im Plan</div>';
-}
-
-export function renderTrackLightButtons() {
-  const grid = document.getElementById("trackLightGrid");
-  if (!grid) return;
-
-  const buttons = (state.lightButtons || []).map((btn, idx) => `
-    <button class="light-toggle-btn ${btn.active ? "active" : ""}" data-light-index="${idx}" type="button">
-      ${esc(btn.name || `Licht ${idx + 1}`)}
-    </button>
-  `).join("");
-
-  grid.innerHTML = buttons || `
-    <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>
-    <button class="light-toggle-btn" data-light-index="1" type="button">Licht 2</button>
-    <button class="light-toggle-btn" data-light-index="2" type="button">Licht 3</button>
-    <button class="light-toggle-btn" data-light-index="3" type="button">Licht 4</button>
-  `;
 }
 
 export function renderDashboardOverview() {

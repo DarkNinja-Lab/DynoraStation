@@ -48,7 +48,7 @@ export function snapCanvasPoint(point) {
 }
 
 function catalogItem(element, group) {
-  const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
+  const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
   return (state.catalog?.[group] || []).find((item) => String(item.code) === String(code)) || {};
 }
 

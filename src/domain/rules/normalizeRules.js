@@ -45,6 +45,7 @@ function normalizeRules(input) {
   out.version = 1;
   out.updatedAt = toNumber(src.updatedAt, 0);
 
+  const ruleIds = new Set();
   out.rules = (Array.isArray(src.rules) ? src.rules : [])
     .map((r, i) => ({
       id: cleanText(r?.id || makeId("RULE"), 120) || `RULE_${i + 1}`,
@@ -55,7 +56,11 @@ function normalizeRules(input) {
       condition: normalizeRuleCondition(r?.condition),
       actions: (Array.isArray(r?.actions) ? r.actions : []).map(normalizeRuleAction).slice(0, 10)
     }))
-    .filter((r) => r.id && r.actions.length > 0);
+    .filter((r) => {
+      if (!r.id || !r.actions.length || ruleIds.has(r.id)) return false;
+      ruleIds.add(r.id);
+      return true;
+    });
 
   return out;
 }
