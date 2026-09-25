@@ -1,0 +1,84 @@
+name: DynoraStation Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Abhängigkeiten installieren
+        run: npm install --no-audit --no-fund
+
+      - name: Release-Version prüfen
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          test "$GITHUB_REF_NAME" = "v$VERSION" || {
+            echo "Tag $GITHUB_REF_NAME passt nicht zu package.json Version $VERSION." >&2
+            exit 1
+          }
+
+      - name: Tests ausführen
+        run: npm test
+
+      - name: Installer und JavaScript prüfen
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh -n installer/DynoraStation-Linux.sh
+          bash -n installer/DynoraStation-Linux.sh
+          pwsh -NoProfile -Command '$raw = [IO.File]::ReadAllText("installer/DynoraStation-Windows.cmd", [Text.Encoding]::UTF8); $marker = "#==DYNORA_POWERSHELL=="; $i = $raw.IndexOf($marker); if ($i -lt 0) { throw "PowerShell marker missing" }; [scriptblock]::Create($raw.Substring($i + $marker.Length)) | Out-Null'
+          find src public/app -type f -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Release-Dateien bauen
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist "$RUNNER_TEMP/dynora-stage"
+          mkdir -p dist "$RUNNER_TEMP/dynora-stage"
+
+          tar \
+            --exclude='./.git' \
+            --exclude='./.github' \
+            --exclude='./node_modules' \
+            --exclude='./data' \
+            --exclude='./.env' \
+            --exclude='./dist' \
+            --exclude='./installer' \
+            -cf - . | tar -xf - -C "$RUNNER_TEMP/dynora-stage"
+
+          tar -czf dist/dynorastation-linux.tar.gz -C "$RUNNER_TEMP/dynora-stage" .
+          (cd "$RUNNER_TEMP/dynora-stage" && zip -qr "$GITHUB_WORKSPACE/dist/dynorastation-windows.zip" .)
+
+          cp installer/DynoraStation-Linux.sh dist/DynoraStation-Linux.sh
+          cp installer/DynoraStation-Windows.cmd dist/DynoraStation-Windows.cmd
+          chmod +x dist/DynoraStation-Linux.sh
+
+          (cd dist && sha256sum \
+            dynorastation-linux.tar.gz \
+            dynorastation-windows.zip \
+            DynoraStation-Linux.sh \
+            DynoraStation-Windows.cmd > SHA256SUMS.txt)
+
+      - name: GitHub Release erstellen oder aktualisieren
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "$GITHUB_REF_NAME"
+          fi
