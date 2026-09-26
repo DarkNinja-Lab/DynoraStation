@@ -2,7 +2,7 @@
 
 const { cleanText } = require("../../utils/sanitize");
 
-function createCommandQueue({ runtimeState, maxCommands, commandMaxAgeMs, commandMaxAttempts, addEvent }) {
+function createCommandQueue({ runtimeState, maxCommands, commandMaxAgeMs, addEvent }) {
   if (!Array.isArray(runtimeState.commandResults)) runtimeState.commandResults = [];
   const maxResults = Math.max(100, Number(maxCommands) || 500);
 

@@ -8,7 +8,10 @@ const { startServer } = require("./bootstrap/startServer");
 
 const app = createApp();
 const context = app.locals.dynora;
-const lifecycle = startServer({ app, env: context.env, connectionInfo: context.connectionInfo });
+const lifecycle = startServer({ app, env: context.env, connectionInfo: context.connectionInfo, runtimeState: context.runtimeState });
+context.stationControl.shutdown = lifecycle.shutdown;
+context.stationControl.restart = lifecycle.restart;
+context.stationControl.status = lifecycle.status;
 
 process.once("SIGINT", () => lifecycle.stop("SIGINT"));
 process.once("SIGTERM", () => lifecycle.stop("SIGTERM"));

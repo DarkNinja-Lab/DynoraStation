@@ -55,3 +55,8 @@ Backups der Installer enthalten die Programmversion, nicht standardmäßig `.env
 ## Hardware
 
 Der NOT-AUS in der Weboberfläche ist ein Softwarebefehl. Er ersetzt keine geeignete hardwareseitige Abschaltung der Anlage.
+
+## Stationssteuerung
+
+Die Endpunkte für Neustart und Shutdown beenden ausschließlich den DynoraStation-Prozess, nicht das Betriebssystem. Der zusätzliche Bestätigungsheader schützt vor versehentlichen Browser-/Formularaufrufen, ist aber **keine Authentifizierung**. Jeder Client mit API-Zugriff im vertrauenswürdigen Netz kann grundsätzlich Stationsaktionen auslösen. Deshalb gilt auch hier: Port `8181` nicht direkt ins Internet veröffentlichen.
+

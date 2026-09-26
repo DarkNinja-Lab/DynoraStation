@@ -45,7 +45,7 @@ const uint16_t DISCOVERY_PORT = 8182;
 // Nur der Anzeigename ist frei waehlbar. Die technische ID wird automatisch
 // aus der Chip-ID gebildet und bleibt auch nach einer Umbenennung stabil.
 const char* MODULE_NAME = "Relais und Sensoren";
-const char* FIRMWARE_VERSION = "2.5.0";
+const char* FIRMWARE_VERSION = "2.6.0";
 const uint16_t PROTOCOL_VERSION = 2;
 const char* HARDWARE_TYPE = "ESP8266_NODEMCU_MCP23017_BME280";
 
@@ -60,6 +60,12 @@ const uint8_t HTTP_RETRIES = 1;
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;
 const unsigned long HTTP_ERROR_LOG_INTERVAL_MS = 5000;
 const unsigned long DISCOVERY_RETRY_INTERVAL_MS = 10000;
+const unsigned long STATION_LINK_TIMEOUT_MS = 6500;
+
+// D4/GPIO2 ist auf dem NodeMCU die blaue Onboard-LED und bleibt bei dieser
+// Firmware frei von Relais-/Sensorfunktionen.
+const uint8_t STATUS_LED_PIN = LED_BUILTIN;
+const bool STATUS_LED_ACTIVE_LOW = true;
 
 // MCP23017 / Relaisboard (Pflicht)
 const uint8_t MCP23017_ADDRESS = 0x20;
@@ -111,6 +117,7 @@ bool wifiConnectStarted = false;
 bool wifiWasConnected = false;
 bool serverWasReachable = false;
 bool heartbeatConfirmed = false;
+unsigned long lastServerContactAt = 0;
 bool relayHardwareReady = false;
 String activeServerHost = SERVER_HOST;
 WiFiUDP discoveryUdp;
@@ -145,6 +152,36 @@ PulseState pulses[RELAY_COUNT];
 void executeCommand(const JsonObject& cmd);
 
 /* ============================ Hilfsfunktionen =========================== */
+
+void writeStatusLed(bool on) {
+  digitalWrite(STATUS_LED_PIN, STATUS_LED_ACTIVE_LOW ? (on ? LOW : HIGH) : (on ? HIGH : LOW));
+}
+
+bool stationConnected() {
+  if (WiFi.status() != WL_CONNECTED || !heartbeatConfirmed || lastServerContactAt == 0) return false;
+  return (unsigned long)(millis() - lastServerContactAt) < STATION_LINK_TIMEOUT_MS;
+}
+
+void tickStatusLed() {
+  unsigned long now = millis();
+
+  if (heartbeatConfirmed && lastServerContactAt > 0 && (unsigned long)(now - lastServerContactAt) >= STATION_LINK_TIMEOUT_MS) {
+    heartbeatConfirmed = false;
+    serverWasReachable = false;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    writeStatusLed((now % 400UL) < 200UL);
+    return;
+  }
+
+  if (!stationConnected()) {
+    writeStatusLed((now % 1200UL) < 120UL);
+    return;
+  }
+
+  writeStatusLed(true);
+}
 
 String makeBaseUrl() {
   String url = "http://";
@@ -369,6 +406,7 @@ bool httpPostJson(const String& path, const String& payload, String& responseOut
 
     if (code >= 200 && code < 300) {
       serverWasReachable = true;
+      lastServerContactAt = millis();
       return true;
     }
     delay(40);
@@ -401,6 +439,7 @@ bool httpGet(const String& path, String& responseOut) {
 
     if (code >= 200 && code < 300) {
       serverWasReachable = true;
+      lastServerContactAt = millis();
       return true;
     }
     delay(40);
@@ -461,6 +500,7 @@ bool sendHeartbeat() {
     DynamicJsonDocument reply(1024);
     DeserializationError err = deserializeJson(reply, response);
     if (!err && reply["ok"] == true) {
+      lastServerContactAt = millis();
       if (!heartbeatConfirmed) {
         heartbeatConfirmed = true;
         Serial.print("[SERVER] Heartbeat OK: ");
@@ -535,7 +575,6 @@ void executeCommand(const JsonObject& cmd) {
   int id = cmd["id"] | 0;
   int channel = cmd["channel"] | 0;
   bool state = cmd["state"] | false;
-  int duration = cmd["duration"] | 0;
 
   Serial.print("[BEFEHL] #");
   Serial.print(id);
@@ -563,7 +602,9 @@ void executeCommand(const JsonObject& cmd) {
       if (id > 0) ackCommand(id, false, "Ungueltiger Relaiskanal");
       return;
     }
-    bool executed = startPulse((uint8_t)(channel - 1), (unsigned long)duration);
+    long durationRaw = cmd["duration"] | 220;
+    unsigned long durationMs = (unsigned long)constrain(durationRaw, 50L, 5000L);
+    bool executed = startPulse((uint8_t)(channel - 1), durationMs);
     if (id > 0) ackCommand(id, executed, executed ? "" : "Relaispuls konnte nicht gestartet werden");
     return;
   }
@@ -629,6 +670,7 @@ void ensureWifi() {
     wifiWasConnected = false;
     serverWasReachable = false;
     heartbeatConfirmed = false;
+    lastServerContactAt = 0;
     Serial.println("[WLAN] Verbindung verloren");
   }
 
@@ -656,6 +698,9 @@ void setup() {
   delay(100);
   Serial.println();
   Serial.println("Dynora Relay/Sensor Controller startet");
+
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  writeStatusLed(false);
 
   moduleId = "ESP8266-" + String(ESP.getChipId(), HEX);
   moduleId.toUpperCase();
@@ -690,6 +735,7 @@ void loop() {
   ensureMcp23017();
   ensureBme280();
   ensureWifi();
+  tickStatusLed();
   tickPulses();
 
   unsigned long now = millis();

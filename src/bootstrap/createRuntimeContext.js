@@ -21,7 +21,7 @@ function createRuntimeContext() {
   const queueWriteLayout = () => makeQueueWriteLayout(runtimeState, addEvent);
   const queueWriteHardware = () => makeQueueWriteHardware(runtimeState, addEvent);
   const queueWriteRules = () => makeQueueWriteRules(runtimeState, addEvent);
-  const commandQueueApi = createCommandQueue({ runtimeState, maxCommands: env.MAX_COMMANDS, commandMaxAgeMs: env.COMMAND_MAX_AGE_MS, commandMaxAttempts: env.COMMAND_MAX_ATTEMPTS, addEvent });
+  const commandQueueApi = createCommandQueue({ runtimeState, maxCommands: env.MAX_COMMANDS, commandMaxAgeMs: env.COMMAND_MAX_AGE_MS, addEvent });
   const moduleRegistry = createModuleRegistry({ runtimeState, moduleTimeout: env.MODULE_TIMEOUT, protocolVersion: env.PROTOCOL_VERSION });
   moduleRegistry.bootstrapModulesFromHardware(runtimeState.hardware);
   const confirmedCommandApplier = createConfirmedCommandApplier({
@@ -29,11 +29,17 @@ function createRuntimeContext() {
     updateElementsPowerByRelay, queueWriteHardware, queueWriteLayout, queueWriteRules, addEvent
   });
 
+  const stationControl = {
+    shutdown: null,
+    restart: null,
+    status: () => ({ state: "starting", managedBy: "unknown" })
+  };
+
   return {
     env, runtimeState, addEvent, queueWriteLayout, queueWriteHardware, queueWriteRules,
     commandQueueApi, moduleRegistry, upsertRelay, upsertLed, upsertSensor,
     updateElementsPowerByRelay, syncAllElementStatesFromRelaysAndLeds,
-    confirmedCommandApplier,
+    confirmedCommandApplier, stationControl,
     enableDebugEndpoints: env.ENABLE_DEBUG_ENDPOINTS,
     connectionInfo: Object.freeze({
       port: env.SERVER_PORT,

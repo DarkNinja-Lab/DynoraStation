@@ -268,9 +268,9 @@ function createControlRoutes({
       requested = { state: brightness > 0, brightness, blinking: false };
       cmd = commandQueueApi.createCommand("LED_PWM", { channel, brightness, operationId: opId, triggerOnConfirm: true, triggerKind: "led" }, moduleId);
     } else if (mode === "blink") {
-      const onMs = Math.max(20, toInt(req.body?.onMs, 300));
-      const offMs = Math.max(20, toInt(req.body?.offMs, 300));
-      const durationMs = Math.max(0, toInt(req.body?.durationMs, 0));
+      const onMs = Math.max(20, Math.min(60000, toInt(req.body?.onMs, 300)));
+      const offMs = Math.max(20, Math.min(60000, toInt(req.body?.offMs, 300)));
+      const durationMs = Math.max(0, Math.min(3600000, toInt(req.body?.durationMs, 0)));
       requested = { state: true, brightness: 255, blinking: true };
       cmd = commandQueueApi.createCommand("LED_BLINK", { channel, onMs, offMs, durationMs, operationId: opId }, moduleId);
     } else {

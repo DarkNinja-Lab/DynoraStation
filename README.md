@@ -6,16 +6,16 @@ Webbasiertes **Analog-Stellwerk für Märklin H0 M-Gleis**. DynoraStation verbin
 
 | Datei | Inhalt |
 | --- | --- |
-| [INSTALLATION.md](INSTALLATION.md) | Installation unter Linux und Windows |
-| [CONFIGURATION.md](CONFIGURATION.md) | `.env`, Ports, Discovery, CORS und Limits |
-| [OPERATIONS.md](OPERATIONS.md) | Start, Stop, Neustart, Update, Backups und Logs |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Aufbau von Backend, Frontend, Persistenz und ESP-Kommunikation |
-| [API.md](API.md) | HTTP-Endpunkte und Modulprotokoll |
-| [HARDWARE.md](HARDWARE.md) | ESP8266-Firmware, Relais, Sensoren und Signale |
-| [SECURITY.md](SECURITY.md) | Sicherheitsmodell und empfohlener Betrieb |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnose typischer Fehler |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
-| [RELEASES.md](RELEASES.md) | Trennung zwischen `main` und Release-only Installern |
+| [INSTALLATION.md](docs/INSTALLATION.md) | Installation unter Linux und Windows |
+| [CONFIGURATION.md](docs/CONFIGURATION.md) | `.env`, Ports, Discovery, CORS und Limits |
+| [OPERATIONS.md](docs/OPERATIONS.md) | Start, Stop, Neustart, Update, Backups und Logs |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Aufbau von Backend, Frontend, Persistenz und ESP-Kommunikation |
+| [API.md](docs/API.md) | HTTP-Endpunkte und Modulprotokoll |
+| [HARDWARE.md](docs/HARDWARE.md) | ESP8266-Firmware, Relais, Sensoren und Signale |
+| [SECURITY.md](docs/SECURITY.md) | Sicherheitsmodell und empfohlener Betrieb |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Diagnose typischer Fehler |
+| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
+| [RELEASES.md](docs/RELEASES.md) | Trennung zwischen `main` und Release-only Installern |
 
 
 ## Installation
@@ -119,6 +119,7 @@ npm test
 - Rückmelder/Sensoren live anzeigen
 - ESP8266-Module automatisch erkennen und verwalten
 - Grundstellungen und Wenn-Dann-Ereignisse konfigurieren
+- DynoraStation-Prozess aus den Einstellungen neu starten oder beenden
 - Anlagenplan als PDF exportieren
 - Bedienung auf Desktop, Tablet und Smartphone
 
@@ -126,7 +127,7 @@ npm test
 
 DynoraStation ist auf klassische analoge Märklin-M-Gleis-Anlagen ausgelegt. ESP8266-Module übernehmen die Verbindung zu Relais, Sensoren und LED-/Signalausgängen. Die Weboberfläche ist das zentrale Stellwerk; die Anlage bleibt elektrisch weiterhin eine analoge Anlage.
 
-Die vollständige technische Einrichtung, Installer-Architektur, Umgebungsvariablen, Diagnose und Sicherheitsdetails stehen in [TECHNICAL.md](TECHNICAL.md).
+Die vollständige technische Dokumentation steht unter [docs/](docs/README.md).
 
 ## Projektstruktur
 
@@ -140,7 +141,3 @@ test/                Smoke-, Safety- und Strukturtests
 ```
 
 Die Release-only Installer sind absichtlich kein Bestandteil dieser Struktur.
-
-## Lizenz
-
-Siehe [LICENSE](LICENSE).

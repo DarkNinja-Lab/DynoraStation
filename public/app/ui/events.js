@@ -501,6 +501,55 @@ export function refreshSettingsHardwareStatus() {
 
   const ledHost = byId("ledConfigGrid");
   if (ledHost && !ledHost.contains(document.activeElement)) renderLedGrid();
+  renderStationControlStatus();
+}
+
+function formatUptime(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (days > 0) return `${days} T ${hours} Std`;
+  if (hours > 0) return `${hours} Std ${minutes} Min`;
+  return `${minutes} Min`;
+}
+
+function renderStationControlStatus() {
+  const status = byId("stationProcessStatus");
+  const detail = byId("stationRuntimeDetail");
+  const version = byId("stationVersion");
+  const address = byId("stationAddress");
+  const station = state.stationStatus || {};
+  const managerLabel = ({ systemd: "systemd", windows: "Windows", process: "Direktstart" })[station.managedBy] || "Prozess";
+  const uptime = Number(station.uptimeSec ?? state.serverUptimeSec) || 0;
+  if (status) status.textContent = station.state === "restart" ? "Startet neu …" : station.state === "shutdown" ? "Wird beendet …" : "Läuft";
+  if (detail) detail.textContent = `Laufzeit ${formatUptime(uptime)}${Number(station.pid) > 0 ? ` · PID ${station.pid}` : ""} · ${managerLabel}`;
+  if (version) version.textContent = state.serverVersion ? `v${state.serverVersion}` : "–";
+  if (address) {
+    const host = Array.isArray(state.connection?.lanAddresses) && state.connection.lanAddresses.length
+      ? state.connection.lanAddresses[0]
+      : window.location.hostname;
+    address.textContent = `${host}:${state.connection?.port || window.location.port || 8181}`;
+  }
+
+  // Nach einem erfolgreichen Restart bleibt die Seite offen. Sobald ein neuer
+  // Serverprozess erkannt wurde, wird der Restart-Button wieder freigegeben.
+  const restartButton = document.querySelector('[data-station-action="restart"]');
+  if (restartButton?.dataset.stationPending === "restart") {
+    const previousPid = Number(restartButton.dataset.previousPid || 0);
+    const previousUptime = Number(restartButton.dataset.previousUptime || 0);
+    const currentPid = Number(station.pid || 0);
+    const restarted = (previousPid > 0 && currentPid > 0 && currentPid !== previousPid) ||
+      (previousUptime > 2 && uptime + 2 < previousUptime);
+    if (restarted) {
+      restartButton.disabled = false;
+      restartButton.textContent = "Neu starten";
+      delete restartButton.dataset.stationPending;
+      delete restartButton.dataset.previousPid;
+      delete restartButton.dataset.previousUptime;
+      showToast("DynoraStation ist wieder online");
+    }
+  }
 }
 
 export function renderSettingsTab() {
@@ -510,6 +559,7 @@ export function renderSettingsTab() {
   renderRelayGrid();
   renderSensorGrid();
   renderLedGrid();
+  renderStationControlStatus();
   applySettingsView();
 }
 
@@ -685,6 +735,45 @@ function bindSettingsInput() {
       } finally {
         btn.disabled = false;
         btn.textContent = "NOT-AUS";
+      }
+      return;
+    }
+
+    if (btn.dataset.stationAction) {
+      const action = btn.dataset.stationAction;
+      if (!['restart', 'shutdown'].includes(action)) return;
+      const label = action === 'restart' ? 'neu starten' : 'beenden';
+      const detail = action === 'restart'
+        ? 'DynoraStation wird kurz getrennt und danach neu gestartet. Der Computer bleibt eingeschaltet.'
+        : 'Nur DynoraStation wird beendet. Der Computer bleibt eingeschaltet und die Weboberfläche ist danach offline.';
+      if (!confirm(`DynoraStation wirklich ${label}?\n\n${detail}`)) return;
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      if (action === 'restart') {
+        btn.dataset.stationPending = 'restart';
+        btn.dataset.previousPid = String(state.stationStatus?.pid || 0);
+        btn.dataset.previousUptime = String(state.stationStatus?.uptimeSec ?? state.serverUptimeSec ?? 0);
+      }
+      btn.textContent = action === 'restart' ? 'Neustart …' : 'Wird beendet …';
+      try {
+        const result = await apiCall(`/station/${action}`, {
+          method: 'POST',
+          headers: { 'X-Dynora-Action': 'station-control' },
+          body: { confirm: action },
+          timeoutMs: 4000
+        });
+        showToast(result?.message || (action === 'restart' ? 'DynoraStation wird neu gestartet' : 'DynoraStation wird beendet'));
+        const processStatus = byId('stationProcessStatus');
+        const runtimeDetail = byId('stationRuntimeDetail');
+        if (processStatus) processStatus.textContent = action === 'restart' ? 'Startet neu …' : 'Wird beendet …';
+        if (runtimeDetail) runtimeDetail.textContent = action === 'restart' ? 'Verbindung wird kurz unterbrochen' : 'Weboberfläche geht anschließend offline';
+      } catch (error) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        delete btn.dataset.stationPending;
+        delete btn.dataset.previousPid;
+        delete btn.dataset.previousUptime;
+        showToast(`Stationsaktion fehlgeschlagen: ${error?.message || error}`, 'error');
       }
       return;
     }
@@ -919,7 +1008,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
-    if (["modules", "lights", "relays", "sensors", "leds", "rules", "defaults"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
+    if (["modules", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
   bindTrackFocusMode();

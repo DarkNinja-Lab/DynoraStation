@@ -4,7 +4,7 @@ const express = require("express");
 const { wrap } = require("../utils/errors");
 const { findRelayConflicts } = require("../domain/hardware/relayConflicts");
 
-function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env, connectionInfo }) {
+function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env, connectionInfo, stationControl }) {
   const router = express.Router();
 
   router.get("/api/status", wrap(async (req, res) => {
@@ -53,6 +53,8 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
       ok: true,
       serverTime: Date.now(),
       serverVersion: env.APP_VERSION,
+      uptimeSec: Math.round(process.uptime()),
+      station: typeof stationControl?.status === "function" ? stationControl.status() : { state: "unknown", managedBy: "unknown" },
       protocolVersion: env.PROTOCOL_VERSION,
       systemProfile: { manufacturer: "Märklin", trackSystem: "M-Gleis", scale: "H0" },
       moduleTimeoutMs: env.MODULE_TIMEOUT,

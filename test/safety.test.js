@@ -14,7 +14,6 @@ test("Command-Queue markiert fehlende ESP-Bestätigung als Zeitüberschreitung",
     runtimeState,
     maxCommands: 20,
     commandMaxAgeMs: 5,
-    commandMaxAttempts: 10,
     addEvent: (...args) => events.push(args)
   });
   const command = queue.createCommand("RELAY_SET", { channel: 1, state: true }, "ESP-A");
@@ -34,7 +33,6 @@ test("Wiederholtes ESP-Polling beendet einen Befehl nicht vor dem Zeitlimit", ()
     runtimeState,
     maxCommands: 20,
     commandMaxAgeMs: 1000,
-    commandMaxAttempts: 1,
     addEvent: () => {}
   });
   const command = queue.createCommand("RELAY_SET", { channel: 1, state: true }, "ESP-A");

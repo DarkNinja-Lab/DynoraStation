@@ -124,3 +124,14 @@ Nur aktiv, wenn `ENABLE_DEBUG_ENDPOINTS=true` gesetzt ist:
 | `GET` | `/api/debug/hardware` |
 
 Im normalen Betrieb sollten diese Endpunkte deaktiviert bleiben.
+
+## DynoraStation-Prozess
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| `GET` | `/api/station` | Laufstatus des DynoraStation-Prozesses |
+| `POST` | `/api/station/restart` | Nur DynoraStation neu starten |
+| `POST` | `/api/station/shutdown` | Nur DynoraStation beenden |
+
+Die beiden schreibenden Endpunkte erwarten den Header `X-Dynora-Action: station-control` sowie im JSON-Body `{"confirm":"restart"}` bzw. `{"confirm":"shutdown"}`. Sie führen keinen Betriebssystem-Neustart und kein Betriebssystem-Herunterfahren aus.
+

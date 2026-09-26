@@ -174,6 +174,11 @@ export async function statusLaden({ ruhig = true } = {}) {
     if (data?.revisions) state.statusRevisions = { ...revisions, ...data.revisions };
     state.statusPollMs = Math.max(250, Number(data?.uiStatusIntervalMs) || 400);
     state.connection = data?.connection && typeof data.connection === "object" ? data.connection : null;
+    state.serverVersion = String(data?.serverVersion || "");
+    state.serverUptimeSec = Math.max(0, Number(data?.uptimeSec) || 0);
+    state.stationStatus = data?.station && typeof data.station === "object"
+      ? data.station
+      : { state: "running", managedBy: "unknown", pid: 0, uptimeSec: state.serverUptimeSec };
 
     setServerOnline(true);
     setLastSync(true);

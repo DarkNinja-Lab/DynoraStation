@@ -12,6 +12,9 @@ export const state = {
   commands: [],
   relayConflicts: [],
   connection: null,
+  serverVersion: "",
+  serverUptimeSec: 0,
+  stationStatus: { state: "unknown", managedBy: "unknown", pid: 0 },
 
   // Regeln
   rules: [],
@@ -45,5 +48,6 @@ export const state = {
   settingsDirty: { lights: false, relays: false, sensors: false, leds: false, defaults: false },
   settingsPersistedAt: 0,
   settingsLedModule: "",
+  settingsView: "modules",
   events: []
 };

@@ -6272,3 +6272,132 @@ body.track-focus-active { overflow: hidden !important; }
   #page-track .track-light-panel { display: none; }
   #page-track .track-plan-overlay { max-height: 104px; }
 }
+
+/* ========================================================================== */
+/* System settings navigation + DynoraStation process controls                 */
+/* ========================================================================== */
+#page-settings .settings-workspace {
+  display: block;
+  min-height: 0;
+}
+
+#page-settings .settings-tabs {
+  position: static;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px;
+  width: 100%;
+  max-height: none;
+  margin: 0 0 10px;
+  padding: 6px;
+  overflow: visible;
+}
+
+#page-settings .settings-tab {
+  min-width: 0;
+  min-height: 46px;
+}
+
+#page-settings .settings-tab.active {
+  box-shadow: inset 0 -2px 0 currentColor;
+}
+
+.station-runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.station-runtime-card,
+.station-action-card,
+.station-control-note {
+  border: 1px solid var(--ds-line);
+  background: var(--ds-surface-2);
+  border-radius: 10px;
+}
+
+.station-runtime-card {
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.station-runtime-card > span,
+.station-runtime-card > small {
+  display: block;
+  color: var(--ds-muted);
+  font-size: 10px;
+}
+
+.station-runtime-card > strong {
+  display: block;
+  margin: 4px 0 2px;
+  color: var(--ds-text);
+  font-size: 18px;
+}
+
+.station-action-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.station-action-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+}
+
+.station-action-card > div:nth-child(2) { min-width: 0; }
+.station-action-card strong { display: block; font-size: 12px; }
+.station-action-card p { margin: 3px 0 0; color: var(--ds-muted); font-size: 10px; line-height: 1.4; }
+.station-action-card button { min-width: 112px; }
+.station-action-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ds-line-strong);
+  border-radius: 9px;
+  background: var(--ds-surface-3);
+  color: var(--ds-accent-strong);
+}
+.station-action-icon .ui-icon { width: 18px; height: 18px; }
+.station-action-danger { border-color: rgba(225, 62, 62, .42); }
+.station-action-danger .station-action-icon { color: #ff8f8f; border-color: rgba(225, 62, 62, .45); }
+
+.station-control-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+  padding: 9px 10px;
+  color: var(--ds-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.station-control-note .ui-icon { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+
+@media (max-width: 900px) {
+  #page-settings .settings-tabs {
+    position: static;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  #page-settings .settings-tabs::-webkit-scrollbar { display: none; }
+  #page-settings .settings-tab {
+    flex: 0 0 auto;
+    min-width: 108px;
+  }
+  .station-runtime-grid { grid-template-columns: 1fr; }
+  .station-action-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+  .station-action-card button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

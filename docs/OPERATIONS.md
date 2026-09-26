@@ -108,3 +108,10 @@ DynoraStation-Windows.cmd uninstall --purge
 ```
 
 Ohne `--purge` bleiben `.env` und `data/` erhalten. Mit `--purge` werden auch Nutzerdaten und Installer-Backups entfernt.
+
+## Neustart und Shutdown aus der Weboberfläche
+
+Unter **Einstellungen → Station** kann ausschließlich der DynoraStation-Prozess neu gestartet oder beendet werden. Diese Aktionen führen keinen Neustart und kein Herunterfahren des Betriebssystems aus.
+
+Bei einer systemd-Installation wird für einen Neustart der Prozess beendet und durch die konfigurierte Restart-Policy des Dienstes wieder gestartet. Bei einem direkten Start startet DynoraStation einen Ersatzprozess. Nach **Station herunterfahren** bleibt die Weboberfläche offline, bis DynoraStation extern oder manuell erneut gestartet wird.
+

@@ -385,6 +385,7 @@
           <button class="settings-tab" data-settings-view="leds" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-signal"></use></svg></span><span><b>Signalkanäle</b><small>LED-Ausgänge</small></span></button>
           <button class="settings-tab" data-settings-view="rules" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-events"></use></svg></span><span><b>Ereignisse</b><small>Wenn-Dann-Abläufe</small></span></button>
           <button class="settings-tab" data-settings-view="defaults" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-home"></use></svg></span><span><b>Startzustand</b><small>Grundstellung</small></span></button>
+          <button class="settings-tab" data-settings-view="station" type="button"><span class="settings-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-power"></use></svg></span><span><b>Station</b><small>Prozesssteuerung</small></span></button>
         </nav>
         <div class="settings-content">
 
@@ -464,6 +465,41 @@
           </div>
           <div id="ledConfigGrid" class="light-config-grid"></div>
         </section>
+        <section class="panel settings-panel compact settings-section station-control-section" data-settings-section="station">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">DYNORASTATION</div>
+              <h2>Station steuern</h2>
+              <p>Startet oder beendet ausschließlich die DynoraStation-Anwendung. Windows, Linux oder der Raspberry Pi selbst werden nicht heruntergefahren.</p>
+            </div>
+          </div>
+          <div class="station-runtime-grid">
+            <article class="station-runtime-card">
+              <span>Prozess</span>
+              <strong id="stationProcessStatus">Läuft</strong>
+              <small id="stationRuntimeDetail">Status wird synchronisiert</small>
+            </article>
+            <article class="station-runtime-card">
+              <span>Version</span>
+              <strong id="stationVersion">–</strong>
+              <small id="stationAddress">Lokale DynoraStation</small>
+            </article>
+          </div>
+          <div class="station-action-grid">
+            <article class="station-action-card">
+              <div class="station-action-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-rotate-right"></use></svg></div>
+              <div><strong>DynoraStation neu starten</strong><p>Beendet den laufenden Serverprozess sauber und startet DynoraStation anschließend erneut.</p></div>
+              <button class="secondary-button" data-station-action="restart" type="button">Neu starten</button>
+            </article>
+            <article class="station-action-card station-action-danger">
+              <div class="station-action-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-power"></use></svg></div>
+              <div><strong>DynoraStation herunterfahren</strong><p>Beendet nur DynoraStation. Der Computer bzw. Raspberry Pi bleibt eingeschaltet.</p></div>
+              <button class="danger-button" data-station-action="shutdown" type="button">Station beenden</button>
+            </article>
+          </div>
+          <div class="station-control-note"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=mobile-v5-cachefix#icon-info"></use></svg><span>Nach „Station beenden“ ist die Weboberfläche nicht mehr erreichbar, bis DynoraStation extern wieder gestartet wird.</span></div>
+        </section>
+
         <section class="panel settings-panel compact settings-section rules-shell" data-settings-section="rules">
           <div class="panel-header">
             <div>

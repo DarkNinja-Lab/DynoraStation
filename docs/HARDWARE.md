@@ -47,7 +47,7 @@ const char* WIFI_PASS = "...";
 const char* SERVER_HOST = "...";
 ```
 
-Beim LED-Modul ist zusätzlich `MODULE_ID` fest konfiguriert. Das Relais-/Sensormodul erzeugt seine technische Modul-ID aus der ESP-Chip-ID; `MODULE_NAME` ist nur der Anzeigename.
+Beide Firmwarevarianten erzeugen standardmäßig eine stabile technische Modul-ID aus der ESP-Chip-ID. Beim LED-Modul kann `MODULE_ID_OVERRIDE` gesetzt werden, um bei einer bestehenden Installation bewusst eine alte technische ID beizubehalten. Der Anzeigename kann unabhängig davon im Webinterface geändert werden.
 
 ## Elektrische Sicherheit
 

@@ -46,9 +46,12 @@ function createModuleRoutes({
     if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "Modul-ID fehlt");
     const module = moduleRegistry.getOrCreateModule(moduleId);
     const wasOnline = moduleRegistry.moduleIsOnline(module);
+    const heartbeatNow = Date.now();
+    const firstRuntimeHeartbeat = module._heartbeatSeen !== true;
+    module._heartbeatSeen = true;
 
     module.online = true;
-    module.lastHeartbeat = Date.now();
+    module.lastHeartbeat = heartbeatNow;
     module.ip = ipFromReq(req) || module.ip || "";
     const firmwareType = cleanText(req.body?.moduleType || "", 40);
     const firmwareVersion = cleanText(req.body?.firmwareVersion || "", 40);
@@ -142,6 +145,7 @@ function createModuleRoutes({
       });
     }
 
+    const recoveredSensorTransitions = [];
     const sensorSnapshot = Array.isArray(req.body?.sensors)
       ? req.body.sensors
           .map((sensor) => ({
@@ -168,23 +172,36 @@ function createModuleRoutes({
         const existing = runtimeState.hardware.sensors.find((s) => s.module === moduleId && s.id === id);
         const existingName = existing?.name || id;
         const snapshot = snapshotById.get(id);
+        const nextTriggered = snapshot ? snapshot.triggered : Boolean(existing?.triggered);
+        const changedFromLiveHeartbeat = Boolean(
+          snapshot && existing && !firstRuntimeHeartbeat && Boolean(existing.triggered) !== nextTriggered
+        );
+        const nextLastEvent = changedFromLiveHeartbeat && nextTriggered
+          ? heartbeatNow
+          : Number(existing?.lastEvent) || 0;
+
         upsertSensor(runtimeState.hardware, moduleId, id, {
           name: existingName,
-          triggered: snapshot ? snapshot.triggered : Boolean(existing?.triggered),
-          lastEvent: Number(existing?.lastEvent) || 0
+          triggered: nextTriggered,
+          lastEvent: nextLastEvent
         });
 
         const moduleSensor = module.sensors.find((s) => s.id === id);
         if (moduleSensor) {
           moduleSensor.name = existingName;
-          if (snapshot) moduleSensor.triggered = snapshot.triggered;
+          moduleSensor.triggered = nextTriggered;
+          moduleSensor.lastEvent = nextLastEvent;
         } else {
           module.sensors.push({
             id,
             name: existingName,
-            triggered: snapshot ? snapshot.triggered : false,
-            lastEvent: Number(existing?.lastEvent) || 0
+            triggered: nextTriggered,
+            lastEvent: nextLastEvent
           });
+        }
+
+        if (changedFromLiveHeartbeat) {
+          recoveredSensorTransitions.push({ id, name: existingName, triggered: nextTriggered });
         }
       });
     }
@@ -243,8 +260,34 @@ function createModuleRoutes({
       hardwareType: module.hardwareType,
       health: module.health
     };
-    runtimeState.hardware.updatedAt = Date.now();
-    queueWriteHardware();
+    runtimeState.hardware.updatedAt = heartbeatNow;
+
+    // Heartbeats kommen standardmaessig alle 2 Sekunden. Live-Daten bleiben im RAM aktuell,
+    // aber wir schreiben reine Heartbeat-Zeitstempel nur periodisch auf Disk (SD-Karten-Schonung).
+    // Relevante Zustandsaenderungen ueber ACK/Sensor-Endpunkte werden weiterhin sofort gespeichert.
+    const lastHeartbeatPersistAt = Number(module._lastHeartbeatPersistAt || 0);
+    const shouldPersistHeartbeat = firstRuntimeHeartbeat || recoveredSensorTransitions.length > 0 ||
+      (heartbeatNow - lastHeartbeatPersistAt) >= env.HEARTBEAT_PERSIST_INTERVAL_MS;
+    if (shouldPersistHeartbeat) {
+      module._lastHeartbeatPersistAt = heartbeatNow;
+      queueWriteHardware();
+    }
+
+    // Fallback: Geht ein einzelner /sensor-Request verloren, kann der naechste Heartbeat
+    // den Zustandswechsel nachziehen. Beim ersten Heartbeat nach Serverstart feuern wir
+    // bewusst keine Regeln, damit gespeicherte Sensorzustaende nicht erneut ausloesen.
+    for (const transition of recoveredSensorTransitions) {
+      addEvent("SENSOR", `${moduleId}:${transition.id}`, `${transition.name} ${transition.triggered ? "ausgelöst" : "frei"} (per Heartbeat synchronisiert)`);
+      executeRulesForTrigger({
+        runtimeState, moduleRegistry, commandQueueApi, addEvent, queueWriteRules,
+        trigger: {
+          kind: "sensor",
+          module: moduleId,
+          sensorId: transition.id,
+          triggered: transition.triggered
+        }
+      });
+    }
 
     const compatibility = moduleRegistry.moduleCompatibility(module);
     // Der Heartbeat ist ein zweiter, robuster Zustellweg. Falls ein Router oder

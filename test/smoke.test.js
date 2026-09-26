@@ -68,11 +68,33 @@ test.after(async () => {
 });
 
 test("UI und Kern-API sind erreichbar", async () => {
-  const endpoints = ["/", "/style.css", "/healthz", "/api/status", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
+  const endpoints = ["/", "/style.css", "/healthz", "/api/status", "/api/station", "/api/track-catalog", "/api/layout", "/api/rules", "/api/hardware", "/api/light-buttons"];
   for (const endpoint of endpoints) {
     const response = await fetch(`${baseUrl}${endpoint}`);
     assert.equal(response.status, 200, endpoint);
   }
+});
+
+
+
+test("Stationssteuerung verlangt explizite Bestätigung und bleibt vom OS getrennt", async () => {
+  const missingConfirmation = await fetch(`${baseUrl}/api/station/restart`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ confirm: "restart" })
+  });
+  assert.equal(missingConfirmation.status, 400);
+
+  // createApp() startet in diesem Test keinen echten Lifecycle. Mit korrekter
+  // Bestätigung muss deshalb 503 statt eines Prozess-/Systemeingriffs kommen.
+  const unavailable = await fetch(`${baseUrl}/api/station/restart`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-dynora-action": "station-control" },
+    body: JSON.stringify({ confirm: "restart" })
+  });
+  assert.equal(unavailable.status, 503);
+  const body = await unavailable.json();
+  assert.equal(body.code, "STATION_CONTROL_UNAVAILABLE");
 });
 
 test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", () => {
@@ -256,12 +278,75 @@ test("Heartbeat liefert wartende Relaisbefehle als redundanten Zustellweg", asyn
   await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
 
+
+
+test("LED-Blinkzeiten werden serverseitig sicher begrenzt", async () => {
+  const moduleId = "ESP8266-LED-BOUNDS";
+  const headers = { "content-type": "application/json" };
+  const heartbeatBody = compatibleHeartbeat({
+    module: moduleId,
+    moduleType: "LED_CONTROLLER",
+    leds: [{ channel: 1, state: false, brightness: 0, blinking: false }]
+  });
+  assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, { method: "POST", headers, body: JSON.stringify(heartbeatBody) })).status, 200);
+
+  const response = await fetch(`${baseUrl}/api/led`, {
+    method: "POST", headers,
+    body: JSON.stringify({ module: moduleId, channel: 1, mode: "blink", onMs: -50, offMs: 999999, durationMs: 99999999 })
+  });
+  assert.equal(response.status, 200);
+  const command = await nextCommand(moduleId);
+  assert.equal(command.type, "LED_BLINK");
+  assert.equal(command.onMs, 20);
+  assert.equal(command.offMs, 60000);
+  assert.equal(command.durationMs, 3600000);
+  await ackCommand(moduleId, command);
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
+test("Sensorzustandswechsel aus Heartbeats können verlorene Sensor-Events nachziehen", async () => {
+  const moduleId = "ESP8266-SENSOR-HB-FALLBACK";
+  const headers = { "content-type": "application/json" };
+  const heartbeat = (triggered) => fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({
+      module: moduleId,
+      moduleType: "RELAY_SENSOR_CONTROLLER",
+      relays: [false],
+      sensorInventory: ["S1"],
+      sensors: [{ id: "S1", triggered }]
+    }))
+  });
+
+  assert.equal((await heartbeat(false)).status, 200);
+  const saveRules = await fetch(`${baseUrl}/api/rules`, {
+    method: "POST", headers,
+    body: JSON.stringify({ rules: [{
+      id: "RULE_HEARTBEAT_FALLBACK",
+      name: "Heartbeat-Fallback",
+      enabled: true,
+      condition: { kind: "sensor", module: moduleId, sensorId: "S1", triggered: true },
+      actions: [{ kind: "relay", module: moduleId, channel: 1, state: "on" }]
+    }] })
+  });
+  assert.equal(saveRules.status, 200);
+
+  const recovered = await (await heartbeat(true)).json();
+  assert.equal(recovered.command?.type, "RELAY_SET");
+  assert.equal(recovered.command?.channel, 1);
+  await ackCommand(moduleId, recovered.command);
+
+  await fetch(`${baseUrl}/api/rules`, { method: "POST", headers, body: JSON.stringify({ rules: [] }) });
+  await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
 test("Relais-Firmware bestätigt Befehle auch bei Hardwarefehlern eindeutig", () => {
   const firmware = fs.readFileSync(path.join(projectDir, "esp8266_code", "relays_und_sensoren.ino"), "utf8");
-  assert.match(firmware, /FIRMWARE_VERSION = "2\.5\.0"/);
+  assert.match(firmware, /FIRMWARE_VERSION = "2\.5\.1"/);
   assert.match(firmware, /RELAY_ACTIVE_LOW = true/);
   assert.match(firmware, /RELAY_DRIVE_MODE = "OPEN_DRAIN_IODIR"/);
   assert.match(firmware, /mcpWriteAndVerify/);
+  assert.doesNotMatch(firmware, /Wire\.endTransmission\(\) != 0\) return false;\s*if \(Wire\.endTransmission/);
   assert.match(firmware, /reply\["command"\]/);
   assert.match(firmware, /MCP23017 nicht bereit oder Schreibfehler/);
   assert.doesNotMatch(firmware, /if \(relayHardwareReady && WiFi\.status\(\) == WL_CONNECTED/);

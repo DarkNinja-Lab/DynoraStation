@@ -35,6 +35,8 @@ Unterstützt:
 - Blinken
 - NOT-AUS
 - HTTP-Heartbeat, Command Polling und UDP-Discovery
+- Heartbeat als zweiter Befehls-Zustellweg
+- stabile automatische Modul-ID aus der ESP8266-Chip-ID
 
 Benötigte Arduino-Libraries:
 
@@ -67,3 +69,8 @@ Die Firmware versucht DynoraStation per UDP im lokalen Netz zu finden. `SERVER_H
 Für die Inbetriebnahme den seriellen Monitor geöffnet lassen. Dort werden WLAN-Verbindung, gefundener Server, HTTP-Fehler und Hardwarestatus ausgegeben.
 
 Wenn ein Modul im Webinterface als inkompatibel erscheint, zuerst `PROTOCOL_VERSION` zwischen Firmware und Server vergleichen.
+
+
+## LED-Modul-ID bei bestehenden Installationen
+
+Neue LED-Firmware erzeugt die technische ID standardmäßig aus der Chip-ID. Wenn ein bestehender Aufbau bereits Zuweisungen auf `LEDMOD_01` besitzt, vor dem Flashen `MODULE_ID_OVERRIDE` auf `"LEDMOD_01"` setzen. Für mehrere LED-Module muss jede feste Override-ID eindeutig sein.

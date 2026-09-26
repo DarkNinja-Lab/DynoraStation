@@ -26,8 +26,8 @@ Die `.env.example` enthält bei `SERVER_IP` absichtlich eine LAN-Beispieladresse
 | `MAX_COMMANDS` | `500` | maximale Größe der Command-Historie |
 | `MAX_EVENTS` | `800` | maximale Größe der Event-Historie |
 | `COMMAND_MAX_AGE_MS` | `15000` | maximale Lebensdauer eines ausstehenden Befehls |
-| `COMMAND_MAX_ATTEMPTS` | `40` | maximale Zustellversuche eines Befehls |
 | `UI_STATUS_INTERVAL_MS` | `400` | Status-Polling der Oberfläche; Minimum im Code: 250 ms |
+| `HEARTBEAT_PERSIST_INTERVAL_MS` | `30000` | Mindestabstand für reine Heartbeat-Schreibvorgänge nach `hardware.json`; Live-Zustand im RAM bleibt sofort aktuell |
 
 ## Rate Limits
 
