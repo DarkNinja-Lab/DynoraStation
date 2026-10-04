@@ -1,9 +1,9 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { icon } from "../ui/icons.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 function modules() { return Object.values(state.hardware?.modules || {}); }
 function relayName(moduleId, channel) { return state.relayConfig?.[`${moduleId}:${channel}`]?.name || `Relay ${channel}`; }

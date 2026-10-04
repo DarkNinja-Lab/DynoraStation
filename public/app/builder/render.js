@@ -1,14 +1,16 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { showInspector, inspectorLeer } from "./inspect.js?v=mobile-v5-cachefix";
+import { drawSchematicShape } from "./schematic.js?v=workspace-v11";
+import { state } from "../core/state.js?v=workspace-v11";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v11";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "./shapes.js?v=mobile-v5-cachefix";
-import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
-import { refreshPlanValidation } from "./validation.js?v=mobile-v5-cachefix";
+} from "./shapes.js?v=workspace-v11";
+import { persistDraft } from "../layout/layout.js?v=workspace-v11";
+import { recordHistory } from "./history.js?v=workspace-v11";
+import { refreshPlanValidation } from "./validation.js?v=workspace-v11";
 
 export function canvasSize() {
   return {
@@ -134,6 +136,11 @@ export function renderCanvas() {
   const elementLayer = document.getElementById("builderElementLayer");
   const connectionLayer = document.getElementById("builderConnectionLayer");
   if (!root || !elementLayer || !connectionLayer) return;
+  const bar = document.getElementById("placementBar");
+  if (bar) bar.hidden = !state.placement;
+  root.classList.toggle("is-placing", Boolean(state.placement));
+  document.getElementById("selectToolButton")?.classList.toggle("active", state.selectedTool === "select");
+  document.getElementById("connectToolButton")?.classList.toggle("active", state.selectedTool === "connect");
   const { width, height } = canvasSize();
   const background = document.getElementById("builderBackground");
   if (background) attrs(background, { width, height });
@@ -149,9 +156,12 @@ export function renderCanvas() {
     if (paths[1]) paths[1].setAttribute("d", `M0 0H${major}V${major}H0Z`);
   }
 
-  if (state.layoutDirty) {
-    try { localStorage.setItem("dynora.layoutDraft", JSON.stringify({ savedAt: Date.now(), layout: state.layout })); } catch {}
+  persistDraft();
+  for (const id of ["duplicateButton", "rotateLeftButton", "rotateRightButton", "deleteButton", "disconnectButton"]) {
+    const button = document.getElementById(id);
+    if (button) button.disabled = !state.selectedElement;
   }
+  document.dispatchEvent(new Event("dynora:layout-rendered"));
 
   elementLayer.replaceChildren();
   connectionLayer.replaceChildren();
@@ -197,9 +207,11 @@ function connectElement(element) {
     const sourcePorts = localConnectionPorts(source, elementCatalogItem(source));
     const targetPorts = localConnectionPorts(target, elementCatalogItem(target));
     let best = null;
+    const occupied = new Set((state.layout.verbindungen || []).flatMap(link => [`${link.von}:${link.vonPort || 0}`, `${link.nach}:${link.nachPort || 0}`]));
 
     sourcePorts.forEach((sourcePort, sourceIndex) => {
       targetPorts.forEach((targetPort, targetIndex) => {
+        if (occupied.has(`${source.id}:${sourceIndex}`) || occupied.has(`${target.id}:${targetIndex}`)) return;
         const targetWorld = worldConnectionPort(target, targetPort);
         const desiredRotation = ((targetWorld.angle + 180 - sourcePort.angle) % 360 + 360) % 360;
         const oldRotation = Number(source.rotation ?? source.winkel ?? 0);
@@ -216,9 +228,8 @@ function connectElement(element) {
       source.rotation = best.desiredRotation;
       source.winkel = best.desiredRotation;
       const rotatedSourcePort = worldConnectionPort({ ...source, x: 0, y: 0 }, best.sourcePort);
-      const size = canvasSize();
-      source.x = clamp(best.targetWorld.x - rotatedSourcePort.x, 40, size.width - 40);
-      source.y = clamp(best.targetWorld.y - rotatedSourcePort.y, 40, size.height - 40);
+      source.x = best.targetWorld.x - rotatedSourcePort.x;
+      source.y = best.targetWorld.y - rotatedSourcePort.y;
 
       if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
       const existing = state.layout.verbindungen.find((item) =>
@@ -251,9 +262,6 @@ function connectElement(element) {
 }
 function drawElement(root, element, layer) {
   const size = canvasSize();
-  element.x = clamp(element.x, 40, size.width - 40);
-  element.y = clamp(element.y, 40, size.height - 40);
-  element.rotation = Number(element.rotation ?? element.winkel ?? 0);
   const group = svg("g");
   group.classList.add("layout-element");
   if (element.id === state.selectedElement) group.classList.add("selected");
@@ -268,6 +276,7 @@ function drawElement(root, element, layer) {
   let drag = null;
   let suppressClick = false;
   group.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
     event.stopPropagation();
     if (state.selectedTool === "connect") return;
     if (state.selectedTool === "place") return;
@@ -333,6 +342,7 @@ function drawElement(root, element, layer) {
 }
 
 function drawElementShape(group, element) {
+  if (state.builderView !== "rails" && drawSchematicShape(group, element, elementCatalogItem(element))) return;
   switch (element.typ) {
     case "track":
       {

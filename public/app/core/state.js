@@ -28,6 +28,9 @@ export const state = {
     verbindungen: []
   },
   layoutDirty: false,
+  layoutVersion: null,
+  layoutConflict: false,
+  pendingStationVersion: null,
   placement: null,
 
   // Dashboard/Track
@@ -48,6 +51,6 @@ export const state = {
   settingsDirty: { lights: false, relays: false, sensors: false, leds: false, defaults: false },
   settingsPersistedAt: 0,
   settingsLedModule: "",
-  settingsView: "modules",
+  settingsView: "overview",
   events: []
 };

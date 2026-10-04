@@ -2,7 +2,15 @@
 
 Webbasiertes **Analog-Stellwerk für Märklin H0 M-Gleis**. DynoraStation verbindet einen Gleisplan mit ESP8266-Modulen, Relais, Rückmeldern, Signalen und Ereignisregeln.
 
-# Dokumentation
+## Workspace 3.2
+
+Der Builder bietet eine direkte Bauteilbibliothek, Kategorien und Suche, einen benennbaren Plan, JSON-Import/Export, einen sichtbaren Speicherstatus und verbesserte Bearbeitungswerkzeuge. Speicher- und Validierungsfehler werden nachvollziehbar gemeldet.
+
+- [Builder bedienen](docs/BUILDER.md)
+- [Prüfbericht und Updatehinweise](docs/PRUEFBERICHT-3.2.md)
+- [Vollständige Änderungsliste](AENDERUNGEN.md)
+
+## Dokumentation
 
 | Datei | Inhalt |
 | --- | --- |

@@ -69,3 +69,19 @@ Wenn sich Payloads oder Semantik zwischen Server und Firmware ändern, `PROTOCOL
 ## Release-Modell
 
 Der `main`-Branch enthält nur Anwendungscode und Dokumentation. Installer werden separat gepflegt und manuell als Release-Assets hochgeladen. Details: [RELEASES.md](RELEASES.md).
+
+## Workspace 3.4 prüfen
+
+`npm run check` prüft die Syntax; `npm test` umfasst Backend-, Persistenz- und DOM-Integrationstests. Die HTTP-Tests verwenden ein eigenes temporäres Datenverzeichnis. Die DOM-Tests ersetzen keine visuelle Browserprüfung. Details siehe [Prüfbericht](PRUEFBERICHT-3.4.md).
+
+
+## Stand 3.5
+
+Die 18 Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen. Aktuelle Browserabnahme und Testumfang: [Prüfbericht 3.5](PRUEFBERICHT-3.5.md).
+
+
+## CSS ab 3.6
+
+`public/style.css` ist die konsolidierte Anwendungsdarstellung; `public/plan-versions.css` enthält ausschließlich Archivdialog und Konflikthinweis. Keine neuen historischen Theme-Blöcke oder pauschalen End-of-file-Overrides anlegen. Bestehenden Selektor und seine Medienbedingung bearbeiten; Kaskadenreihenfolge und Spezifität erhalten. Desktop, mobile Klappbereiche, Vollbild, Builder und Einstellungen nach Änderungen vergleichen. Die frühere `workspace.css` ist entfernt.
+
+Speichertransaktionen und Archiv: `src/routes/layout.routes.js` und `src/services/storage/layoutVersions.js`. Die Version beschreibt Planstruktur und Serverinstanz, nicht volatile Schaltzustände. Sie wird serverseitig vor dem Schreiben geprüft; der Client behält die Basis seines lokalen Entwurfs. Schreibfehler dürfen weder als Erfolg bestätigt werden noch den vorherigen aktiven Plan verlieren.

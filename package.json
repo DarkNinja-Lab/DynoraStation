@@ -1,13 +1,14 @@
 {
   "name": "dynorastation",
-  "version": "3.1.2",
+  "version": "3.6.0",
   "private": true,
-  "description": "Professionelle Märklin M-Gleis Steuerung mit Express-Backend, ESP8266 und Web-UI",
+  "description": "Professionelle M\u00e4rklin M-Gleis Steuerung mit Express-Backend, ESP8266 und Web-UI",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "check": "node scripts/check.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
@@ -18,5 +19,8 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
   }
 }

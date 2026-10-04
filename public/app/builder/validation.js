@@ -1,8 +1,10 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v11";
+
+import { state } from "../core/state.js?v=workspace-v11";
+import { icon } from "../ui/icons.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 const TRACK_TYPES = new Set(["track", "curve", "switch", "crossing", "xtrack", "bumper"]);
 
@@ -39,6 +41,25 @@ export function analyzePlan(layout = state.layout) {
   const issues = [];
   const relayUse = new Map();
   const connectedIds = new Set(connections.flatMap((connection) => [String(connection.von || ""), String(connection.nach || "")]));
+  const byId = new Map(elements.map(element => [element.id, element]));
+  const portUse = new Set();
+  const ledUse = new Map();
+  for (const link of connections) {
+    const from = byId.get(link.von);
+    const to = byId.get(link.nach);
+    if (!from || !to) { issues.push({ severity: "error", code: "BROKEN_LINK", title: "Ungültige Verbindung", detail: "Ein verbundenes Element fehlt." }); continue; }
+    const ports = [from, to].map((element, i) => {
+      const key = `${element.id}:${Number(i ? link.nachPort : link.vonPort) || 0}`;
+      if (portUse.has(key)) issues.push({ severity: "error", code: "PORT_CONFLICT", title: `${elementLabel(element)}: Anschluss mehrfach belegt`, detail: "Verbindungen trennen und freie Anschlüsse verwenden." });
+      portUse.add(key);
+      const category = { track: "tracks", curve: "curves", switch: "switches", crossing: "crossings", xtrack: "crossings", bumper: "bumpers" }[element.typ];
+      const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
+      const item = (state.catalog?.[category] || []).find(entry => String(entry.code) === String(code)) || {};
+      const local = localConnectionPorts(element, item)[Number(i ? link.nachPort : link.vonPort) || 0];
+      return local ? worldConnectionPort(element, local) : null;
+    });
+    if (ports.every(Boolean) && Math.hypot(ports[0].x - ports[1].x, ports[0].y - ports[1].y) > 2) issues.push({ severity: "warning", code: "GAP", title: `${elementLabel(from)} / ${elementLabel(to)}: Gleislücke`, detail: "Die verbundenen Enden liegen nicht aufeinander. Trennen und erneut verbinden." });
+  }
   const trackElements = elements.filter((element) => TRACK_TYPES.has(element.typ));
 
   if (!elements.length) {
@@ -47,6 +68,9 @@ export function analyzePlan(layout = state.layout) {
 
   elements.forEach((element) => {
     const label = elementLabel(element);
+    const width = (Number(layout.metadaten?.plateWidthMm) || 3200) * .5;
+    const height = (Number(layout.metadaten?.plateHeightMm) || 1800) * .5;
+    if (element.x < 0 || element.y < 0 || element.x > width || element.y > height) issues.push({ severity: "warning", code: "OUTSIDE", elementId: element.id, title: `${label}: Außerhalb der Platte`, detail: "Position in den Eigenschaften anpassen oder Platte vergrößern." });
     const hardwareFields = [...relayFields(element), ...ledFields(element), ...(element.sensorId ? [["sensorId", "Sensor"]] : [])];
     if (hardwareFields.length && !String(element.module || "").trim()) {
       issues.push({ severity: "error", code: "NO_MODULE", elementId: element.id, title: `${label}: Kein Modul`, detail: "Hardware-Modul im Eigenschaftenbereich zuweisen." });
@@ -65,7 +89,14 @@ export function analyzePlan(layout = state.layout) {
     });
 
     ledFields(element).forEach(([field, purpose]) => {
-      if (Number(element[field] || 0)) return;
+      if (Number(element[field] || 0)) {
+        if (element.module) {
+          const key = `${element.module}:${element[field]}`;
+          if (ledUse.has(key)) issues.push({ severity: "error", code: "LED_CONFLICT", elementId: element.id, title: `${label}: LED-Kanal doppelt belegt`, detail: `${purpose} teilt einen Kanal mit ${ledUse.get(key)}.` });
+          ledUse.set(key, label);
+        }
+        return;
+      }
       issues.push({ severity: "warning", code: "NO_LED", elementId: element.id, title: `${label}: LED-Kanal fehlt`, detail: `${purpose} ist keinem LED-Kanal zugewiesen.` });
     });
 

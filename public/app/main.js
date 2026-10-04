@@ -1,5 +1,5 @@
 
-const DYNORA_BUILD = "mobile-v5-cachefix";
+const DYNORA_BUILD = "workspace-v11";
 
 async function clearLegacyFrontendCaches() {
   try {
@@ -19,6 +19,19 @@ async function clearLegacyFrontendCaches() {
 clearLegacyFrontendCaches();
 console.info(`[DynoraStation] Build ${DYNORA_BUILD}`);
 
-import { startApp } from "./bootstrap.js?v=mobile-v5-cachefix";
+import { startApp } from "./bootstrap.js?v=workspace-v11";
 
-document.addEventListener("DOMContentLoaded", startApp);
+document.addEventListener("DOMContentLoaded", () => {
+  startApp().catch(error => {
+    console.error("DynoraStation konnte nicht starten", error);
+    const message = document.createElement("div");
+    message.className = "startup-error";
+    message.setAttribute("role", "alert");
+    message.textContent = "Start fehlgeschlagen. Bitte Station prüfen und Seite neu laden. ";
+    const retry = document.createElement("button");
+    retry.textContent = "Neu laden";
+    retry.addEventListener("click", () => location.reload());
+    message.appendChild(retry);
+    document.body.appendChild(message);
+  });
+});

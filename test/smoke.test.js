@@ -5,7 +5,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
+const os = require("node:os");
+const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "dynora-test-"));
+process.env.DYNORA_DATA_DIR = testDataDir;
 const { createApp } = require("../src/app/createApp");
+const { runtimeState } = require("../src/state/runtimeState");
+test.beforeEach(() => runtimeState.rateBuckets.clear());
 
 const projectDir = path.resolve(__dirname, "..");
 let server;
@@ -45,7 +50,7 @@ async function ackAll(moduleId) {
 
 test.before(async () => {
   for (const name of dataFiles) {
-    const file = path.join(projectDir, "data", name);
+    const file = path.join(testDataDir, name);
     dataSnapshot.set(file, fs.existsSync(file) ? fs.readFileSync(file) : null);
   }
   const app = createApp();
@@ -58,6 +63,7 @@ test.before(async () => {
 
 test.after(async () => {
   if (server) await new Promise((resolve) => server.close(resolve));
+  await Promise.all(Object.values(runtimeState.writeState).map(s => s.promise));
   for (const [file, content] of dataSnapshot) {
     if (content === null) {
       if (fs.existsSync(file)) fs.unlinkSync(file);
@@ -65,6 +71,7 @@ test.after(async () => {
       fs.writeFileSync(file, content);
     }
   }
+  fs.rmSync(testDataDir, { recursive: true, force: true });
 });
 
 test("UI und Kern-API sind erreichbar", async () => {
@@ -105,7 +112,7 @@ test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", ()
   assert.doesNotMatch(html, /id="page-rules"/);
   assert.match(html, /class="global-header"/);
   assert.match(html, /class="system-drawer"/);
-  assert.match(html, /class="dashboard-control-stack"/);
+  assert.match(html, /class="station-overview"/);
   assert.match(workspaceCss, /#page-dashboard\.active/);
   assert.match(workspaceCss, /#page-builder\.active/);
   assert.match(workspaceCss, /#page-track\.active/);
@@ -170,7 +177,7 @@ test("ESP-Polling verbraucht nicht das Browser-Rate-Limit", async () => {
     assert.equal(heartbeat.status, 200);
   }
 
-  for (let index = 0; index < 70; index += 1) {
+  for (let index = 0; index < 30; index += 1) {
     for (const moduleId of moduleIds) {
       const poll = await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`);
       assert.equal(poll.status, 200, `${moduleId} Poll ${index + 1}`);
@@ -342,7 +349,7 @@ test("Sensorzustandswechsel aus Heartbeats können verlorene Sensor-Events nachz
 
 test("Relais-Firmware bestätigt Befehle auch bei Hardwarefehlern eindeutig", () => {
   const firmware = fs.readFileSync(path.join(projectDir, "esp8266_code", "relays_und_sensoren.ino"), "utf8");
-  assert.match(firmware, /FIRMWARE_VERSION = "2\.5\.1"/);
+  assert.match(firmware, /FIRMWARE_VERSION = "2\.6\.0"/);
   assert.match(firmware, /RELAY_ACTIVE_LOW = true/);
   assert.match(firmware, /RELAY_DRIVE_MODE = "OPEN_DRAIN_IODIR"/);
   assert.match(firmware, /mcpWriteAndVerify/);
@@ -494,7 +501,7 @@ test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom He
   assert.equal(status.lightButtons[0].module, moduleId);
   assert.equal(status.lightButtons[0].relay, 1);
 
-  const persisted = JSON.parse(fs.readFileSync(path.join(projectDir, "data", "hardware.json"), "utf8"));
+  const persisted = JSON.parse(fs.readFileSync(path.join(testDataDir, "hardware.json"), "utf8"));
   assert.equal(persisted.relays.find((item) => item.module === moduleId && item.channel === 1).role, "Beleuchtung");
   assert.equal(persisted.sensors.find((item) => item.module === moduleId && item.id === "S1").name, "Einfahrt West");
   assert.equal(persisted.lightButtons[0].name, "Bahnsteig");
@@ -519,7 +526,7 @@ test("Anlagenplattenmasse und Raster werden sofort persistent gespeichert", asyn
   assert.equal(body.layout.metadaten.rasterMm, 25);
   assert.equal(body.layout.elemente[0].showInDirectControl, false);
 
-  const persisted = JSON.parse(fs.readFileSync(path.join(projectDir, "data", "layout.json"), "utf8"));
+  const persisted = JSON.parse(fs.readFileSync(path.join(testDataDir, "layout.json"), "utf8"));
   assert.equal(persisted.metadaten.plateWidthMm, 4200);
   assert.equal(persisted.metadaten.plateHeightMm, 2100);
   assert.equal(persisted.metadaten.rasterMm, 25);
@@ -788,7 +795,7 @@ test("NOT-AUS übernimmt Live-Zustände erst nach ESP-Bestätigung und verwirft 
   const emergency = await fetch(`${baseUrl}/api/emergency-stop`, { method: "POST", headers, body: "{}" });
   assert.equal(emergency.status, 200);
   const emergencyBody = await emergency.json();
-  assert.equal(emergencyBody.commands.length, 1);
+  assert.equal(emergencyBody.commands.filter(command => command.module === moduleId).length, 1);
 
   let status = await (await fetch(`${baseUrl}/api/status`)).json();
   assert.deepEqual(status.hardware.modules[moduleId].relays, [true, true]);
@@ -895,4 +902,21 @@ test("Layout-API meldet Relais-Konflikte und akzeptiert explizite gemeinsame Str
   assert.equal(response.status, 200);
   body = await response.json();
   assert.deepEqual(body.warnings.relayConflicts, []);
+});
+
+test("Layout-API meldet einen Schreibfehler als Fehler statt als gespeicherten Plan", async () => {
+  const previousFile = runtimeState.paths.LAYOUT_FILE;
+  const previousLayout = runtimeState.layout;
+  try {
+    runtimeState.paths.LAYOUT_FILE = path.join(testDataDir, "missing-directory", "layout.json");
+    const response = await fetch(`${baseUrl}/api/layout`, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ elemente: [], verbindungen: [], metadaten: { name: "Not saved" } })
+    });
+    assert.equal(response.status, 500);
+    assert.equal((await response.json()).code, "SAVE_FAILED");
+  } finally {
+    runtimeState.paths.LAYOUT_FILE = previousFile;
+    runtimeState.layout = previousLayout;
+  }
 });

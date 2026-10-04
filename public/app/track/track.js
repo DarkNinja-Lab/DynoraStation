@@ -1,15 +1,15 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
-import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "../builder/shapes.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+} from "../builder/shapes.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 function uiType(type) {
   if (type === "xtrack") return "crossing";
@@ -348,72 +348,21 @@ async function controlElement(element, group) {
 }
 
 
-function trackOverlayInsets(svgRoot) {
-  const wrapper = svgRoot?.closest(".track-plan-wrapper");
-  const overlay = wrapper?.querySelector(".track-plan-overlay");
-  if (!wrapper || !overlay || getComputedStyle(overlay).display === "none") return { top: 0, bottom: 0 };
-
-  const wrapperRect = wrapper.getBoundingClientRect();
-  const overlayRect = overlay.getBoundingClientRect();
-  if (wrapperRect.height <= 0 || overlayRect.height <= 0) return { top: 0, bottom: 0 };
-
-  const overlapTop = Math.max(wrapperRect.top, overlayRect.top);
-  const overlapBottom = Math.min(wrapperRect.bottom, overlayRect.bottom);
-  const overlapHeight = Math.max(0, overlapBottom - overlapTop);
-  if (overlapHeight <= 0) return { top: 0, bottom: 0 };
-
-  const gap = 10;
-  const maxInset = wrapperRect.height * 0.45;
-  const overlayCenter = (overlayRect.top + overlayRect.bottom) / 2;
-  const wrapperCenter = (wrapperRect.top + wrapperRect.bottom) / 2;
-  if (overlayCenter <= wrapperCenter) {
-    return { top: Math.min(maxInset, Math.max(0, overlayRect.bottom - wrapperRect.top + gap)), bottom: 0 };
-  }
-  return { top: 0, bottom: Math.min(maxInset, Math.max(0, wrapperRect.bottom - overlayRect.top + gap)) };
-}
-
 function fitTrackViewBox(svgRoot, elements) {
   if (!svgRoot || !elements.length) {
     svgRoot?.setAttribute("viewBox", "0 0 1600 900");
     return;
   }
-  const padding = 48;
-  const xs = elements.map((e) => Number(e.x || 0));
-  const ys = elements.map((e) => Number(e.y || 0));
-  let minX = Math.min(...xs) - padding;
-  let maxX = Math.max(...xs) + padding;
-  let minY = Math.min(...ys) - padding;
-  let maxY = Math.max(...ys) + padding;
-  let width = Math.max(360, maxX - minX);
-  let height = Math.max(240, maxY - minY);
-
   const rect = svgRoot.getBoundingClientRect();
-  const insets = trackOverlayInsets(svgRoot);
-  const usableHeight = Math.max(140, rect.height - insets.top - insets.bottom);
-  const aspect = rect.width > 0 && usableHeight > 0 ? rect.width / usableHeight : 16 / 9;
-  const current = width / height;
-  if (current < aspect) {
-    const expanded = height * aspect;
-    minX -= (expanded - width) / 2;
-    width = expanded;
-  } else {
-    const expanded = width / aspect;
-    minY -= (expanded - height) / 2;
-    height = expanded;
-  }
-
-  const zoomOut = 1.02;
-  const extraW = width * (zoomOut - 1);
-  const extraH = height * (zoomOut - 1);
-  minX -= extraW / 2;
-  minY -= extraH / 2;
-  width += extraW;
-  height += extraH;
-
-  const topPad = usableHeight > 0 ? height * (insets.top / usableHeight) : 0;
-  const bottomPad = usableHeight > 0 ? height * (insets.bottom / usableHeight) : 0;
-  minY -= topPad;
-  height += topPad + bottomPad;
+  let box;
+  try { box = document.getElementById("trackElementLayer")?.getBBox(); } catch {}
+  const xs = elements.map(e => Number(e.x || 0)), ys = elements.map(e => Number(e.y || 0));
+  const bounds = box?.width > 0 && box?.height > 0 ? box : {x:Math.min(...xs)-70,y:Math.min(...ys)-60,width:Math.max(...xs)-Math.min(...xs)+140,height:Math.max(...ys)-Math.min(...ys)+120};
+  const cx=bounds.x+bounds.width/2, cy=bounds.y+bounds.height/2;
+  let width=Math.max(280,bounds.width+60), height=Math.max(180,bounds.height+60);
+  const aspect=rect.width > 0 && rect.height > 0 ? rect.width/rect.height : 16/9;
+  if(width/height<aspect)width=height*aspect;else height=width/aspect;
+  const minX=cx-width/2, minY=cy-height/2;
 
   svgRoot.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
 }

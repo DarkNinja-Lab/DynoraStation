@@ -25,6 +25,7 @@ function normalizeLayout(input) {
     plateHeightMm: Math.max(500, Math.min(20000, toInt(src.metadaten?.plateHeightMm, 1800)))
   };
 
+  out.metadaten.raster = out.metadaten.rasterMm * .5;
   const elementMap = new Map();
 
   (Array.isArray(src.elemente) ? src.elemente : [])
@@ -47,7 +48,7 @@ function normalizeLayout(input) {
         name: cleanText(e.name ?? "", 120),
         x: toNumber(e.x, 300),
         y: toNumber(e.y, 250),
-        winkel: ((toNumber(e.winkel ?? e.rotation, 0) % 360) + 360) % 360,
+        winkel: ((toNumber(e.rotation ?? e.winkel, 0) % 360) + 360) % 360,
         rotation: ((toNumber(e.rotation ?? e.winkel, 0) % 360) + 360) % 360,
         section: cleanText(e.section || "", 80),
         module: cleanText(e.module || "", 48),

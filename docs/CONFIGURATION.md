@@ -63,3 +63,7 @@ data/rules.json
 ```
 
 Die Dateien werden beim Laden normalisiert. Beschädigte oder nicht lesbare Dateien führen nicht zum Startabbruch; für den betroffenen Bereich werden Defaultdaten geladen und der Fehler wird geloggt.
+
+## Eigenes Datenverzeichnis
+
+Optional: `DYNORA_DATA_DIR=/absoluter/pfad/zu/daten`. Ohne diese Variable wird weiterhin `data/` im Projektordner verwendet. Die Tests setzen diese Variable automatisch auf ein temporäres Verzeichnis. `TRUST_PROXY=false` ist der sichere Standard ohne ausdrücklich eingerichteten Reverse Proxy; eigene bestehende `.env`-Dateien werden durch das Update nicht automatisch angepasst.

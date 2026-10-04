@@ -1,47 +1,53 @@
 "use strict";
 
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
-import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=mobile-v5-cachefix";
-import { refreshSettingsHardwareStatus } from "../ui/events.js?v=mobile-v5-cachefix";
-import { renderTrackLightButtons } from "../track/lights.js?v=mobile-v5-cachefix";
-import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=mobile-v5-cachefix";
-import { layoutNormalisieren } from "../layout/layout.js?v=mobile-v5-cachefix";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { state } from "../core/state.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=workspace-v11";
+import { refreshSettingsHardwareStatus } from "../ui/events.js?v=workspace-v11";
+import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
+import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=workspace-v11";
+import { layoutNormalisieren } from "../layout/layout.js?v=workspace-v11";
 
-function renderEvents() {
+export function renderEvents() {
   const host = document.getElementById("eventList");
   if (!host) return;
   const events = Array.isArray(state.events) ? state.events : [];
   const search = String(document.getElementById("eventSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
-  const typeFilter = String(document.getElementById("eventTypeFilter")?.value || "");
-  const typeSelect = document.getElementById("eventTypeFilter");
-  if (typeSelect) {
-    const selected = typeSelect.value;
-    const types = Array.from(new Set(events.map((event) => String(event.type || "SYSTEM")))).sort((a, b) => a.localeCompare(b, "de"));
-    const signature = types.join("\u0000");
-    if (typeSelect.dataset.signature !== signature) {
-      typeSelect.dataset.signature = signature;
-      typeSelect.replaceChildren(new Option("Alle Ereignisse", ""), ...types.map((type) => new Option(type, type)));
-      typeSelect.value = types.includes(selected) ? selected : "";
+  const sourceOf = event => String(event.source || "SYSTEM");
+  const typeOf = event => String(event.type || "SYSTEM");
+  const fillFilter = (id, label, values) => {
+    const select = document.getElementById(id);
+    if (!select) return "";
+    const selected = select.value;
+    const options = [...new Set([...values, ...(selected ? [selected] : [])])].sort((a,b) => a.localeCompare(b,"de"));
+    const signature = options.join("\u0000");
+    if (select.dataset.signature !== signature) {
+      select.dataset.signature = signature;
+      select.replaceChildren(new Option(label,""), ...options.map(value => new Option(value,value)));
+      select.value = selected;
     }
-  }
-  const filtered = events.filter((event) => {
-    if (typeFilter && String(event.type || "SYSTEM") !== typeFilter) return false;
-    if (!search) return true;
-    return [event.type, event.text, event.source].some((value) => String(value || "").toLocaleLowerCase("de-DE").includes(search));
-  });
+    return select.value;
+  };
+  const type = fillFilter("eventTypeFilter","Alle Ereignisse",events.map(typeOf));
+  const source = fillFilter("eventSourceFilter","Alle Quellen",events.map(sourceOf));
+  const sort = document.getElementById("eventSortOrder")?.value || "newest";
+  const timeOf = event => new Date(event.timestamp || event.time || 0).getTime() || 0;
+  const filtered = events.filter(event => (!type || typeOf(event) === type) && (!source || sourceOf(event) === source) &&
+    (!search || [typeOf(event),event.text,sourceOf(event)].some(value => String(value || "").toLocaleLowerCase("de-DE").includes(search))));
+  filtered.sort((a,b) => sort === "source" ? sourceOf(a).localeCompare(sourceOf(b),"de") || timeOf(b)-timeOf(a)
+    : sort === "type" ? typeOf(a).localeCompare(typeOf(b),"de") || timeOf(b)-timeOf(a)
+    : sort === "oldest" ? timeOf(a)-timeOf(b) : timeOf(b)-timeOf(a));
   const count = document.getElementById("eventResultCount");
-  if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? "Eintrag" : "Einträge"}`;
-  host.innerHTML = filtered.length ? filtered.map((event) => {
-    const timeValue = event.timestamp || event.time;
-    const time = timeValue ? new Date(timeValue).toLocaleTimeString("de-DE") : "–";
-    return `<div class="event-row"><strong>${esc(event.type || "SYSTEM")}</strong><span>${esc(event.text || "")}</span><small>${esc(event.source || "")} · ${time}</small></div>`;
-  }).join("") : `<div class="empty-state">${events.length ? "Keine passenden Ereignisse gefunden." : "Noch keine Ereignisse vorhanden."}</div>`;
+  if (count) count.textContent = `${filtered.length} von ${events.length} Einträgen`;
+  host.innerHTML = filtered.length ? filtered.map(event => {
+    const time = timeOf(event) ? new Date(timeOf(event)).toLocaleString("de-DE") : "–";
+    return `<div class="event-row"><strong>${esc(typeOf(event))}</strong><span>${esc(event.text || "")}</span><small>${esc(sourceOf(event))} · ${time}</small></div>`;
+  }).join("") : `<div class="empty-state">${events.length ? "Keine passenden Ereignisse gefunden." : "Noch keine Ereignisse vorhanden. Quellen und Typen erscheinen, sobald Meldungen eintreffen."}</div>`;
 }
-
-document.getElementById("eventSearch")?.addEventListener("input", renderEvents);
-document.getElementById("eventTypeFilter")?.addEventListener("change", renderEvents);
+for (const id of ["eventSearch","eventTypeFilter","eventSourceFilter","eventSortOrder"]) {
+  document.getElementById(id)?.addEventListener(id === "eventSearch" ? "input" : "change",renderEvents);
+}
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -163,14 +169,16 @@ function directControlSignature(layout, modules) {
   });
 }
 
-export async function statusLaden({ ruhig = true } = {}) {
+async function loadStatus({ ruhig = true } = {}) {
   try {
     const revisions = state.statusRevisions || { layout: 0, events: 0 };
     const query = new URLSearchParams({
       layoutRevision: String(revisions.layout || 0),
-      eventRevision: String(revisions.events || 0)
+      eventRevision: String(revisions.events || 0),
+      instanceId: state.stationInstanceId || ""
     });
-    const data = await apiCall(`/status?${query}`, { timeoutMs: 3500 });
+    const data = await apiCall(`/status?${query}`, { timeoutMs: 8000 });
+    if (data?.instanceId) state.stationInstanceId = data.instanceId;
     if (data?.revisions) state.statusRevisions = { ...revisions, ...data.revisions };
     state.statusPollMs = Math.max(250, Number(data?.uiStatusIntervalMs) || 400);
     state.connection = data?.connection && typeof data.connection === "object" ? data.connection : null;
@@ -262,8 +270,14 @@ export async function statusLaden({ ruhig = true } = {}) {
 
     if (Array.isArray(data?.cs3Tiles)) state.cs3Tiles = data.cs3Tiles;
     const editorOpen = document.getElementById("page-builder")?.classList.contains("active");
-    if (data?.layout && typeof data.layout === "object" && !state.layoutDirty && !editorOpen) {
-      state.layout = data.layout;
+    if (data?.layout && typeof data.layout === "object") {
+      state.pendingStationLayout = data.layout;
+      state.pendingStationVersion = data.layoutVersion;
+    }
+    if (state.pendingStationLayout && !state.layoutDirty && !editorOpen) {
+      state.layout = state.pendingStationLayout;
+      state.layoutVersion = state.pendingStationVersion;
+      state.pendingStationLayout = null;
       layoutNormalisieren();
     }
     if (!editorOpen) {
@@ -347,10 +361,19 @@ export async function statusLaden({ ruhig = true } = {}) {
     }
     refreshSettingsHardwareStatus();
   } catch (err) {
+    state.statusPollMs = Math.min(10000,Math.max(1000,(state.statusPollMs || 400) * 2));
     setServerOnline(false);
     setLastSync(false);
     if (!ruhig) {
       console.warn("Status laden fehlgeschlagen:", err?.message || err);
     }
   }
+}
+
+// One request at a time, including manual refreshes and a resumed mobile tab.
+let statusRequest = null;
+export function statusLaden(options = {}) {
+  if (statusRequest) return statusRequest;
+  statusRequest = loadStatus(options).finally(() => { statusRequest = null; });
+  return statusRequest;
 }

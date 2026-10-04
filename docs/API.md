@@ -135,3 +135,12 @@ Im normalen Betrieb sollten diese Endpunkte deaktiviert bleiben.
 
 Die beiden schreibenden Endpunkte erwarten den Header `X-Dynora-Action: station-control` sowie im JSON-Body `{"confirm":"restart"}` bzw. `{"confirm":"shutdown"}`. Sie führen keinen Betriebssystem-Neustart und kein Betriebssystem-Herunterfahren aus.
 
+
+
+## Planspeicherung mit Versionsschutz (ab 3.6)
+
+`GET /api/layout` liefert den Plan mit `_editVersion`. `GET /api/status` enthält `layoutVersion`; sie gehört zum gleichzeitig gelieferten Plan. Clients dürfen die Basisversion eines noch bearbeiteten Plans nicht durch bloßes Statuspolling ersetzen.
+
+`POST /api/layout` benötigt den unverändert übernommenen Versionswert im Header `If-Match`. Body bleibt das Layout-JSON. Erfolg liefert `layout`, `layoutVersion` und `warnings`. HTTP **409 / LAYOUT_CONFLICT**: neueren Stationsplan explizit laden oder Änderungen bewusst zusammenführen; nicht blind erneut senden. HTTP **428 / LAYOUT_VERSION_REQUIRED**: Client aktualisieren und Plan laden. HTTP **500 / SAVE_FAILED**: keine erfolgreiche Speicherung melden.
+
+`GET /api/layout/history` liefert `versions` mit `id`, `savedAt`, `name`, `elements` sowie die aktuelle `layoutVersion`. `POST /api/layout/history/:id/restore` benötigt `If-Match` mit dieser Version und stellt den ausgewählten Plan wieder her. Keine ungeschützte Schreib- oder Wiederherstellungsvariante. Der aktuelle Plan wird vorher archiviert; 20 frühere Stände werden aufbewahrt.

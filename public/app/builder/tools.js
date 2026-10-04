@@ -1,11 +1,13 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { renderCanvas, canvasSize } from "./render.js?v=mobile-v5-cachefix";
-import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
-import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
-import { cancelPlacement, rotatePlacement } from "./canvas.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
+import { duplicateForPlacement, normalizedRotation } from "./model.js?v=workspace-v11";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v11";
+import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { recordHistory } from "./history.js?v=workspace-v11";
+import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v11";
 
 
 function isTypingTarget(target) {
@@ -21,15 +23,17 @@ function nudgeSelected(dx, dy) {
   if (!el) return;
   const step = state.snapToGrid ? (Number(state.layout?.metadaten?.raster) || 25) : 5;
   recordHistory();
-  el.x = Number(el.x || 0) + dx * step;
-  el.y = Number(el.y || 0) + dy * step;
+  const size = canvasSize();
+  el.x = Math.max(0, Math.min(size.width, Number(el.x || 0) + dx * step));
+  el.y = Math.max(0, Math.min(size.height, Number(el.y || 0) + dy * step));
   state.layoutDirty = true;
   renderCanvas();
 }
 
 function bindKeyboardShortcuts() {
   document.addEventListener("keydown", (event) => {
-    if (isTypingTarget(event.target)) return;
+    if (!document.getElementById("page-builder")?.classList.contains("active")) return;
+    if (document.querySelector('[role="dialog"]') || isTypingTarget(event.target)) return;
     const key = event.key.toLowerCase();
     const mod = event.ctrlKey || event.metaKey;
 
@@ -38,6 +42,11 @@ function bindKeyboardShortcuts() {
       return;
     }
 
+    if (mod && (key === "z" || key === "y")) {
+      event.preventDefault();
+      document.getElementById(key === "y" || event.shiftKey ? "redoButton" : "undoButton")?.click();
+      return;
+    }
     if (mod && key === "s") {
       event.preventDefault();
       document.getElementById("saveLayoutButton")?.click();
@@ -48,6 +57,7 @@ function bindKeyboardShortcuts() {
       document.getElementById("duplicateButton")?.click();
       return;
     }
+    if (mod || event.altKey) return;
     if (key === "delete" || key === "backspace") {
       if (!state.selectedElement) return;
       event.preventDefault();
@@ -98,6 +108,8 @@ export function initializeTools() {
     selectToolBtn.addEventListener("click", () => {
       cancelPlacement();
       state.selectedTool = "select";
+      state.connectFrom = null;
+      renderCanvas();
       updateToolButtons();
     });
   }
@@ -220,12 +232,13 @@ export function initializeTools() {
     centerBtn.addEventListener("click", () => {
       const elements = state.layout.elemente || [];
       if (elements.length) {
-        const xs = elements.map((element) => Number(element.x) || 0);
-        const ys = elements.map((element) => Number(element.y) || 0);
+        const bounds = document.getElementById("builderElementLayer").getBBox();
         const size = canvasSize();
-        state.panX = (Math.min(...xs) + Math.max(...xs)) / 2 - size.width / (2 * state.zoom);
-        state.panY = (Math.min(...ys) + Math.max(...ys)) / 2 - size.height / (2 * state.zoom);
+        state.zoom = Math.max(.25, Math.min(3, Math.min(size.width / (bounds.width + 120), size.height / (bounds.height + 120))));
+        state.panX = bounds.x + bounds.width / 2 - size.width / (2 * state.zoom);
+        state.panY = bounds.y + bounds.height / 2 - size.height / (2 * state.zoom);
       } else {
+        state.zoom = 1;
         state.panX = 0;
         state.panY = 0;
       }
@@ -252,12 +265,8 @@ function duplicateElement() {
   const el = state.layout.elemente?.find(e => e.id === state.selectedElement);
   if (!el) return;
 
-  const newElement = {
-    ...JSON.parse(JSON.stringify(el)),
-    id: "elem_" + Math.random().toString(36).substr(2, 9),
-    x: el.x + 40,
-    y: el.y + 40
-  };
+  const size = canvasSize();
+  const newElement = duplicateForPlacement(el, size.width, size.height);
 
   if (!state.layout.elemente) state.layout.elemente = [];
   recordHistory();
@@ -265,7 +274,8 @@ function duplicateElement() {
   state.selectedElement = newElement.id;
   state.layoutDirty = true;
   renderCanvas();
-  showToast("Element dupliziert");
+  showInspector(newElement);
+  showToast("Kopie erstellt · Hardware bitte neu zuweisen");
 }
 
 function rotateElement(degrees) {
@@ -273,15 +283,15 @@ function rotateElement(degrees) {
   if (!el) return;
 
   recordHistory();
-  el.rotation = (el.rotation + degrees) % 360;
+  el.rotation = normalizedRotation((Number(el.rotation) || 0) + degrees);
+  el.winkel = el.rotation;
   state.layoutDirty = true;
   renderCanvas();
+  showInspector(el);
   showToast(`Rotiert um ${degrees}°`);
 }
 
 function deleteElement() {
-  if (!confirm("Element wirklich löschen?")) return;
-
   recordHistory();
   state.layout.elemente = (state.layout.elemente || []).filter(
     e => e.id !== state.selectedElement
@@ -292,7 +302,8 @@ function deleteElement() {
   state.layoutDirty = true;
   state.selectedElement = null;
   renderCanvas();
-  showToast("Element gelöscht");
+  inspectorLeer();
+  showToast("Element gelöscht · mit Rückgängig wiederherstellbar");
 }
 
 function updateZoom() {
@@ -354,12 +365,10 @@ function setupBoardSettings() {
     const button = document.getElementById("applyBoardSizeButton");
     if (button) button.disabled = true;
     try {
-      await apiCall("/layout", { method: "POST", body: state.layout });
-      state.layoutDirty = false;
-      try { localStorage.removeItem("dynora.layoutDraft"); } catch {}
+      await layoutSpeichern();
       showToast("Anlagenplatte und Raster gespeichert");
     } catch (error) {
-      showToast(`Anlagenplatte konnte nicht gespeichert werden: ${error?.message || error}`, "error");
+      if (error.code !== "LAYOUT_CONFLICT" && error.code !== "LAYOUT_VERSION_REQUIRED") showToast(`Anlagenplatte konnte nicht gespeichert werden: ${error?.message || error}`, "error");
     } finally {
       if (button) button.disabled = false;
     }
@@ -378,8 +387,9 @@ function bindCanvasNavigation() {
     const size = canvasSize();
     const oldWidth = size.width / state.zoom;
     const oldHeight = size.height / state.zoom;
-    const ratioX = (event.clientX - rect.left) / Math.max(1, rect.width);
-    const ratioY = (event.clientY - rect.top) / Math.max(1, rect.height);
+    const point = canvasPointFromEvent(svg, event);
+    const ratioX = (point.x - state.panX) / oldWidth;
+    const ratioY = (point.y - state.panY) / oldHeight;
     const nextZoom = Math.max(.25, Math.min(3, state.zoom * (event.deltaY < 0 ? 1.12 : .89)));
     const nextWidth = size.width / nextZoom;
     const nextHeight = size.height / nextZoom;
@@ -398,15 +408,18 @@ function bindCanvasNavigation() {
     event.stopPropagation();
     const rect = svg.getBoundingClientRect();
     const size = canvasSize();
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, width: size.width / state.zoom, height: size.height / state.zoom, rect };
+    const inverse = svg.getScreenCTM()?.inverse();
+    drag = { inverse, id: event.pointerId, x: event.clientX, y: event.clientY, panX: state.panX, panY: state.panY, width: size.width / state.zoom, height: size.height / state.zoom, rect };
     svg.setPointerCapture?.(event.pointerId);
     svg.classList.add("is-panning");
   }, true);
 
   svg.addEventListener("pointermove", (event) => {
     if (!drag || drag.id !== event.pointerId) return;
-    state.panX = drag.panX - (event.clientX - drag.x) * drag.width / Math.max(1, drag.rect.width);
-    state.panY = drag.panY - (event.clientY - drag.y) * drag.height / Math.max(1, drag.rect.height);
+    const dx = event.clientX - drag.x;
+    const dy = event.clientY - drag.y;
+    state.panX = drag.panX - (drag.inverse ? dx * drag.inverse.a + dy * drag.inverse.c : dx * drag.width / Math.max(1, drag.rect.width));
+    state.panY = drag.panY - (drag.inverse ? dx * drag.inverse.b + dy * drag.inverse.d : dy * drag.height / Math.max(1, drag.rect.height));
     updateZoom();
   });
 

@@ -14,3 +14,6 @@ Dieser Ordner enthält die technische Dokumentation von DynoraStation. Die Root-
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnose typischer Fehler |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
 | [RELEASES.md](RELEASES.md) | Trennung zwischen `main` und Release-only Installern |
+
+- [Update 3.6](UPDATE-3.6.md)
+- [Prüfbericht 3.6](PRUEFBERICHT-3.6.md)

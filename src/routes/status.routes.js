@@ -1,6 +1,7 @@
 "use strict";
 
 const express = require("express");
+const { layoutVersion } = require("../services/storage/layoutVersions");
 const { wrap } = require("../utils/errors");
 const { findRelayConflicts } = require("../domain/hardware/relayConflicts");
 
@@ -11,8 +12,9 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
     res.set("Cache-Control", "no-store");
     const layoutRevision = Number(runtimeState.revisions?.layout || 1);
     const eventRevision = Number(runtimeState.revisions?.events || 1);
-    const layoutChanged = Number(req.query?.layoutRevision || 0) !== layoutRevision;
-    const eventsChanged = Number(req.query?.eventRevision || 0) !== eventRevision;
+    const restarted = Boolean(req.query.instanceId && req.query.instanceId !== runtimeState.instanceId);
+    const layoutChanged = restarted || Number(req.query?.layoutRevision || 0) !== layoutRevision;
+    const eventsChanged = restarted || Number(req.query?.eventRevision || 0) !== eventRevision;
     const modules = moduleRegistry.listModulesStatus();
 
     const modulesById = {};
@@ -59,6 +61,8 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
       systemProfile: { manufacturer: "Märklin", trackSystem: "M-Gleis", scale: "H0" },
       moduleTimeoutMs: env.MODULE_TIMEOUT,
       uiStatusIntervalMs: env.UI_STATUS_INTERVAL_MS,
+      instanceId: runtimeState.instanceId,
+      layoutVersion: layoutVersion(runtimeState),
       revisions: { layout: layoutRevision, events: eventRevision },
       connection: connectionInfo,
       modules,

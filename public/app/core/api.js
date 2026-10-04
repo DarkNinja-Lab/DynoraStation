@@ -13,7 +13,7 @@ async function parseJsonSafe(res) {
 export async function apiCall(path, options = {}) {
   const url = path.startsWith("/api/") ? path : `/api${path.startsWith("/") ? path : `/${path}`}`;
 
-  const method = options.method || "GET";
+  const method = (options.method || "GET").toUpperCase();
   const headers = {
     "Accept": "application/json",
     ...(method !== "GET" ? { "Content-Type": "application/json" } : {}),
@@ -38,11 +38,25 @@ export async function apiCall(path, options = {}) {
     fetchOptions.body = typeof options.body === "string" ? options.body : JSON.stringify(options.body);
   }
 
-  let res;
   try {
-    res = await fetch(url, fetchOptions);
+    const res = await fetch(url, fetchOptions);
+    const data = await parseJsonSafe(res);
+    if (!res.ok) {
+      const err = new Error(data?.message || data?.fehler || `${res.status} ${res.statusText}`);
+      err.status = res.status;
+      err.code = data?.code;
+      err.payload = data;
+      throw err;
+    }
+    if (data === null && res.status !== 204) {
+      const error = new Error("Ungültige Serverantwort: JSON erwartet");
+      error.code = "INVALID_RESPONSE";
+      throw error;
+    }
+    return data;
   } catch (error) {
     if (error?.name === "AbortError") {
+      if (options.signal?.aborted) throw error;
       const timeoutError = new Error(`Zeitüberschreitung nach ${timeoutMs} ms`);
       timeoutError.code = "REQUEST_TIMEOUT";
       throw timeoutError;
@@ -53,15 +67,4 @@ export async function apiCall(path, options = {}) {
     options.signal?.removeEventListener("abort", abortFromCaller);
   }
 
-  const data = await parseJsonSafe(res);
-
-  if (!res.ok) {
-    const msg = data?.message || data?.fehler || `${res.status} ${res.statusText}`;
-    const err = new Error(msg);
-    err.status = res.status;
-    err.payload = data;
-    throw err;
-  }
-
-  return data;
 }

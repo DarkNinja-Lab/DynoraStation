@@ -139,7 +139,7 @@ export function drawPowerCurve(g, radius, angleDeg, color = "#32f29a") {
   g.append(glow, core);
 }
 
-function curvedRoutePath(startX, radius, angle, sign, offset = 0) {
+export function curvedRoutePath(startX, radius, angle, sign, offset = 0) {
   const adjustedRadius = Math.max(20, radius - sign * offset);
   const endX = startX + adjustedRadius * Math.sin(angle);
   const endY = offset + sign * adjustedRadius * (1 - Math.cos(angle));
@@ -180,7 +180,7 @@ function drawCurvedTurnoutRoute(g, startX, radius, angle, sign, railColor) {
   return centerPath;
 }
 
-function turnout5141Geometry(geometry, sign) {
+export function turnout5141Geometry(geometry, sign) {
   const scale = .5;
   const innerRadius = Math.max(250, Number(geometry.radius) || 360) * scale;
   const outerRadius = Math.max(innerRadius, Math.max(250, Number(geometry.branchRadius) || 437.4) * scale);

@@ -1,14 +1,15 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { renderTrackLightButtons } from "../track/lights.js?v=mobile-v5-cachefix";
-import { renderRulesGrid } from "../rules/rules.js?v=mobile-v5-cachefix";
-import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=mobile-v5-cachefix";
-import { renderTrackLayout } from "../track/track.js?v=mobile-v5-cachefix";
-import { showToast } from "./toast.js?v=mobile-v5-cachefix";
-import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { setBuilderPanel } from "../builder/panels.js?v=workspace-v11";
+import { state } from "../core/state.js?v=workspace-v11";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
+import { renderRulesGrid } from "../rules/rules.js?v=workspace-v11";
+import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=workspace-v11";
+import { renderTrackLayout } from "../track/track.js?v=workspace-v11";
+import { showToast } from "./toast.js?v=workspace-v11";
+import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -24,7 +25,7 @@ function hasCapability(module, capability) {
 const PAGE_META = {
   dashboard: { title: "Übersicht", subtitle: "Betriebsbild, Systemzustand und letzte Aktivitäten", section: "Zentrale" },
   track: { title: "Betrieb", subtitle: "Fahrwege, Signale und Anlagenfunktionen steuern", section: "Workspace" },
-  settings: { title: "System", subtitle: "Geräte, Ein-/Ausgänge und Ereignisse", section: "Administration" },
+  settings: { title: "Einstellungen", subtitle: "Geräte, Ein-/Ausgänge und Ereignisse", section: "Administration" },
   events: { title: "Logbuch", subtitle: "System-, Schalt- und Sensorereignisse", section: "Administration" }
 };
 
@@ -79,7 +80,7 @@ function setActivePage(page) {
 
   document.body.dataset.page = targetMeta;
   all(".nav-button[data-page]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.page === targetMeta);
+    btn.classList.toggle("active", btn.dataset.page === (editRequested ? "builder" : targetMeta));
   });
 
   all(".page").forEach((p) => {
@@ -88,10 +89,13 @@ function setActivePage(page) {
 
   setPageHeader(targetMeta);
   all(".mobile-nav-button[data-page-link]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.pageLink === targetMeta);
+    btn.classList.toggle("active", btn.dataset.pageLink === (editRequested ? "builder" : targetMeta));
   });
 
-  if (targetMeta === "settings") renderSettingsTab();
+  if (targetMeta === "settings") {
+    state.settingsView = "overview";
+    renderSettingsTab();
+  }
   if (targetMeta === "track") setTrackWorkspaceMode(editRequested ? "edit" : "operate");
   else document.body.classList.remove("track-edit-mode");
 
@@ -123,6 +127,10 @@ function bindNavigation() {
     const setSidebarOpen = (open) => {
       document.body.classList.toggle("sidebar-open", open);
       mobileBtn.setAttribute("aria-expanded", String(open));
+      sidebar.toggleAttribute("inert", !open);
+      sidebar.setAttribute("aria-hidden",String(!open));
+      if (open) sidebar.querySelector(".drawer-close")?.focus();
+      else mobileBtn.focus();
     };
     mobileBtn.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
     all("[data-close-sidebar]").forEach((btn) => btn.addEventListener("click", () => setSidebarOpen(false)));
@@ -142,10 +150,9 @@ function bindNavigation() {
   const builderLayout = document.querySelector(".builder-layout");
   all("[data-builder-panel]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const panel = btn.dataset.builderPanel;
-      if (builderLayout) builderLayout.dataset.mobilePanel = panel;
-      all("[data-builder-panel]").forEach((item) => item.classList.toggle("active", item === btn));
-      if (panel === "canvas") requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+      const requested = btn.dataset.builderPanel;
+      const panel = builderLayout?.dataset.panel === requested ? "canvas" : requested;
+      setBuilderPanel(panel);
     });
   });
 
@@ -274,31 +281,28 @@ function renderModuleManagement() {
     Number(Boolean(b.online)) - Number(Boolean(a.online)) ||
     String(a.name || a.id).localeCompare(String(b.name || b.id), "de")
   );
-  host.innerHTML = list.length ? `<div class="module-table">
-    <div class="module-table-head" aria-hidden="true">
-      <span>Modul</span><span>Status</span><span>Typ / Adresse</span><span>Kanäle</span><span>Zuletzt gesehen</span><span>Verwaltung</span>
-    </div>${list.map((module) => {
-    const relays = Array.isArray(module.relays) ? module.relays.length : 0;
-    const leds = Array.isArray(module.leds) ? module.leds.length : 0;
-    const sensors = Array.isArray(module.sensors) ? module.sensors.length : 0;
-    const seen = Number(module.lastHeartbeat) > 0
-      ? new Date(Number(module.lastHeartbeat)).toLocaleString("de-DE")
-      : "noch kein Heartbeat";
-    return `
-      <article class="module-management-card ${module.online ? "online" : "offline"} ${module.compatibility?.compatible === false ? "incompatible" : module.compatibility?.status === "warning" ? "compat-warning" : ""}" data-managed-module="${esc(module.id)}">
-        <div class="module-identity"><strong>${esc(module.name || module.id)}</strong><small>${esc(module.id)}</small></div>
-        <span class="module-state-badge ${module.online && module.compatibility?.compatible !== false && module.health?.relayDriverReady !== false ? "online" : "offline"}">${!module.online ? "OFFLINE" : module.health?.relayDriverReady === false ? "MCP FEHLER" : module.compatibility?.compatible === false ? "INKOMPATIBEL" : module.compatibility?.status === "warning" ? "WARNUNG" : "ONLINE"}</span>
-        <div class="module-endpoint"><strong>${esc(module.hardwareType || module.type || "ESP-Modul")}</strong><small>FW ${esc(module.firmwareVersion || "?")} · Protokoll ${esc(module.protocolVersion ?? "?")} · ${esc(module.ip || "keine aktuelle IP")}</small>${module.health?.relayDriveMode === "OPEN_DRAIN_IODIR" ? `<small>Relaislogik: aktiv-LOW · Open-Drain/IODIR</small>` : typeof module.health?.relayActiveLow === "boolean" ? `<small>Relaislogik: ${module.health.relayActiveLow ? "aktiv-LOW" : "aktiv-HIGH"}</small>` : ""}${module.health?.relayDriverReady === false ? `<small class="compatibility-warning">MCP23017 nicht erreichbar · I²C und Versorgung prüfen</small>` : module.compatibility?.compatible === false || module.compatibility?.status === "warning" ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div>
-        <div class="module-channel-count"><b>${relays}</b> R&nbsp;&nbsp;<b>${leds}</b> LED&nbsp;&nbsp;<b>${sensors}</b> S${module.environment ? "&nbsp;&nbsp;<b>BME</b>" : ""}</div>
-        <time>${esc(seen)}</time>
-        <div class="module-row-actions">
-          <input aria-label="Anzeigename" data-field="moduleName" value="${esc(module.name || module.id)}" maxlength="80" autocomplete="off">
-          <button class="secondary-button" data-action="rename-module" data-module-id="${esc(module.id)}" type="button">Speichern</button>
-          <button class="module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button" aria-label="Modul löschen">Löschen</button>
+  const opened = new Set([...host.querySelectorAll("details[open]")].map(item => item.dataset.managedModule));
+  host.innerHTML = list.length ? list.map(module => {
+    const relays = module.relays?.length || 0;
+    const leds = module.leds?.length || 0;
+    const sensors = module.sensors?.length || 0;
+    const problem = module.health?.relayDriverReady === false ? "MCP23017 nicht erreichbar" : module.compatibility?.compatible === false ? module.compatibility.reason || "Inkompatible Firmware" : "";
+    const label = !module.online ? "Offline" : problem ? "Prüfen" : "Online";
+    return `<details class="module-settings-card" data-managed-module="${esc(module.id)}" ${opened.has(module.id) ? "open" : ""}>
+      <summary><span class="module-status-dot ${module.online && !problem ? "online" : "offline"}"></span><span class="module-card-title"><strong>${esc(module.name || module.id)}</strong><small>${relays} Relais · ${leds} LEDs · ${sensors} Sensoren</small></span><span class="module-card-state">${label}</span><span class="module-chevron" aria-hidden="true">⌄</span></summary>
+      <div class="module-settings-body">
+        ${problem ? `<p class="module-problem">${esc(problem)}</p>` : ""}
+        <div class="module-name-row"><label><span>Anzeigename</span><input data-field="moduleName" value="${esc(module.name || module.id)}" maxlength="80" autocomplete="off"></label><button class="primary-button" data-action="rename-module" data-module-id="${esc(module.id)}" type="button">Speichern</button></div>
+        <div class="module-channel-links">
+          ${relays ? `<button type="button" class="secondary-button" data-settings-view="relays" data-module-id="${esc(module.id)}">Relais einrichten →</button>` : ""}
+          ${leds ? `<button type="button" class="secondary-button" data-settings-view="leds" data-module-id="${esc(module.id)}">LEDs einrichten →</button>` : ""}
+          ${sensors ? `<button type="button" class="secondary-button" data-settings-view="sensors">Sensoren ansehen →</button>` : ""}
         </div>
-      </article>
-    `;
-  }).join("")}</div>` : '<div class="empty-state">Noch keine ESP-Module registriert.</div>';
+        <dl class="module-tech-details"><div><dt>Modul-ID</dt><dd>${esc(module.id)}</dd></div><div><dt>IP-Adresse</dt><dd>${esc(module.ip || "Nicht verfügbar")}</dd></div><div><dt>Firmware</dt><dd>${esc(module.firmwareVersion || "Unbekannt")} · Protokoll ${esc(module.protocolVersion ?? "?")}</dd></div><div><dt>Hardware</dt><dd>${esc(module.hardwareType || module.type || "ESP-Modul")}</dd></div></dl>
+        <details class="module-remove"><summary>Modul entfernen</summary><p>Ein eingeschalteter ESP meldet sich erneut an. Zum dauerhaften Entfernen zuerst ausschalten.</p><button class="module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button">Modul löschen</button></details>
+      </div></details>`;
+  }).join("") : '<div class="settings-empty"><strong>Noch kein Modul verbunden</strong><p>Schalte deinen ESP ein und verbinde ihn mit demselben Netzwerk. Erkannte Module erscheinen hier automatisch.</p></div>';
+
 }
 
 function renderDefaultStates() {
@@ -478,7 +482,7 @@ export function refreshSettingsHardwareStatus() {
   if (!document.getElementById("page-settings")?.classList.contains("active")) return;
 
   const sensorHost = byId("sensorGrid");
-  if (sensorHost) {
+  if (sensorHost && state.settingsView === "sensors") {
     const current = sensorHost.querySelectorAll("[data-module-id][data-sensor-id]").length;
     const expected = modules().reduce((sum, module) => sum + (Array.isArray(module.sensors) ? module.sensors.length : 0), 0);
     if (current !== expected && !sensorHost.contains(document.activeElement)) {
@@ -497,10 +501,10 @@ export function refreshSettingsHardwareStatus() {
   }
 
   const relayHost = byId("relayGrid");
-  if (relayHost && !relayHost.contains(document.activeElement)) renderRelayGrid();
+  if (state.settingsView === "relays" && relayHost && !relayHost.contains(document.activeElement)) renderRelayGrid();
 
   const ledHost = byId("ledConfigGrid");
-  if (ledHost && !ledHost.contains(document.activeElement)) renderLedGrid();
+  if (state.settingsView === "leds" && ledHost && !ledHost.contains(document.activeElement)) renderLedGrid();
   renderStationControlStatus();
 }
 
@@ -552,22 +556,38 @@ function renderStationControlStatus() {
   }
 }
 
+const SETTINGS_SECTIONS = {
+  overview: "Alle Einstellungen", modules: "Module", lights: "Lichttasten", relays: "Relais",
+  sensors: "Sensoren", leds: "LEDs & Signale", rules: "Automationen", defaults: "Grundstellung", station: "Server & Neustart"
+};
+
 export function renderSettingsTab() {
-  renderModuleManagement();
-  renderLightConfig();
-  renderDefaultStates();
-  renderRelayGrid();
-  renderSensorGrid();
-  renderLedGrid();
-  renderStationControlStatus();
+  const renderers = {
+    modules: renderModuleManagement, lights: renderLightConfig, defaults: renderDefaultStates,
+    relays: renderRelayGrid, sensors: renderSensorGrid, leds: renderLedGrid,
+    station: renderStationControlStatus, rules: renderRulesGrid
+  };
+  if (!Object.hasOwn(SETTINGS_SECTIONS, state.settingsView)) state.settingsView = "overview";
+  renderers[state.settingsView]?.();
   applySettingsView();
 }
 
 function applySettingsView() {
-  const view = state.settingsView || "modules";
-  all("[data-settings-view]").forEach((button) => button.classList.toggle("active", button.dataset.settingsView === view));
-  all("[data-settings-section]").forEach((section) => section.classList.toggle("active", section.dataset.settingsSection === view));
-  if (view === "rules") renderRulesGrid();
+  const view = state.settingsView || "overview";
+  all("[data-settings-view]").forEach(button => button.classList.toggle("active", button.dataset.settingsView === view));
+  all("[data-settings-section]").forEach(section => {
+    const active = section.dataset.settingsSection === view;
+    section.classList.toggle("active", active);
+    section.hidden = !active;
+  });
+  const breadcrumb = byId("settingsBreadcrumb");
+  if (breadcrumb) breadcrumb.hidden = view === "overview";
+  const title = byId("settingsCurrentSection");
+  if (title) title.textContent = SETTINGS_SECTIONS[view];
+  const heading = document.querySelector(".hardware-center-head");
+  if (heading) heading.hidden = view !== "overview";
+  const content = document.querySelector(".settings-content");
+  if (content) content.dataset.view = view;
 }
 
 function setSaveStatus(id, text, kind = "") {
@@ -578,7 +598,9 @@ function setSaveStatus(id, text, kind = "") {
   if (text) setTimeout(() => { if (el.textContent === text) el.textContent = ""; }, 2200);
 }
 
+const savingSections = new Set();
 async function saveSettingsSection(section) {
+  if (savingSections.has(section)) return;
   const map = {
     lights: { body: { lightButtons: state.lightButtons }, status: "saveLightStatus", label: "Licht-Buttons" },
     defaults: { body: { defaults: state.defaults || [] }, status: "saveDefaultsStatus", label: "Standardzustände" },
@@ -588,14 +610,17 @@ async function saveSettingsSection(section) {
   };
   const cfg = map[section];
   if (!cfg) return;
+  const snapshot = JSON.stringify(cfg.body);
+  savingSections.add(section);
   setSaveStatus(cfg.status, "Speichert …");
   try {
-    const result = await apiCall("/control/settings", { method: "POST", body: cfg.body });
+    const result = await apiCall("/control/settings", { method: "POST", body: snapshot });
+    const changedDuringSave = JSON.stringify(cfg.body) !== snapshot;
     const hardware = result?.hardware;
     if (hardware && typeof hardware === "object") {
       state.hardware = { ...(state.hardware || {}), ...hardware, modules: state.hardware?.modules || {} };
       state.settingsPersistedAt = Math.max(Number(state.settingsPersistedAt || 0), Number(hardware.updatedAt || 0));
-      if (section === "lights" && Array.isArray(hardware.lightButtons)) {
+      if (!changedDuringSave && section === "lights" && Array.isArray(hardware.lightButtons)) {
         state.lightButtons = hardware.lightButtons.map((button, index) => ({
           id: button.id ?? index + 1,
           name: button.name || `Licht ${index + 1}`,
@@ -606,9 +631,9 @@ async function saveSettingsSection(section) {
       }
     }
     if (!state.settingsDirty) state.settingsDirty = {};
-    state.settingsDirty[section] = false;
-    if (section === "leds") state.ledConfigDirty = false;
-    setSaveStatus(cfg.status, "Gespeichert", "saved");
+    state.settingsDirty[section] = changedDuringSave;
+    if (section === "leds") state.ledConfigDirty = changedDuringSave;
+    setSaveStatus(cfg.status, changedDuringSave ? "Weitere Änderungen ungespeichert" : "Gespeichert", changedDuringSave ? "" : "saved");
     if (section === "lights") renderTrackLightButtons();
     if (section === "leds") {
       renderLedGrid();
@@ -618,6 +643,8 @@ async function saveSettingsSection(section) {
   } catch (e) {
     setSaveStatus(cfg.status, "Fehler", "error");
     showToast(`${cfg.label} konnten nicht gespeichert werden: ${e?.message || e}`, "error");
+  } finally {
+    savingSections.delete(section);
   }
 }
 
@@ -780,7 +807,10 @@ function bindSettingsInput() {
 
     if (btn.dataset.settingsView) {
       state.settingsView = btn.dataset.settingsView;
-      applySettingsView();
+      if (btn.dataset.moduleId && state.settingsView === "relays") state.settingsRelayModule = btn.dataset.moduleId;
+      if (btn.dataset.moduleId && state.settingsView === "leds") state.settingsLedModule = btn.dataset.moduleId;
+      renderSettingsTab();
+      document.getElementById("page-settings")?.scrollTo?.({ top: 0 });
       try { localStorage.setItem("dynora.settingsView", state.settingsView); } catch {}
       return;
     }
@@ -1008,7 +1038,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
-    if (["modules", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
+    if (["overview", "modules", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
   bindTrackFocusMode();

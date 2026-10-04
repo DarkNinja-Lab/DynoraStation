@@ -333,7 +333,7 @@ function createModuleRoutes({
       customName: true
     };
     runtimeState.hardware.updatedAt = Date.now();
-    await queueWriteHardware();
+    if ((await queueWriteHardware())?.ok === false) throw apiError(500, "SAVE_FAILED", "Speichern fehlgeschlagen. Änderungen sind noch nicht dauerhaft gesichert.");
     addEvent("MODUL", moduleId, `ESP-Modul umbenannt: ${name}`);
 
     res.json({ ok: true, module: moduleId, name });
@@ -461,7 +461,8 @@ function createModuleRoutes({
     commandQueueApi.cancelCommandsForModule(moduleId, "Modul gelöscht");
     runtimeState.hardware.updatedAt = Date.now();
     runtimeState.rulesData.updatedAt = Date.now();
-    await Promise.all([queueWriteHardware(), queueWriteLayout(), queueWriteRules()]);
+    const writes = await Promise.all([queueWriteHardware(), queueWriteLayout(), queueWriteRules()]);
+    if (writes.some(result => result?.ok === false)) throw apiError(500, "SAVE_FAILED", "Moduländerungen konnten nicht dauerhaft gespeichert werden");
     addEvent("MODUL", moduleId, `ESP-Modul ${moduleId} gelöscht`);
 
     res.json({

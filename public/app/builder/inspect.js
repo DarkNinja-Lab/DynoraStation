@@ -1,23 +1,27 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { renderCanvas } from "./render.js?v=mobile-v5-cachefix";
-import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
-import { renderCs3Tiles } from "../ui/render.js?v=mobile-v5-cachefix";
-import { recordHistory } from "./history.js?v=mobile-v5-cachefix";
-import { icon } from "../ui/icons.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { setBuilderPanel } from "./panels.js?v=workspace-v11";
+import { state } from "../core/state.js?v=workspace-v11";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { renderCanvas } from "./render.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { renderCs3Tiles } from "../ui/render.js?v=workspace-v11";
+import { recordHistory } from "./history.js?v=workspace-v11";
+import { icon } from "../ui/icons.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 export function showInspector(element) {
   if (!element) return;
-  clearUnavailableAssignment(element);
   
   const inspector = document.getElementById("inspector");
   if (!inspector) return;
 
+  const hardwareOpen = inspector.dataset.elementId === element.id && Boolean(inspector.querySelector(".inspector-hardware")?.open);
   const html = inspectorHtmlForElement(element);
   inspector.innerHTML = html;
+  inspector.dataset.elementId = element.id;
+  inspector.querySelector(".inspector-hardware").open = hardwareOpen;
+  setBuilderPanel("inspector");
 
   // Event listeners für alle Inputs
   inspector.querySelectorAll("input, select").forEach(input => {
@@ -83,6 +87,7 @@ function inspectorHtmlForElement(el) {
       <label class="inspector-field"><span>X (mm)</span><input type="number" id="inspX" value="${Math.round(Number(el.x || 0) * 20) / 10}" step="5"></label>
       <label class="inspector-field"><span>Y (mm)</span><input type="number" id="inspY" value="${Math.round(Number(el.y || 0) * 20) / 10}" step="5"></label>
     </div>
+    <details class="inspector-hardware"><summary>Hardware & Funktionen</summary>
     <label class="inspector-field">
       <span>Modul</span>
       <select id="inspModule">
@@ -124,6 +129,7 @@ function inspectorHtmlForElement(el) {
   }
 
   html += `
+    </details>
     <div class="inspector-actions">
       <button id="inspectorDeleteBtn" class="danger-button" type="button">${icon("trash")}<span>Löschen</span></button>
     </div>
@@ -394,8 +400,8 @@ function saveInspectorChanges(element) {
   element.winkel = rotation;
   const boardWidth = Math.max(250, Number(state.layout?.metadaten?.plateWidthMm || 3200) * .5);
   const boardHeight = Math.max(250, Number(state.layout?.metadaten?.plateHeightMm || 1800) * .5);
-  element.x = Math.max(40, Math.min(boardWidth - 40, Number(document.getElementById("inspX")?.value || element.x * 2) * .5));
-  element.y = Math.max(40, Math.min(boardHeight - 40, Number(document.getElementById("inspY")?.value || element.y * 2) * .5));
+  element.x = Math.max(0, Math.min(boardWidth, Number(document.getElementById("inspX")?.value || element.x * 2) * .5));
+  element.y = Math.max(0, Math.min(boardHeight, Number(document.getElementById("inspY")?.value || element.y * 2) * .5));
   element.module = module;
   if (["switch", "crossing", "signal", "espSignal"].includes(element.typ) || (element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112")) {
     element.showInDirectControl = document.getElementById("inspShowInDirectControl")?.checked !== false;
@@ -457,6 +463,7 @@ function saveInspectorChanges(element) {
 }
 
 export function inspectorLeer() {
+  if (document.querySelector(".builder-layout")?.dataset.panel === "inspector") setBuilderPanel("canvas");
   const inspector = document.getElementById("inspector");
   if (inspector) {
     inspector.innerHTML = `
@@ -500,7 +507,7 @@ function getModuleOptions(selected, elementType = "track") {
   const list = inventoryModules().filter((module) => moduleSupports(module, needed));
   const emptyLabel = needed === "led" ? "Kein LED-ESP gewählt" : "Kein ESP-Modul gewählt";
   const unavailable = list.length ? "" : `<option value="" disabled>Kein ${needed === "led" ? "LED-ESP" : "I/O-Modul"} erkannt</option>`;
-  return `<option value="">${emptyLabel}</option>${unavailable}` + list.map((module) => {
+  return `<option value="">${emptyLabel}</option>${unavailable}${selected && !list.some(m => m.id === selected) ? `<option value="${esc(selected)}" selected>${esc(selected)} · derzeit nicht verfügbar</option>` : ""}` + list.map((module) => {
     const label = moduleKindLabel(module);
     return `<option value="${esc(module.id)}" ${module.id === selected ? "selected" : ""}>${esc(module.name || module.id)} · ${label}</option>`;
   }).join("");
@@ -508,7 +515,7 @@ function getModuleOptions(selected, elementType = "track") {
 
 function getRelayOptions(module, selected) {
   const channels = relayChannelsForModule(module);
-  return `<option value="0">Kein Relais</option>${channels.map((channel) => {
+  return `<option value="0">Kein Relais</option>${Number(selected) && !channels.includes(Number(selected)) ? `<option value="${Number(selected)}" selected>Relais ${Number(selected)} · nicht verfügbar</option>` : ""}${channels.map((channel) => {
     const configured = state.relayConfig?.[`${module}:${channel}`]?.name;
     const label = configured ? `${configured} (Relay ${channel})` : `Relay ${channel}`;
     return `<option value="${channel}" ${parseInt(selected) === channel ? "selected" : ""}>${esc(label)}</option>`;
@@ -517,7 +524,7 @@ function getRelayOptions(module, selected) {
 
 function getSensorOptions(module, selected) {
   const sensors = sensorsForModule(module);
-  return `<option value="">Kein Sensor</option>${sensors.map((sensor) => {
+  return `<option value="">Kein Sensor</option>${selected && !sensors.some(sensor => sensor.id === selected) ? `<option value="${esc(selected)}" selected>${esc(selected)} · nicht verfügbar</option>` : ""}${sensors.map((sensor) => {
     const id = sensor.id;
     const configured = state.sensorConfig?.[`${module}:${id}`]?.name;
     const label = configured || sensor?.name || id;
@@ -527,7 +534,7 @@ function getSensorOptions(module, selected) {
 
 function getLedOptions(module, selected) {
   const channels = ledChannelsForModule(module);
-  return `<option value="0">Keine LED</option>${channels.map((channel) => {
+  return `<option value="0">Keine LED</option>${Number(selected) && !channels.includes(Number(selected)) ? `<option value="${Number(selected)}" selected>LED ${Number(selected)} · nicht verfügbar</option>` : ""}${channels.map((channel) => {
     const config = state.ledConfig?.[`${module}:${channel}`] || {};
     const hardwareLed = (state.hardware?.leds || []).find((item) => item.module === module && Number(item.channel) === channel)
       || state.hardware?.modules?.[module]?.leds?.[channel - 1]
@@ -625,14 +632,6 @@ function moduleKindLabel(module) {
   if (module?.kind === "RELAY_SENSOR") return "Relay/Sensor";
   if (module?.kind === "HYBRID") return "Hybrid";
   return "noch nicht erkannt";
-}
-
-function clearUnavailableAssignment(element) {
-  const list = state.hardware?.modules || {};
-  if (!Object.keys(list).length || !element.module || list[element.module]) return;
-  element.module = "";
-  resetElementChannels(element);
-  state.layoutDirty = true;
 }
 
 function resetElementChannels(element) {

@@ -1,10 +1,10 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=mobile-v5-cachefix";
-import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=mobile-v5-cachefix";
-import { icon } from "./icons.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=workspace-v11";
+import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v11";
+import { icon } from "./icons.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 function dashboardCatalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;

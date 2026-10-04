@@ -4,7 +4,6 @@ const fsp = require("fs/promises");
 const { ensureDataDir } = require("./files");
 
 async function queueWrite({ kind, file, payloadFactory, runtimeState, addEvent }) {
-  ensureDataDir(runtimeState.paths);
   const s = runtimeState.writeState[kind];
   s.pending = true;
 
@@ -13,6 +12,7 @@ async function queueWrite({ kind, file, payloadFactory, runtimeState, addEvent }
   s.running = true;
   s.promise = (async () => {
     try {
+      ensureDataDir(runtimeState.paths);
       while (s.pending) {
         s.pending = false;
         const tmp = `${file}.tmp`;
@@ -21,10 +21,12 @@ async function queueWrite({ kind, file, payloadFactory, runtimeState, addEvent }
         await fsp.rename(tmp, file);
         s.lastError = null;
       }
+      return { ok: true };
     } catch (err) {
       s.lastError = String(err?.message || err);
       console.error(`Fehler beim Speichern (${kind}):`, s.lastError);
       addEvent("IO", "SERVER", `Speicherfehler ${kind}: ${s.lastError}`);
+      return { ok: false, error: s.lastError };
     } finally {
       s.running = false;
       s.promise = null;

@@ -4,6 +4,7 @@ const { ipFromReq } = require("../../utils/network");
 const { apiError } = require("../../utils/errors");
 
 function rateLimitFactory(rateBuckets) {
+  let nextCleanup = 0;
   return function rateLimit({ keyPrefix, windowMs, max, skip, key: keyFactory }) {
     return (req, res, next) => {
       if (typeof skip === "function" && skip(req)) return next();
@@ -11,6 +12,10 @@ function rateLimitFactory(rateBuckets) {
       const identity = typeof keyFactory === "function" ? String(keyFactory(req, ip) || ip) : ip;
       const key = `${keyPrefix}:${identity}`;
       const now = Date.now();
+      if (now >= nextCleanup) {
+        for (const [id, entry] of rateBuckets) if (now >= entry.resetAt) rateBuckets.delete(id);
+        nextCleanup = now + 60000;
+      }
 
       let bucket = rateBuckets.get(key);
       if (!bucket || now >= bucket.resetAt) {

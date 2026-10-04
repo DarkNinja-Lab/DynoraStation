@@ -1,12 +1,12 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
 
 const undoStack = [];
 const redoStack = [];
 
 function snapshot() { return JSON.stringify(state.layout); }
-function restore(value) { state.layout = JSON.parse(value); state.selectedElement = null; state.connectFrom = null; state.layoutDirty = true; }
+function restore(value) { state.layout = JSON.parse(value); state.selectedElement = null; state.connectFrom = null; state.placement = null; state.selectedTool = "select"; state.layoutDirty = true; }
 
 export function resetHistory() { undoStack.length = 0; redoStack.length = 0; updateHistoryButtons(); }
 export function recordHistory() {

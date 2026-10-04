@@ -1,9 +1,9 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { apiCall } from "../core/api.js?v=workspace-v11";
+import { commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 export async function lightButtonsLaden() {
   try {

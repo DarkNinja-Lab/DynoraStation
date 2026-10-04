@@ -22,7 +22,7 @@ function createRulesRoutes({ runtimeState, queueWriteRules, addEvent }) {
     });
 
     runtimeState.rulesData.updatedAt = Date.now();
-    await queueWriteRules();
+    if ((await queueWriteRules())?.ok === false) throw apiError(500, "SAVE_FAILED", "Speichern fehlgeschlagen. Änderungen sind noch nicht dauerhaft gesichert.");
 
     addEvent("RULE", "SYSTEM", "Regeln gespeichert");
     res.json({ ok: true, rules: runtimeState.rulesData.rules });

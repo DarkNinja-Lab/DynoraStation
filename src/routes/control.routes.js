@@ -142,7 +142,7 @@ function createControlRoutes({
     }
 
     runtimeState.hardware.updatedAt = Date.now();
-    await queueWriteHardware();
+    if ((await queueWriteHardware())?.ok === false) throw apiError(500, "SAVE_FAILED", "Speichern fehlgeschlagen. Änderungen sind noch nicht dauerhaft gesichert.");
     addEvent("HARDWARE", "SETTINGS", "Einstellungen gespeichert");
     res.json({ ok: true, hardware: runtimeState.hardware });
   }));

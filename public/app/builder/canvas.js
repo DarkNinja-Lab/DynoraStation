@@ -1,12 +1,12 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { apiCall } from "../core/api.js?v=mobile-v5-cachefix";
-import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js?v=mobile-v5-cachefix";
-import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
-import { recordHistory, undoHistory, redoHistory } from "./history.js?v=mobile-v5-cachefix";
-import { exportBuildPlan } from "./export.js?v=mobile-v5-cachefix";
-import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
+import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { recordHistory, undoHistory, redoHistory } from "./history.js?v=workspace-v11";
+import { exportBuildPlan } from "./export.js?v=workspace-v11";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v11";
 
 
 export function ensureCanvasGeometry() {
@@ -26,37 +26,6 @@ export function setupBuilderButtons() {
   state.showLabels = true;
   state.snapToGrid = true;
 
-  // Bauteil wählen, anschließend direkt im Plan positionieren.
-  document.querySelectorAll(".add-element-button").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      beginPlacement(btn.dataset.add, btn.dataset.signalAspects || "", btn.dataset.catalogCode || "");
-    });
-  });
-  const componentSearch = document.getElementById("componentSearch");
-  const applyComponentSearch = () => {
-    if (!componentSearch) return;
-    const query = componentSearch.value.trim().toLocaleLowerCase("de-DE");
-    const groups = Array.from(document.querySelectorAll(".builder-library-group"));
-
-    groups.forEach((group) => {
-      const catalogItems = Array.from(group.querySelectorAll(":scope > .catalog-group"));
-      const controlItems = Array.from(group.querySelectorAll(":scope > .builder-control-grid > .add-element-button"));
-      const searchableItems = [...catalogItems, ...controlItems];
-
-      searchableItems.forEach((item) => {
-        const text = `${item.textContent || ""} ${item.dataset.searchable || ""}`.toLocaleLowerCase("de-DE");
-        item.classList.toggle("search-hidden", Boolean(query && !text.includes(query)));
-      });
-
-      if (!searchableItems.length) return;
-      const hasVisibleResult = searchableItems.some((item) => !item.classList.contains("search-hidden"));
-      group.classList.toggle("search-hidden", Boolean(query && !hasVisibleResult));
-      if (query && hasVisibleResult) group.open = true;
-    });
-  };
-  componentSearch?.addEventListener("input", applyComponentSearch);
-  componentSearch?.addEventListener("search", applyComponentSearch);
   bindPlacementCanvas();
 
   // Save Layout
@@ -64,13 +33,8 @@ export function setupBuilderButtons() {
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
       try {
-        const result = await apiCall("/layout", {
-          method: "POST",
-          body: state.layout
-        });
+        const result = await layoutSpeichern();
         state.relayConflicts = Array.isArray(result?.warnings?.relayConflicts) ? result.warnings.relayConflicts : [];
-        state.layoutDirty = false;
-        try { localStorage.removeItem("dynora.layoutDraft"); } catch {}
         if (state.relayConflicts.length) {
           const first = state.relayConflicts[0];
           showToast(`Layout gespeichert · Warnung: ${state.relayConflicts.length} Relais-Konflikt(e), z. B. ${first.module}: Relais ${first.channel}`, "warning");
@@ -78,8 +42,10 @@ export function setupBuilderButtons() {
           showToast("Layout gespeichert");
         }
       } catch (e) {
-        console.error(e);
-        showToast("Fehler beim Speichern!", "error");
+        if (e.code !== "LAYOUT_CONFLICT" && e.code !== "LAYOUT_VERSION_REQUIRED") {
+          console.error(e);
+          showToast(`Speichern fehlgeschlagen: ${e.message}`, "error");
+        }
       }
     });
   }
@@ -95,6 +61,7 @@ export function setupBuilderButtons() {
   if (clearBtn) {
     clearBtn.addEventListener("click", () => {
       if (confirm("Wirklich leeren?")) {
+        cancelPlacement();
         recordHistory();
         state.layout.elemente = [];
         state.layout.verbindungen = [];
@@ -118,7 +85,6 @@ export function setupBuilderButtons() {
 
 }
 
-const PLACEABLE_TYPES = ["track", "curve", "switch", "crossing", "bumper", "signal", "espSignal", "transformer"];
 const TRACK_TYPES = new Set(["track", "curve", "switch", "crossing", "bumper"]);
 
 function placementLabel(type) {
@@ -207,10 +173,13 @@ function attachToNearestTrack(element) {
   const desiredRotation = ((best.targetWorld.angle + 180 - best.sourcePort.angle) % 360 + 360) % 360;
   const rotatedPort = worldConnectionPort({ ...element, x: 0, y: 0, rotation: desiredRotation, winkel: desiredRotation }, best.sourcePort);
   const size = canvasSize();
+  const x = best.targetWorld.x - rotatedPort.x;
+  const y = best.targetWorld.y - rotatedPort.y;
+  if (x < 0 || y < 0 || x > size.width || y > size.height) return null;
   element.rotation = desiredRotation;
   element.winkel = desiredRotation;
-  element.x = Math.max(40, Math.min(size.width - 40, best.targetWorld.x - rotatedPort.x));
-  element.y = Math.max(40, Math.min(size.height - 40, best.targetWorld.y - rotatedPort.y));
+  element.x = x;
+  element.y = y;
   return {
     id: `connection_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     von: best.target.id,
@@ -257,9 +226,6 @@ export function beginPlacement(type, signalAspectMode = "", requestedCatalogCode
   state.placement = { ...createElement(type, center.x, center.y, 0, requestedCatalogCode, signalAspectMode), id: "placement-preview", count: 0, magnetic: false };
   syncPlacementUi();
   renderCanvas();
-  if (window.matchMedia("(max-width: 900px)").matches) {
-    document.querySelector('[data-builder-panel="canvas"]')?.click();
-  }
 }
 
 export function rotatePlacement(degrees) {
@@ -279,7 +245,7 @@ export function cancelPlacement() {
   return true;
 }
 
-function commitPlacement(point) {
+export function commitPlacement(point) {
   const placement = state.placement;
   if (!placement) return;
   if (!Array.isArray(state.layout.elemente)) state.layout.elemente = [];

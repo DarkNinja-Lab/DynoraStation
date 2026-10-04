@@ -1,9 +1,9 @@
 "use strict";
 
-import { state } from "../core/state.js?v=mobile-v5-cachefix";
-import { renderCanvas, canvasSize } from "./render.js?v=mobile-v5-cachefix";
-import { showToast } from "../ui/toast.js?v=mobile-v5-cachefix";
-import { esc } from "../core/utils.js?v=mobile-v5-cachefix";
+import { state } from "../core/state.js?v=workspace-v11";
+import { renderCanvas, canvasSize } from "./render.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { esc } from "../core/utils.js?v=workspace-v11";
 
 
 function articleFor(element) {
@@ -69,6 +69,7 @@ export function exportBuildPlan() {
     return;
   }
 
+  clone.querySelector("#builderPlacementLayer")?.remove();
   clone.querySelectorAll(".selected,.connection-source").forEach((node) => node.classList.remove("selected", "connection-source"));
   clone.querySelectorAll(".layout-element > rect[fill='transparent']").forEach((node) => node.remove());
   const size = canvasSize();
@@ -76,6 +77,15 @@ export function exportBuildPlan() {
   clone.setAttribute("width", String(size.width));
   clone.setAttribute("height", String(size.height));
   clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+  // The preview lives in an iframe; carry its presentation with the SVG.
+  const schematic = state.builderView !== "rails";
+  clone.style.background = schematic ? "#e6e8e7" : "#101722";
+  const presentation = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  presentation.textContent = schematic
+    ? "#builderGrid path{stroke:#aab2b5;opacity:.4}.layout-element text{fill:#28343b;stroke:#e6e8e7}#builderEmptyHint{fill:#606d76}"
+    : "#builderGrid path{stroke:#53677f;opacity:.25}";
+  clone.prepend(presentation);
 
   const svgMarkup = new XMLSerializer().serializeToString(clone);
   const metadata = state.layout.metadaten || {};
