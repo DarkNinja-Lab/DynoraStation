@@ -297,6 +297,7 @@ function renderModuleManagement() {
           ${relays ? `<button type="button" class="secondary-button" data-settings-view="relays" data-module-id="${esc(module.id)}">Relais einrichten →</button>` : ""}
           ${leds ? `<button type="button" class="secondary-button" data-settings-view="leds" data-module-id="${esc(module.id)}">LEDs einrichten →</button>` : ""}
           ${sensors ? `<button type="button" class="secondary-button" data-settings-view="sensors">Sensoren ansehen →</button>` : ""}
+          <button type="button" class="secondary-button" data-action="ota-firmware" data-module-id="${esc(module.id)}" ${module.online && module.hardwareType ? "" : "disabled"}>Firmware per OTA aktualisieren</button>
         </div>
         <dl class="module-tech-details"><div><dt>Modul-ID</dt><dd>${esc(module.id)}</dd></div><div><dt>IP-Adresse</dt><dd>${esc(module.ip || "Nicht verfügbar")}</dd></div><div><dt>Firmware</dt><dd>${esc(module.firmwareVersion || "Unbekannt")} · Protokoll ${esc(module.protocolVersion ?? "?")}</dd></div><div><dt>Hardware</dt><dd>${esc(module.hardwareType || module.type || "ESP-Modul")}</dd></div></dl>
         <details class="module-remove"><summary>Modul entfernen</summary><p>Ein eingeschalteter ESP meldet sich erneut an. Zum dauerhaften Entfernen zuerst ausschalten.</p><button class="module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button">Modul löschen</button></details>
@@ -524,7 +525,7 @@ function renderStationControlStatus() {
   const version = byId("stationVersion");
   const address = byId("stationAddress");
   const station = state.stationStatus || {};
-  const managerLabel = ({ systemd: "systemd", windows: "Windows", process: "Direktstart" })[station.managedBy] || "Prozess";
+  const managerLabel = ({ docker: "Docker / Unraid", systemd: "systemd", windows: "Windows-Aufgabe", process: "Direktstart" })[station.managedBy] || "Prozess";
   const uptime = Number(station.uptimeSec ?? state.serverUptimeSec) || 0;
   if (status) status.textContent = station.state === "restart" ? "Startet neu …" : station.state === "shutdown" ? "Wird beendet …" : "Läuft";
   if (detail) detail.textContent = `Laufzeit ${formatUptime(uptime)}${Number(station.pid) > 0 ? ` · PID ${station.pid}` : ""} · ${managerLabel}`;
@@ -535,6 +536,16 @@ function renderStationControlStatus() {
       : window.location.hostname;
     address.textContent = `${host}:${state.connection?.port || window.location.port || 8181}`;
   }
+  const shutdownButton = document.querySelector('[data-station-action="shutdown"]');
+  const dockerManaged = station.managedBy === "docker";
+  if (shutdownButton) {
+    shutdownButton.disabled = dockerManaged;
+    shutdownButton.title = dockerManaged ? "Container in Unraid stoppen" : "DynoraStation beenden";
+  }
+  const stationNote = document.querySelector("[data-station-note]");
+  if (stationNote) stationNote.textContent = dockerManaged
+    ? "Docker verwaltet den Prozess. Neustart startet den Container über die Docker-Richtlinie neu. Zum Beenden den Container in der Unraid Docker-UI stoppen."
+    : "Nach „Station beenden“ ist die Weboberfläche nicht mehr erreichbar, bis DynoraStation extern wieder gestartet wird.";
 
   // Nach einem erfolgreichen Restart bleibt die Seite offen. Sobald ein neuer
   // Serverprozess erkannt wurde, wird der Restart-Button wieder freigegeben.
@@ -557,13 +568,42 @@ function renderStationControlStatus() {
 }
 
 const SETTINGS_SECTIONS = {
-  overview: "Alle Einstellungen", modules: "Module", lights: "Lichttasten", relays: "Relais",
+  overview: "Alle Einstellungen", modules: "Module", updates: "Updates", lights: "Lichttasten", relays: "Relais",
   sensors: "Sensoren", leds: "LEDs & Signale", rules: "Automationen", defaults: "Grundstellung", station: "Server & Neustart"
 };
 
+function renderFirmwareUpdates() {
+  const select = byId("otaModuleSelect");
+  if (!select) return;
+  const modules = Object.values(state.hardware?.modules || {}).filter(module => ["ESP8266_NODEMCU_LED_DIRECT", "ESP8266_NODEMCU_MCP23017_BME280"].includes(module.hardwareType));
+  const selected = select.value || state.selectedOtaModule || "";
+  select.innerHTML = modules.map(module => `<option value="${esc(module.id)}">${esc(module.name || module.id)} · ${module.online ? "online" : "offline"}</option>`).join("");
+  if (modules.some(module => module.id === selected)) select.value = selected;
+  else if (modules.length) select.value = modules[0].id;
+  const current = modules.find(module => module.id === select.value);
+  const build = current ? state.firmwareBuilds?.[current.hardwareType] : null;
+  const upload = byId("uploadFirmwareButton");
+  if (upload) upload.disabled = !current?.online || build?.status !== "ready";
+  const status = byId("firmwareUpdateStatus");
+  if (status && current && build) status.textContent = build.error || build.message || `Firmwarestatus: ${build.status}`;
+  if (status && !current) status.textContent = "Kein unterstütztes ESP-Modul gefunden.";
+  if (current && !build) refreshFirmwareBuild(current.hardwareType).catch(() => {});
+  const progress = byId("firmwareProgress");
+  if (progress) progress.value = build?.progress || 0;
+}
+
+async function refreshFirmwareBuild(hardwareType) {
+  const response = await fetch(`/api/ota/build-status?hardwareType=${encodeURIComponent(hardwareType)}`, { cache: "no-store" });
+  const build = await response.json();
+  state.firmwareBuilds ||= {};
+  state.firmwareBuilds[hardwareType] = build;
+  renderFirmwareUpdates();
+  return build;
+}
+
 export function renderSettingsTab() {
   const renderers = {
-    modules: renderModuleManagement, lights: renderLightConfig, defaults: renderDefaultStates,
+    modules: renderModuleManagement, updates: renderFirmwareUpdates, lights: renderLightConfig, defaults: renderDefaultStates,
     relays: renderRelayGrid, sensors: renderSensorGrid, leds: renderLedGrid,
     station: renderStationControlStatus, rules: renderRulesGrid
   };
@@ -741,9 +781,93 @@ function bindSettingsInput() {
     }
   });
 
+  document.addEventListener("change", ev => {
+    if (ev.target?.id !== "otaModuleSelect") return;
+    state.selectedOtaModule = ev.target.value;
+    renderFirmwareUpdates();
+    const module = state.hardware?.modules?.[ev.target.value];
+    if (module) refreshFirmwareBuild(module.hardwareType).catch(() => {});
+  });
+
   document.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
+
+    if (btn.dataset.action === "ota-firmware") {
+      const moduleId = btn.dataset.moduleId || "";
+      const module = state.hardware?.modules?.[moduleId];
+      if (!module) { showToast("ESP-Modul wurde nicht gefunden.", "warning"); return; }
+      state.selectedOtaModule = moduleId;
+      state.settingsView = "updates";
+      renderSettingsTab();
+      const select = byId("otaModuleSelect");
+      if (select) select.value = moduleId;
+      renderFirmwareUpdates();
+      return;
+    }
+
+    if (btn.id === "buildFirmwareButton") {
+      const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
+      if (!module) { showToast("Wähle zuerst ein unterstütztes ESP-Modul.", "warning"); return; }
+      const statusEl = byId("firmwareUpdateStatus");
+      const progressEl = byId("firmwareProgress");
+      btn.disabled = true;
+      byId("uploadFirmwareButton").disabled = true;
+      if (statusEl) statusEl.textContent = "Server kompiliert die ausgewählte Firmware …";
+      if (progressEl) progressEl.value = 5;
+      try {
+        const response = await fetch("/api/ota/build", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hardwareType: module.hardwareType }), cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || result.fehler || `${response.status} ${response.statusText}`);
+        let buildDone = false;
+        for (let attempt = 0; attempt < 180; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const build = await refreshFirmwareBuild(module.hardwareType);
+          if (build.status === "ready") { buildDone = true; showToast(`Firmware ${build.version} wurde erstellt.`); break; }
+          if (build.status === "failed") throw new Error(build.error || "Firmware-Build fehlgeschlagen");
+        }
+        if (!buildDone) throw new Error("Zeitüberschreitung beim Firmware-Build.");
+      } catch (error) {
+        if (statusEl) statusEl.textContent = `Fehler: ${error.message}`;
+        showToast(`Firmware konnte nicht erstellt werden: ${error.message}`, "error");
+      } finally {
+        btn.disabled = false;
+        renderFirmwareUpdates();
+      }
+      return;
+    }
+
+    if (btn.id === "uploadFirmwareButton") {
+      const moduleId = byId("otaModuleSelect")?.value || "";
+      const module = state.hardware?.modules?.[moduleId];
+      const statusEl = byId("firmwareUpdateStatus");
+      if (!module?.online) { showToast("Der ESP muss für OTA online sein.", "warning"); return; }
+      btn.disabled = true;
+      const progressEl = byId("firmwareProgress");
+      if (progressEl) progressEl.value = 5;
+      try {
+        const response = await fetch(`/api/ota/${encodeURIComponent(moduleId)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || result.fehler || `${response.status} ${response.statusText}`);
+        if (statusEl) statusEl.textContent = `Firmware ${result.version} wird zum ESP übertragen …`;
+        let done = false;
+        for (let attempt = 0; attempt < 90; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const statusResponse = await fetch(`/api/ota/status?module=${encodeURIComponent(moduleId)}`, { cache: "no-store" });
+          const status = await statusResponse.json().catch(() => ({}));
+          if (statusEl) statusEl.textContent = status.status === "installed" ? `Erfolgreich installiert: ${status.version}` : status.status === "failed" ? `Fehler: ${status.error}` : `OTA-Status: ${status.status}`;
+          if (progressEl) progressEl.value = status.status === "installed" || status.status === "failed" ? 100 : status.status === "restarting" ? 85 : status.status === "downloading" ? 55 : 20;
+          if (["installed", "failed"].includes(status.status)) { done = true; if (status.status === "failed") throw new Error(status.error || "OTA fehlgeschlagen"); showToast(`OTA erfolgreich: ${status.version}`); break; }
+        }
+        if (!done) throw new Error("Zeitüberschreitung: Der ESP hat das Update noch nicht bestätigt.");
+      } catch (error) {
+        if (statusEl) statusEl.textContent = `Fehler: ${error.message}`;
+        showToast(`OTA fehlgeschlagen: ${error.message}`, "error");
+      } finally {
+        btn.disabled = !module?.online;
+      }
+      return;
+    }
 
     if (btn.id === "emergencyButton") {
       if (btn.disabled) return;
@@ -1038,7 +1162,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
-    if (["overview", "modules", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
+    if (["overview", "modules", "updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
   bindTrackFocusMode();

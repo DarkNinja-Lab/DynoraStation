@@ -1,11 +1,13 @@
 "use strict";
 
 const express = require("express");
+const crypto = require("node:crypto");
 const { wrap, apiError } = require("../utils/errors");
 const { ipFromReq } = require("../utils/network");
 const { cleanText, validLedChannel, validBrightness } = require("../utils/sanitize");
 const { parseState } = require("../utils/parse");
 const { executeRulesForTrigger } = require("../domain/rules/executeRulesForTrigger");
+const { buildFirmware, SKETCHES } = require("../services/ota/buildFirmware");
 
 function createModuleRoutes({
   runtimeState,
@@ -23,6 +25,19 @@ function createModuleRoutes({
   env
 }) {
   const router = express.Router();
+  if (!(runtimeState.otaJobs instanceof Map)) runtimeState.otaJobs = new Map();
+  if (!(runtimeState.firmwareBuilds instanceof Map)) runtimeState.firmwareBuilds = new Map();
+
+  function requireOtaSecret(req) {
+    const expected = String(env.OTA_SHARED_SECRET || "");
+    const supplied = String(req.get("X-Dynora-OTA-Token") || "");
+    if (!expected) throw apiError(503, "OTA_DISABLED", "OTA ist nicht aktiviert. OTA_SHARED_SECRET fehlt.");
+    const left = Buffer.from(expected);
+    const right = Buffer.from(supplied);
+    if (left.length !== right.length || !crypto.timingSafeEqual(left, right)) {
+      throw apiError(403, "OTA_FORBIDDEN", "OTA-Schlüssel ist ungültig");
+    }
+  }
 
   function commandPayload(cmd) {
     if (!cmd) return null;
@@ -58,6 +73,16 @@ function createModuleRoutes({
     const protocolVersion = Number(req.body?.protocolVersion) || 0;
     const hardwareType = cleanText(req.body?.hardwareType || "", 80);
     module.firmwareVersion = firmwareVersion;
+    const otaJob = runtimeState.otaJobs.get(moduleId);
+    if (otaJob && firmwareVersion === otaJob.version) {
+      otaJob.status = "installed";
+      otaJob.updatedAt = heartbeatNow;
+      otaJob.firmware = null;
+    } else if (otaJob?.status === "restarting" && heartbeatNow - otaJob.updatedAt > 30000) {
+      otaJob.status = "failed";
+      otaJob.error = `ESP meldet Firmware ${firmwareVersion || "unbekannt"} statt ${otaJob.version}`;
+      otaJob.updatedAt = heartbeatNow;
+    }
     module.protocolVersion = protocolVersion;
     module.hardwareType = hardwareType;
     const reportsRelayDriver = Object.prototype.hasOwnProperty.call(req.body || {}, "mcp23017");
@@ -476,11 +501,128 @@ function createModuleRoutes({
   router.get("/api/module/next-command", (req, res) => {
     const moduleId = cleanText(req.query?.module || "GLEIS_01", 48) || "GLEIS_01";
 
+    const otaJob = runtimeState.otaJobs.get(moduleId);
+    if (otaJob && ["queued", "downloading"].includes(otaJob.status) && otaJob.firmware) {
+      return res.json({
+        command: null,
+        ota: { version: otaJob.version, sha256: otaJob.sha256 }
+      });
+    }
+
     const cmd = commandQueueApi.nextCommandForModule(moduleId);
     if (!cmd) return res.json({ command: null });
 
     res.json({ command: commandPayload(cmd) });
   });
+
+  router.post("/api/ota/build", wrap(async (req, res) => {
+    const secret = String(env.OTA_SHARED_SECRET || "");
+    const hardwareType = cleanText(req.body?.hardwareType || "", 80);
+    if (!secret) throw apiError(503, "OTA_DISABLED", "OTA ist nicht aktiviert. OTA_SHARED_SECRET fehlt.");
+    if (!SKETCHES[hardwareType]) throw apiError(400, "FIRMWARE_TYPE_UNSUPPORTED", "Für diesen ESP-Hardwaretyp gibt es keine Firmwarevorlage.");
+    const previous = runtimeState.firmwareBuilds.get(hardwareType);
+    if (previous?.status === "building") throw apiError(409, "OTA_BUILD_RUNNING", "Diese Firmware wird bereits gebaut.");
+    const build = { hardwareType, status: "building", progress: 5, message: "Firmware-Quelle wird vorbereitet …", version: "", firmware: null, updatedAt: Date.now(), error: "" };
+    runtimeState.firmwareBuilds.set(hardwareType, build);
+    res.status(202).json({ ok: true, hardwareType, status: "building" });
+    (async () => {
+      try {
+        build.progress = 15;
+        build.message = "Arduino-Compiler wird gestartet …";
+        const result = await buildFirmware(hardwareType, secret, env.DYNORA_DATA_DIR || "/data", percent => { build.progress = Math.min(90, 15 + Math.floor(percent * 0.75)); build.message = `Firmware wird kompiliert … ${percent}%`; build.updatedAt = Date.now(); });
+        build.progress = 95;
+        build.message = "Firmware wird geprüft …";
+        build.version = result.version;
+        build.firmware = result.firmware;
+        build.sha256 = crypto.createHash("sha256").update(result.firmware).digest("hex");
+        build.status = "ready";
+        build.progress = 100;
+        build.message = `Firmware bereit (${(result.firmware.length / 1024).toFixed(0)} KB)`;
+        build.updatedAt = Date.now();
+        addEvent("OTA", hardwareType, `Server-Firmware ${build.version} erfolgreich gebaut`);
+      } catch (error) {
+        build.status = "failed";
+        build.progress = 100;
+        build.message = "Firmware-Build fehlgeschlagen";
+        build.error = cleanText(error.message || "Firmware-Build fehlgeschlagen", 300);
+        build.updatedAt = Date.now();
+        addEvent("OTA", hardwareType, `Firmware-Build fehlgeschlagen: ${build.error}`);
+      }
+    })();
+  }));
+
+  router.get("/api/ota/build-status", (req, res) => {
+    const hardwareType = cleanText(req.query?.hardwareType || "", 80);
+    const build = runtimeState.firmwareBuilds.get(hardwareType);
+    if (!build) return res.json({ hardwareType, status: "idle", progress: 0, message: "Noch keine Firmware erstellt" });
+    res.json({ hardwareType, status: build.status, progress: build.progress, message: build.message, version: build.version, error: build.error, updatedAt: build.updatedAt });
+  });
+
+  router.post("/api/ota/:moduleId", wrap(async (req, res) => {
+    const moduleId = cleanText(req.params.moduleId || "", 48);
+    const module = runtimeState.modules[moduleId];
+    const build = runtimeState.firmwareBuilds.get(String(module?.hardwareType || ""));
+    if (!moduleId || !module) throw apiError(404, "MODULE_NOT_FOUND", "ESP-Modul wurde nicht gefunden");
+    if (!module.online) throw apiError(409, "MODULE_OFFLINE", "Das ESP-Modul ist offline");
+    if (!build || build.status !== "ready" || !build.firmware) throw apiError(409, "FIRMWARE_NOT_READY", "Erstelle zuerst die passende Firmware im Update-Reiter.");
+    if (build.version === String(module.firmwareVersion || "")) throw apiError(409, "FIRMWARE_VERSION_UNCHANGED", "Der ESP verwendet bereits genau diesen Firmwarestand.");
+    const existing = runtimeState.otaJobs.get(moduleId);
+    if (existing && ["queued", "downloading", "restarting"].includes(existing.status)) throw apiError(409, "OTA_ALREADY_RUNNING", "Für dieses Modul läuft bereits ein OTA-Auftrag.");
+    const active = Array.from(runtimeState.otaJobs.values()).filter(job => ["queued", "downloading", "restarting"].includes(job.status)).length;
+    if (active >= 2) throw apiError(429, "OTA_BUSY", "Es laufen bereits zwei ESP-Updates.");
+    const firmware = Buffer.from(build.firmware);
+    runtimeState.otaJobs.set(moduleId, { moduleId, hardwareType: module.hardwareType, version: build.version, sha256: build.sha256, firmware, status: "queued", createdAt: Date.now(), updatedAt: Date.now() });
+    addEvent("OTA", moduleId, `Firmware ${build.version} für ${module.name || moduleId} zum Upload bereit`);
+    res.status(202).json({ ok: true, module: moduleId, version: build.version, sha256: build.sha256, status: "queued" });
+  }));
+
+  router.get("/api/ota/status", (req, res) => {
+    const moduleId = cleanText(req.query?.module || "", 48);
+    const job = runtimeState.otaJobs.get(moduleId);
+    if (!job) return res.json({ module: moduleId, status: "idle" });
+    res.json({ module: moduleId, version: job.version, status: job.status, error: job.error || "", updatedAt: job.updatedAt });
+  });
+
+  router.get("/api/module/ota-firmware", (req, res, next) => {
+    try {
+      requireOtaSecret(req);
+      const moduleId = cleanText(req.query?.module || "", 48);
+      const job = runtimeState.otaJobs.get(moduleId);
+      if (!job || !job.firmware || !["queued", "downloading"].includes(job.status)) {
+        throw apiError(404, "OTA_FIRMWARE_NOT_FOUND", "Kein Firmware-Update wartet für dieses Modul");
+      }
+      job.status = "downloading";
+      job.updatedAt = Date.now();
+      res.set({
+        "Content-Type": "application/octet-stream",
+        "Content-Length": String(job.firmware.length),
+        "Cache-Control": "no-store",
+        "X-Dynora-Firmware-Version": job.version,
+        "X-Dynora-Firmware-SHA256": job.sha256
+      });
+      res.send(job.firmware);
+    } catch (error) { next(error); }
+  });
+
+  router.post("/api/module/ota-result", express.json({ limit: "2kb" }), wrap(async (req, res) => {
+    requireOtaSecret(req);
+    const moduleId = cleanText(req.body?.module || "", 48);
+    const job = runtimeState.otaJobs.get(moduleId);
+    if (!job) throw apiError(404, "OTA_JOB_NOT_FOUND", "Kein OTA-Auftrag für dieses Modul gefunden");
+    const ok = req.body?.ok === true;
+    if (ok) {
+      job.status = "restarting";
+      job.firmware = null;
+      job.updatedAt = Date.now();
+    } else {
+      job.status = "failed";
+      job.error = cleanText(req.body?.error || "ESP konnte Firmware nicht installieren", 160);
+      job.firmware = null;
+      job.updatedAt = Date.now();
+      addEvent("OTA", moduleId, `Firmware-Update fehlgeschlagen: ${job.error}`);
+    }
+    res.json({ ok: true, status: job.status });
+  }));
 
   router.post("/api/module/ack", wrap(async (req, res) => {
     const id = Number(req.body?.id);

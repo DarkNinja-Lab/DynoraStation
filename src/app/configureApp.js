@@ -97,7 +97,6 @@ function configureApp(app, context) {
     res.setHeader("Expires", "0");
     res.sendFile(path.join(publicDir, "index.html"));
   });
-  app.get("/favicon.ico", (req, res) => res.status(204).end());
   app.use(createRoutes(context));
   app.use(errorHandler);
   return app;

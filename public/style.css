@@ -10469,6 +10469,14 @@ body[data-page="settings"] .topbar {
   padding: 0px;
 }
 
+.firmware-update-panel { display: grid; gap: 14px; max-width: 720px; padding: 18px; border: 1px solid var(--line, #d8dee8); border-radius: 14px; background: var(--surface, #fff); }
+.firmware-update-panel > label { font-weight: 650; }
+.firmware-update-panel select { width: 100%; min-height: 42px; }
+.firmware-update-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.firmware-update-panel progress { width: 100%; height: 16px; accent-color: var(--accent, #3677d2); }
+.firmware-update-panel progress:not([value="100"]) { }
+.firmware-update-panel details p { line-height: 1.5; }
+
 .settings-topic-group {
   display: grid;
   grid-template-columns: 210px minmax(0px, 1fr);
@@ -10907,7 +10915,15 @@ body[data-page="settings"] .topbar {
     white-space: normal;
   }
   
-  .settings-topic-group {
+  .firmware-update-panel { display: grid; gap: 14px; max-width: 720px; padding: 18px; border: 1px solid var(--line, #d8dee8); border-radius: 14px; background: var(--surface, #fff); }
+.firmware-update-panel > label { font-weight: 650; }
+.firmware-update-panel select { width: 100%; min-height: 42px; }
+.firmware-update-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.firmware-update-panel progress { width: 100%; height: 16px; accent-color: var(--accent, #3677d2); }
+.firmware-update-panel progress:not([value="100"]) { }
+.firmware-update-panel details p { line-height: 1.5; }
+
+.settings-topic-group {
     grid-template-columns: 155px minmax(0px, 1fr);
     gap: 20px;
   }
@@ -11040,7 +11056,15 @@ body[data-page="settings"] .topbar {
     display: none;
   }
   
-  .settings-topic-group {
+  .firmware-update-panel { display: grid; gap: 14px; max-width: 720px; padding: 18px; border: 1px solid var(--line, #d8dee8); border-radius: 14px; background: var(--surface, #fff); }
+.firmware-update-panel > label { font-weight: 650; }
+.firmware-update-panel select { width: 100%; min-height: 42px; }
+.firmware-update-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.firmware-update-panel progress { width: 100%; height: 16px; accent-color: var(--accent, #3677d2); }
+.firmware-update-panel progress:not([value="100"]) { }
+.firmware-update-panel details p { line-height: 1.5; }
+
+.settings-topic-group {
     display: block;
     margin-bottom: 26px;
   }

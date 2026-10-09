@@ -20,6 +20,8 @@ const runtimeState = {
   nextCommandId: 1,
 
   modules: {},
+  otaJobs: new Map(),
+  firmwareBuilds: new Map(),
 
   revisions: {
     layout: 1,

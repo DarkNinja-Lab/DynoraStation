@@ -1,6 +1,6 @@
 {
   "name": "dynorastation",
-  "version": "3.6.0",
+  "version": "3.6.1",
   "private": true,
   "description": "Professionelle M\u00e4rklin M-Gleis Steuerung mit Express-Backend, ESP8266 und Web-UI",
   "main": "src/server.js",

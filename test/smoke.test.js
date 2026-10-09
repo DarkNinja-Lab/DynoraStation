@@ -596,6 +596,13 @@ test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfeh
 test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", () => {
   const { TRACK_CATALOG } = require("../src/domain/trackCatalog");
   assert.equal(TRACK_CATALOG["5106"].length, 180);
+  assert.equal(TRACK_CATALOG["5129"].kind, "track");
+  assert.equal(TRACK_CATALOG["5129"].length, 70);
+  assert.equal(TRACK_CATALOG["7190"].kind, "bumper");
+  assert.equal(TRACK_CATALOG["7191"].kind, "bumper");
+  assert.equal(TRACK_CATALOG["5111"].length, 180);
+  assert.equal(TRACK_CATALOG["5208"].length, 8);
+  assert.equal(TRACK_CATALOG["5207"].kind, "xtrack");
   assert.equal(TRACK_CATALOG["5100"].radius, 360);
   assert.equal(TRACK_CATALOG["5100"].angleDeg, 30);
   assert.ok(Math.abs(TRACK_CATALOG["5100"].arcLength - (Math.PI * 360 / 6)) < 0.1);

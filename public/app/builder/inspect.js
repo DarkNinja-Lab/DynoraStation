@@ -246,7 +246,7 @@ function inspectorSwitch(el) {
 }
 
 function inspectorBumper(el) {
-  const article = el.bumperCode || el.catalogCode || "5129";
+  const article = el.bumperCode || el.catalogCode || "7190";
   return `
     <div class="inspector-info">
       <strong>Prellbock ${esc(article)}</strong><br>

@@ -26,6 +26,10 @@ function createStationRoutes({ stationControl, addEvent }) {
       if (typeof handler !== "function") {
         throw apiError(503, "STATION_CONTROL_UNAVAILABLE", "Stationssteuerung ist noch nicht verfügbar");
       }
+      const status = typeof stationControl.status === "function" ? stationControl.status() : {};
+      if (action === "shutdown" && status.managedBy === "docker") {
+        throw apiError(409, "DOCKER_MANAGED_SHUTDOWN", "Docker verwaltet den Container. Zum Beenden bitte den Container in Unraid stoppen.");
+      }
 
       addEvent("SYSTEM", "STATION", action === "restart"
         ? "Neustart der DynoraStation angefordert"

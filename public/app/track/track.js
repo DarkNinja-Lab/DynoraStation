@@ -406,7 +406,7 @@ export function renderTrackLayout() {
     const unconfiguredText = hardwareInteractive && !controlAssigned ? ", keine Schaltkanäle zugewiesen" : "";
     group.setAttribute("aria-label", hardwareInteractive
       ? `${element.name || uiType(element.typ)}${occupied ? ", Sensor belegt" : ""}${unconfiguredText}${disabledText ? `, ${disabledText}` : ""}${feedbackText ? `, ${feedbackText}` : ""}`
-      : `${element.name || "Prellbock"} 5129`);
+      : `${element.name || "Prellbock"} 7190`);
 
     drawShape(group, element, occupied);
     if (controlAssigned) appendElementHitTarget(group, element, elementCatalogItem(element), 18);

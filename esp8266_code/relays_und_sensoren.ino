@@ -26,6 +26,7 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
+#include <Updater.h>
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
@@ -46,6 +47,9 @@ const uint16_t DISCOVERY_PORT = 8182;
 // aus der Chip-ID gebildet und bleibt auch nach einer Umbenennung stabil.
 const char* MODULE_NAME = "Relais und Sensoren";
 const char* FIRMWARE_VERSION = "2.6.0";
+// Muss mit OTA_SHARED_SECRET in DynoraStation übereinstimmen. Für OTA einmalig
+// in beide Firmwarevarianten eintragen und per USB flashen.
+const char* OTA_SHARED_SECRET = "HIER_DEN_GLEICHEN_LANGEN_SCHLUESSEL_EINTRAGEN";
 const uint16_t PROTOCOL_VERSION = 2;
 const char* HARDWARE_TYPE = "ESP8266_NODEMCU_MCP23017_BME280";
 
@@ -398,6 +402,7 @@ bool httpPostJson(const String& path, const String& payload, String& responseOut
 
     http.setTimeout(HTTP_TIMEOUT_MS);
     http.addHeader("Content-Type", "application/json");
+    if (path == "/api/module/ota-result") http.addHeader("X-Dynora-OTA-Token", OTA_SHARED_SECRET);
 
     int code = http.POST(payload);
     lastCode = code;
@@ -432,6 +437,7 @@ bool httpGet(const String& path, String& responseOut) {
     }
 
     http.setTimeout(HTTP_TIMEOUT_MS);
+    if (path.startsWith("/api/module/ota-firmware")) http.addHeader("X-Dynora-OTA-Token", OTA_SHARED_SECRET);
     int code = http.GET();
     lastCode = code;
     responseOut = http.getString();
@@ -630,11 +636,75 @@ void pollNextCommand() {
   DeserializationError err = deserializeJson(doc, response);
   if (err) return;
 
+  JsonObject ota = doc["ota"];
+  if (!ota.isNull()) {
+    performOtaUpdate(String((const char*)(ota["version"] | "")));
+    return;
+  }
+
   JsonVariant cmd = doc["command"];
   if (cmd.isNull()) return;
 
   JsonObject obj = cmd.as<JsonObject>();
   executeCommand(obj);
+}
+
+void performOtaUpdate(const String& targetVersion) {
+  if (!targetVersion.length() || !strcmp(OTA_SHARED_SECRET, "HIER_DEN_GLEICHEN_LANGEN_SCHLUESSEL_EINTRAGEN")) {
+    Serial.println("[OTA] Version oder OTA-Schlüssel fehlt");
+    return;
+  }
+  if (targetVersion == FIRMWARE_VERSION) {
+    DynamicJsonDocument result(128); result["module"] = moduleId; result["ok"] = true;
+    String payload; serializeJson(result, payload); String response;
+    httpPostJson("/api/module/ota-result", payload, response);
+    return;
+  }
+  WiFiClient client;
+  HTTPClient http;
+  String path = "/api/module/ota-firmware?module=" + moduleId;
+  if (!http.begin(client, makeBaseUrl() + path)) return;
+  http.setTimeout(15000);
+  http.addHeader("X-Dynora-OTA-Token", OTA_SHARED_SECRET);
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("[OTA] Firmware-Download fehlgeschlagen: HTTP %d\n", code);
+    http.end();
+    return;
+  }
+  int contentLength = http.getSize();
+  if (contentLength <= 0 || !Update.begin((size_t)contentLength)) {
+    Serial.println("[OTA] Ungültige Dateigröße oder nicht genug Flash-Speicher");
+    http.end();
+    DynamicJsonDocument result(192); result["module"] = moduleId; result["ok"] = false;
+    result["error"] = "Ungültige Dateigröße oder nicht genug Flash-Speicher";
+    String payload; serializeJson(result, payload); String response;
+    httpPostJson("/api/module/ota-result", payload, response);
+    return;
+  }
+  size_t written = Update.writeStream(*http.getStreamPtr());
+  http.end();
+  bool installed = written == (size_t)contentLength && Update.end();
+  if (!installed) {
+    String error = Update.hasError() ? String("Update-Fehlercode ") + String(Update.getError()) : "Firmware unvollständig übertragen";
+    if (Update.isRunning()) (void)Update.end();
+    DynamicJsonDocument result(256);
+    result["module"] = moduleId;
+    result["ok"] = false;
+    result["error"] = error;
+    String payload; serializeJson(result, payload); String response;
+    httpPostJson("/api/module/ota-result", payload, response);
+    Serial.printf("[OTA] %s\n", error.c_str());
+    return;
+  }
+  DynamicJsonDocument result(256);
+  result["module"] = moduleId;
+  result["ok"] = true;
+  String payload; serializeJson(result, payload); String response;
+  httpPostJson("/api/module/ota-result", payload, response);
+  Serial.printf("[OTA] Firmware %s installiert, Neustart\n", targetVersion.c_str());
+  delay(300);
+  ESP.restart();
 }
 
 void scanSensors() {

@@ -9,6 +9,8 @@ const ENABLE_UDP_DISCOVERY = parseState(process.env.ENABLE_UDP_DISCOVERY ?? "tru
 const NODE_ENV = String(process.env.NODE_ENV || "development").trim().toLowerCase();
 const APP_VERSION = require("../../package.json").version;
 const PROTOCOL_VERSION = toInt(process.env.PROTOCOL_VERSION, 2);
+const OTA_SHARED_SECRET = String(process.env.OTA_SHARED_SECRET || "").trim();
+const DYNORA_DATA_DIR = process.env.DYNORA_DATA_DIR || "";
 
 const MODULE_TIMEOUT = toInt(process.env.MODULE_TIMEOUT, 10000);
 const MAX_COMMANDS = toInt(process.env.MAX_COMMANDS, 500);
@@ -43,6 +45,8 @@ module.exports = {
   NODE_ENV,
   APP_VERSION,
   PROTOCOL_VERSION,
+  OTA_SHARED_SECRET,
+  DYNORA_DATA_DIR,
   MODULE_TIMEOUT,
   MAX_COMMANDS,
   MAX_EVENTS,

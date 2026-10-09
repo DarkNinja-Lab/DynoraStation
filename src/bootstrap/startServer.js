@@ -10,6 +10,10 @@ function underSystemd() {
   return Boolean(process.env.INVOCATION_ID || process.env.JOURNAL_STREAM);
 }
 
+function underDocker() {
+  return Boolean(process.env.DOCKER || fs.existsSync("/.dockerenv") || fs.existsSync("/run/.containerenv"));
+}
+
 function launchReplacement() {
   const cwd = process.cwd();
   let command = process.execPath;
@@ -69,7 +73,9 @@ function startServer({ app, env, connectionInfo, runtimeState }) {
   async function finish(actionName) {
     await waitForPendingWrites();
     if (actionName === "restart") {
-      if (underSystemd()) {
+      if (underDocker() || underSystemd()) {
+        // Docker/systemd own the process lifecycle; exiting non-zero asks the
+        // configured supervisor to restart this service/container.
         // Der mitgelieferte systemd-Dienst nutzt Restart=on-failure.
         process.exitCode = 75;
       } else {
@@ -122,7 +128,8 @@ function startServer({ app, env, connectionInfo, runtimeState }) {
   function status() {
     return {
       state: stopping ? action : "running",
-      managedBy: underSystemd() ? "systemd" : process.platform === "win32" ? "windows" : "process",
+      managedBy: underDocker() ? "docker" : underSystemd() ? "systemd" : process.platform === "win32" ? "windows" : "process",
+      canShutdown: !underDocker(),
       pid: process.pid,
       uptimeSec: Math.round(process.uptime())
     };
@@ -131,4 +138,4 @@ function startServer({ app, env, connectionInfo, runtimeState }) {
   return { server, discoverySocket, stop: shutdown, shutdown, restart, status };
 }
 
-module.exports = { startServer, underSystemd };
+module.exports = { startServer, underSystemd, underDocker };
