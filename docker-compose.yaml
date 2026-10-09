@@ -1,0 +1,48 @@
+services:
+  dynorastation:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dynorastation:local
+    container_name: dynorastation
+
+    # Host-Netzwerk für die UDP-Discovery der ESPs.
+    network_mode: host
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      TZ: "${TZ:-Europe/Berlin}"
+      PUID: "${PUID:-99}"
+      PGID: "${PGID:-100}"
+      NODE_ENV: production
+      DYNORA_DATA_DIR: /data
+      SERVER_PORT: "${SERVER_PORT:-8181}"
+      DISCOVERY_PORT: "${DISCOVERY_PORT:-8182}"
+      ENABLE_UDP_DISCOVERY: "true"
+      PROTOCOL_VERSION: "2"
+      OTA_SHARED_SECRET: "${OTA_SHARED_SECRET:-}"
+      TRUST_PROXY: "false"
+      ENABLE_DEBUG_ENDPOINTS: "false"
+      CORS_ENABLED: "false"
+
+    volumes:
+      - "${DYNORA_APPDATA:-/mnt/user/appdata/dynora_station/data}:/data"
+
+    labels:
+      net.unraid.docker.icon: "http://[IP]:${SERVER_PORT:-8181}/assets/brand/dynora-logo-180.png"
+      net.unraid.docker.webui: "http://[IP]:${SERVER_PORT:-8181}/"
+      net.unraid.docker.shell: sh
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
