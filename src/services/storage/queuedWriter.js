@@ -67,9 +67,20 @@ function queueWriteRules(runtimeState, addEvent) {
   });
 }
 
+function queueWriteEvents(runtimeState) {
+  return queueWrite({
+    kind: "events",
+    file: runtimeState.paths.EVENTS_FILE,
+    payloadFactory: () => JSON.stringify(runtimeState.events, null, 2),
+    runtimeState,
+    addEvent: () => {}
+  });
+}
+
 module.exports = {
   queueWrite,
   queueWriteLayout,
   queueWriteHardware,
-  queueWriteRules
+  queueWriteRules,
+  queueWriteEvents
 };

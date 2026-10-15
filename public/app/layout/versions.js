@@ -3,7 +3,7 @@
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
-import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 
 function retainLocalDraft() {
   if (!state.layoutDirty) return;

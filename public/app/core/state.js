@@ -2,7 +2,7 @@
 
 export const state = {
   statusTimer: null,
-  statusPollMs: 400,
+  statusPollMs: 200,
   statusRevisions: { layout: 0, events: 0 },
 
   // Backend-Status/HW

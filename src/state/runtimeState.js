@@ -7,6 +7,7 @@ const DATA_DIR = process.env.DYNORA_DATA_DIR ? path.resolve(process.env.DYNORA_D
 const LAYOUT_FILE = path.join(DATA_DIR, "layout.json");
 const HARDWARE_FILE = path.join(DATA_DIR, "hardware.json");
 const RULES_FILE = path.join(DATA_DIR, "rules.json");
+const EVENTS_FILE = path.join(DATA_DIR, "events.json");
 
 const runtimeState = {
   instanceId: require("node:crypto").randomUUID(),
@@ -31,7 +32,8 @@ const runtimeState = {
   writeState: {
     layout: { running: false, pending: false, lastError: null },
     hardware: { running: false, pending: false, lastError: null },
-    rules: { running: false, pending: false, lastError: null }
+    rules: { running: false, pending: false, lastError: null },
+    events: { running: false, pending: false, lastError: null }
   },
 
   rateBuckets: new Map(),
@@ -41,7 +43,8 @@ const runtimeState = {
     DATA_DIR,
     LAYOUT_FILE,
     HARDWARE_FILE,
-    RULES_FILE
+    RULES_FILE,
+    EVENTS_FILE
   }
 };
 

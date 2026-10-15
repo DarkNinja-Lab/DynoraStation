@@ -2,13 +2,13 @@
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
-import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { commandFeedbackForElement, commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "../builder/shapes.js?v=workspace-v11";
+} from "../builder/shapes.js?v=workspace-v13";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
 function uiType(type) {
@@ -258,6 +258,8 @@ function drawConnections(layer, elements, connections) {
   });
 }
 function drawShape(group, element, occupied = false) {
+  const linkedSignal = (state.layout?.elemente || []).find((item) => item.id === element.linkedSignalId && item.typ === "signal");
+  if (linkedSignal?.signalState === "fahrt") element = { ...element, powerState: true };
   const type = uiType(element.typ);
   if (type === "track") {
     const item = catalogItem(element, "tracks");
@@ -275,10 +277,10 @@ function drawShape(group, element, occupied = false) {
     if (element.powerState) drawPowerCurve(group, Number(item.radius || 360) * .5, Number(item.angleDeg || 30), occupied ? "#ff5f69" : "#32f29a");
   } else if (type === "switch") {
     const item = catalogItem(element, "switches");
-    drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item, occupied);
+    drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item, occupied, element.powerState);
   } else if (type === "crossing") {
     const item = catalogItem(element, "crossings");
-    drawCrossingShape(group, item, element.xState || "gerade", occupied);
+    drawCrossingShape(group, item, element.xState || "gerade", occupied, element.powerState);
   } else if (type === "bumper") {
     drawBumperShape(group, catalogItem(element, "bumpers"), occupied);
   } else if (type === "signal") {

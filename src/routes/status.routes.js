@@ -2,10 +2,10 @@
 
 const express = require("express");
 const { layoutVersion } = require("../services/storage/layoutVersions");
-const { wrap } = require("../utils/errors");
+const { apiError, wrap } = require("../utils/errors");
 const { findRelayConflicts } = require("../domain/hardware/relayConflicts");
 
-function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env, connectionInfo, stationControl }) {
+function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env, connectionInfo, stationControl, queueWriteEvents }) {
   const router = express.Router();
 
   router.get("/api/status", wrap(async (req, res) => {
@@ -85,8 +85,21 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
       defaults: runtimeState.hardware?.defaults || [],
       ledConfig: runtimeState.hardware?.ledConfig || {},
       rules: runtimeState.rulesData?.rules || [],
-      events: eventsChanged && Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, 100) : null
+      events: eventsChanged && Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, Number(env.MAX_EVENTS) || 800) : null
     });
+  }));
+
+  router.delete("/api/events", wrap(async (req, res) => {
+    const previous = runtimeState.events;
+    runtimeState.events = [];
+    runtimeState.revisions.events = Number(runtimeState.revisions.events || 0) + 1;
+    const saved = typeof queueWriteEvents === "function" ? await queueWriteEvents() : { ok: false };
+    if (saved?.ok === false) {
+      runtimeState.events = previous;
+      runtimeState.revisions.events += 1;
+      throw apiError(500, "EVENTS_SAVE_FAILED", "Logbuch konnte nicht gespeichert werden");
+    }
+    res.json({ ok: true, events: [] });
   }));
 
   return router;

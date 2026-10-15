@@ -1,6 +1,6 @@
 "use strict";
 
-function addEventFactory(runtimeState, maxEvents) {
+function addEventFactory(runtimeState, maxEvents, persistEvents = () => {}) {
   return function addEvent(type, source, text) {
     runtimeState.events.unshift({
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -15,6 +15,7 @@ function addEventFactory(runtimeState, maxEvents) {
     }
     if (!runtimeState.revisions) runtimeState.revisions = {};
     runtimeState.revisions.events = Number(runtimeState.revisions.events || 0) + 1;
+    persistEvents();
   };
 }
 

@@ -2,8 +2,8 @@
 
 const env = require("../config/env");
 const { runtimeState } = require("../state/runtimeState");
-const { loadLayout, loadHardware, loadRules } = require("../services/storage/files");
-const { queueWriteLayout: makeQueueWriteLayout, queueWriteHardware: makeQueueWriteHardware, queueWriteRules: makeQueueWriteRules } = require("../services/storage/queuedWriter");
+const { loadLayout, loadHardware, loadRules, loadEvents } = require("../services/storage/files");
+const { queueWriteLayout: makeQueueWriteLayout, queueWriteHardware: makeQueueWriteHardware, queueWriteRules: makeQueueWriteRules, queueWriteEvents: makeQueueWriteEvents } = require("../services/storage/queuedWriter");
 const { addEventFactory } = require("../services/events/eventBus");
 const { createCommandQueue } = require("../services/commandQueue/commandQueue");
 const { createModuleRegistry } = require("../services/modules/moduleRegistry");
@@ -16,8 +16,10 @@ function createRuntimeContext() {
   runtimeState.layout = loadLayout(runtimeState.paths);
   runtimeState.hardware = loadHardware(runtimeState.paths);
   runtimeState.rulesData = loadRules(runtimeState.paths);
+  runtimeState.events = loadEvents(runtimeState.paths, env.MAX_EVENTS);
 
-  const addEvent = addEventFactory(runtimeState, env.MAX_EVENTS);
+  const queueWriteEvents = () => makeQueueWriteEvents(runtimeState);
+  const addEvent = addEventFactory(runtimeState, env.MAX_EVENTS, queueWriteEvents);
   const queueWriteLayout = () => makeQueueWriteLayout(runtimeState, addEvent);
   const queueWriteHardware = () => makeQueueWriteHardware(runtimeState, addEvent);
   const queueWriteRules = () => makeQueueWriteRules(runtimeState, addEvent);
@@ -36,7 +38,7 @@ function createRuntimeContext() {
   };
 
   return {
-    env, runtimeState, addEvent, queueWriteLayout, queueWriteHardware, queueWriteRules,
+    env, runtimeState, addEvent, queueWriteLayout, queueWriteHardware, queueWriteRules, queueWriteEvents,
     commandQueueApi, moduleRegistry, upsertRelay, upsertLed, upsertSensor,
     updateElementsPowerByRelay, syncAllElementStatesFromRelaysAndLeds,
     confirmedCommandApplier, stationControl,

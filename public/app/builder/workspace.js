@@ -1,6 +1,6 @@
 "use strict";
 
-import { trackImages } from "../catalog/images.js?v=workspace-v11";
+import { trackImages } from "../catalog/images.js?v=workspace-v16";
 import { setBuilderPanel, syncBuilderContext } from "./panels.js?v=workspace-v11";
 import { validateImport } from "./model.js?v=workspace-v11";
 
@@ -9,7 +9,7 @@ import { beginPlacement, cancelPlacement, commitPlacement } from "./canvas.js?v=
 import { renderCanvas, inspectorLeer, canvasPointFromEvent } from "./render.js?v=workspace-v11";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { layoutNormalisieren } from "../layout/layout.js?v=workspace-v11";
-import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { esc } from "../core/utils.js?v=workspace-v11";
 import { icon } from "../ui/icons.js?v=workspace-v11";
 
@@ -48,21 +48,36 @@ export function initializeWorkspace() {
   filters.innerHTML = [["all", "Alle Bauteile"], ...groups.map(g => [g[0], g[2]]), ["control", "Signale & Steuerung"]].map(([key, label]) => `<option value="${key}" ${key === category ? "selected" : ""}>${label}</option>`).join("");
   const list = document.getElementById("componentResults");
   const search = document.getElementById("componentSearch");
+  list.addEventListener("wheel", (event) => {
+    if (list.scrollWidth <= list.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    list.scrollLeft += event.deltaY;
+  }, { passive: false });
   const renderLibrary = () => {
     const query = (search.value || "").trim().toLocaleLowerCase("de-DE");
     const matches = items.filter(item => (query || category === "all" || item.category === category) && `${item.code} ${item.label} ${item.categoryLabel || "Steuerung"}`.toLocaleLowerCase("de-DE").includes(query));
     list.innerHTML = matches.map(item => {
       const index = items.indexOf(item);
       const detail = item.length ? `${item.length} mm` : item.radius ? `R ${item.radius} · ${item.angleDeg}°` : item.handed ? (item.handed === "right" ? "Rechts" : "Links") : "Steuerung";
-      const imageSource = trackImages[String(item.code)] || (item.imagePath ? `${item.imagePath}?v=${photoRevision}` : "");
+      const code = String(item.code || "");
+      const fallbackPath = item.imagePath || (code ? `/assets/track/${encodeURIComponent(code)}.jpg` : "");
+      const imageSource = trackImages[code] || (fallbackPath ? `${fallbackPath}?v=${photoRevision}` : "");
       const image = imageSource
-        ? `<img src="${esc(imageSource)}" alt="${esc(item.label)}" width="120" height="66" draggable="false">`
+        ? `<img data-image-src="${esc(imageSource)}" alt="${esc(item.label)}" width="120" height="66" draggable="false">`
         : "";
       const symbol = item.typ === "espSignal" || item.typ === "signal"
         ? `<svg viewBox="0 0 100 60" aria-hidden="true"><path d="M50 40V55M40 55H60" stroke="#303a40" stroke-width="4"/><rect x="40" y="2" width="20" height="43" rx="7" fill="#252c31"/><circle cx="50" cy="11" r="5" fill="#df4548"/>${item.mode === "rgy" ? '<circle cx="50" cy="23" r="5" fill="#e8ba39"/>' : ""}<circle cx="50" cy="35" r="5" fill="#29a85c"/></svg>`
         : icon(String(item.code) === "5112" ? "uncoupler" : item.symbol);
       return `<button type="button" class="component-card${index === selectedIndex && state.placement ? " active" : ""}" data-component="${index}" draggable="true" aria-pressed="${index === selectedIndex && Boolean(state.placement)}" title="${esc(item.label)}: anklicken oder in den Plan ziehen"><span class="component-picture${image ? " has-photo" : ""}">${image}<span class="component-symbol">${symbol}</span></span><span class="component-description"><strong>${esc(item.code || "ESP")} <span>${esc(item.categoryLabel || (item.typ === "transformer" ? "Trafo" : "Signal"))}</span></strong><small>${esc(item.label === item.code ? detail : `${item.label} · ${detail}`)}</small></span></button>`;
     }).join("") || '<div class="library-empty">Keine Bauteile gefunden.<br>Versuche eine andere Artikelnummer oder Kategorie.</div>';
+    list.querySelectorAll(".component-picture img").forEach((image) => {
+      const showSymbol = () => {
+        image.closest(".component-picture")?.classList.remove("has-photo");
+        image.remove();
+      };
+      image.addEventListener("error", showSymbol, { once: true });
+      image.src = image.dataset.imageSrc;
+    });
     document.getElementById("libraryResultCount").textContent = `${matches.length} Bauteile`;
   };
   filters.addEventListener("change", () => {

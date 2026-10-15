@@ -43,9 +43,23 @@ function loadRules(paths) {
   }
 }
 
+function loadEvents(paths, maxEvents = 800) {
+  try {
+    if (!fs.existsSync(paths.EVENTS_FILE)) return [];
+    const parsed = JSON.parse(fs.readFileSync(paths.EVENTS_FILE, "utf8"));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((event) => event && typeof event === "object")
+      .slice(0, Math.max(1, Number(maxEvents) || 800));
+  } catch (error) {
+    console.error("Ereignisprotokoll konnte nicht geladen werden:", error.message);
+    return [];
+  }
+}
+
 module.exports = {
   ensureDataDir,
   loadLayout,
   loadHardware,
-  loadRules
+  loadRules,
+  loadEvents
 };

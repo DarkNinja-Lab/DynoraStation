@@ -16,7 +16,7 @@ const MODULE_TIMEOUT = toInt(process.env.MODULE_TIMEOUT, 10000);
 const MAX_COMMANDS = toInt(process.env.MAX_COMMANDS, 500);
 const MAX_EVENTS = toInt(process.env.MAX_EVENTS, 800);
 const COMMAND_MAX_AGE_MS = toInt(process.env.COMMAND_MAX_AGE_MS, 15000);
-const UI_STATUS_INTERVAL_MS = Math.max(250, toInt(process.env.UI_STATUS_INTERVAL_MS, 400));
+const UI_STATUS_INTERVAL_MS = Math.max(200, toInt(process.env.UI_STATUS_INTERVAL_MS, 200));
 const HEARTBEAT_PERSIST_INTERVAL_MS = Math.max(5000, toInt(process.env.HEARTBEAT_PERSIST_INTERVAL_MS, 30000));
 
 const JSON_LIMIT = process.env.JSON_LIMIT || "2mb";

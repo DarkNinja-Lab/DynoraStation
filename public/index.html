@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
   <link rel="manifest" href="/manifest.webmanifest?v=workspace-v11">
-  <link rel="stylesheet" href="/style.css?v=workspace-v11">
+  <link rel="stylesheet" href="/style.css?v=workspace-v15">
   <link rel="stylesheet" href="/plan-versions.css?v=workspace-v11">
 </head>
 <body>
@@ -29,21 +29,24 @@
         <button class="nav-button" data-page="track" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-stellwerk"></use></svg></span><span class="nav-copy"><b>Betrieb</b></span></button><button class="nav-button" data-page="builder" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-edit"></use></svg></span><span class="nav-copy"><b>Builder</b></span></button>
         <button class="nav-button" data-page="settings" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-settings"></use></svg></span><span class="nav-copy"><b>Einstellungen</b></span></button>
         <button class="nav-button" data-page="events" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-logbook"></use></svg></span><span class="nav-copy"><b>Logbuch</b></span></button>
+        <button id="openHelpDialog" class="nav-button help-nav-button" type="button"><span class="nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-info"></use></svg></span><span class="nav-copy"><b>Hilfe &amp; Anleitung</b></span></button>
       </nav>
 
       <div class="global-actions">
         <span id="lastSyncStatus" class="last-sync"><i aria-hidden="true"></i> Synchronisierung läuft</span>
-        <span id="serverStatus" class="status-pill offline">WEBSERVER OFFLINE</span>
-        <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span><span class="drawer-mobile-icon" aria-hidden="true">☰</span><span class="drawer-desktop-label">Verbindungen</span></button>
+        <span id="serverStatus" class="status-pill offline">DYNORASTATION OFFLINE</span>
+        <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span><span class="drawer-mobile-icon" aria-hidden="true">☰</span><span class="drawer-desktop-label">Gerätecenter</span></button>
         <button id="emergencyButton" class="danger-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-stop"></use></svg><span>NOT-AUS</span></button>
       </div>
     </header>
 
     <aside class="system-drawer" id="sidebar" aria-label="Gerätecenter" inert="" aria-hidden="true">
       <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar="" aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-close"></use></svg></button></div>
-      <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">WebServer wird geladen</strong><small>Systemverbindung</small></div></div>
+      <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">DynoraStation wird geladen</strong><small>Systemverbindung</small></div></div>
       <div class="sidebar-esp-box"><div class="sidebar-esp-title"><span>ESP-Module</span><small>Live</small></div><div id="sidebarEspList" class="sidebar-esp-list"><div class="sidebar-esp-empty">Noch kein ESP verbunden.</div></div></div>
-    <button class="secondary-button drawer-settings-link" data-page-link="settings" data-close-sidebar="" type="button">Geräte konfigurieren</button></aside>
+    <button class="secondary-button drawer-settings-link" data-page-link="settings" data-close-sidebar="" type="button">Geräte konfigurieren</button>
+      <section class="support-card" aria-labelledby="supportCardTitle"><h2 id="supportCardTitle">Hilfe &amp; Support</h2><a href="https://discord.gg/2dRWwNhGyZ" target="_blank" rel="noopener noreferrer">Discord-Community</a><a href="mailto:hahn.dominic@proton.me">E-Mail schreiben</a></section>
+    </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
       <button class="mobile-nav-button active" data-page-link="dashboard" type="button" aria-label="Übersicht öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-dashboard"></use></svg></span><small>Übersicht</small></button>
@@ -302,7 +305,7 @@
             <div class="firmware-update-actions"><button id="buildFirmwareButton" class="secondary-button" type="button">Firmware erstellen</button><button id="uploadFirmwareButton" class="primary-button" type="button" disabled>Auf ESP installieren</button></div>
             <progress id="firmwareProgress" max="100" value="0" aria-label="Firmware-Fortschritt"></progress>
             <p id="firmwareUpdateStatus" role="status" aria-live="polite">Wähle ein ESP-Modul aus.</p>
-            <details><summary>Firmware-Dateien</summary><p>Die Server-Vorlagen liegen im Appdata-Ordner unter <code>firmware-source/</code>. Tausche dort die passende <code>.ino</code>-Datei aus und klicke danach auf „Firmware erstellen“. Der ESP muss für die Übertragung online sein.</p></details>
+            <details class="ota-guide"><summary>Ablauf und Voraussetzungen</summary><ol><li>Lege einen langen gemeinsamen Schlüssel mit mindestens 24 Zeichen als <code>OTA_SHARED_SECRET</code> in der <code>.env</code>-Datei neben der Docker-Compose-Datei fest. Starte DynoraStation danach neu.</li><li>Für das erste OTA-Update muss die ESP-Firmware einmal per USB mit genau diesem Schlüssel eingerichtet und geflasht werden. In der passenden <code>.ino</code>-Datei den Platzhalter bei <code>OTA_SHARED_SECRET</code> ersetzen. Bereits OTA-fähige ESPs brauchen diesen USB-Schritt nicht erneut.</li><li>Wähle hier das online angezeigte ESP-Modul und klicke auf <strong>Firmware erstellen</strong>. DynoraStation kompiliert die passende Firmware auf dem Server.</li><li>Wenn der Build fertig ist, klicke auf <strong>Auf ESP installieren</strong> und warte auf „Erfolgreich installiert“. Der ESP lädt das Update über das Netzwerk und startet danach neu.</li></ol><p>Die Vorlagen und angepassten Firmware-Dateien liegen im Appdata-Ordner unter <code>firmware-source/</code>. Während des Updates den ESP eingeschaltet und im Netzwerk lassen.</p></details>
           </div>
         </section>
 
@@ -331,6 +334,7 @@
               <button id="applyDefaultsButton" class="secondary-button" type="button">Jetzt anwenden</button>
             </div>
           </div>
+          <div class="collection-toolbar" aria-label="Grundstellungen verwalten"><label class="collection-search">Suchen<input id="defaultSearch" type="search" placeholder="Typ, Ziel oder Aktion"></label><label class="collection-select-all"><input id="defaultSelectVisible" type="checkbox"> Sichtbare auswählen</label><span id="defaultSelectionCount" class="collection-count">0 ausgewählt</span><button id="deleteSelectedDefaults" class="danger-button" type="button" disabled>Auswahl löschen</button></div>
           <div id="defaultStateGrid" class="default-state-grid"></div>
         </section>
 
@@ -407,10 +411,11 @@
           <div class="panel-header">
             <div>
               
-              <h2>Ereignisse</h2>
+              <h2>Automationen</h2>
               <p>Angelehnt an die Central Station: Auslöser, Bedingungen und Aktionen als nachvollziehbare Ereignisse verwalten.</p>
             </div>
           </div>
+          <div class="collection-toolbar" aria-label="Automationen verwalten"><label class="collection-search">Automationen suchen<input id="automationSearch" type="search" placeholder="Name, Auslöser oder Ziel"></label><label class="collection-select-all"><input id="automationSelectVisible" type="checkbox"> Sichtbare auswählen</label><span id="automationSelectionCount" class="collection-count">0 ausgewählt</span><button id="deleteSelectedAutomations" class="danger-button" type="button" disabled>Auswahl löschen</button></div>
           <div id="rulesGrid" class="rules-grid"></div>
         </section>
         </div>
@@ -429,7 +434,7 @@
           <div class="event-toolbar">
             <label><span>Suche</span><input id="eventSearch" type="search" placeholder="Meldung, Quelle oder Typ"></label>
             <label><span>Typ</span><select id="eventTypeFilter"><option value="">Alle Ereignisse</option></select></label>
-            <span id="eventResultCount" class="event-result-count">0 Einträge</span>
+            <span id="eventResultCount" class="event-result-count">0 Einträge</span><button id="clearEventsButton" class="danger-button" type="button">Logbuch löschen</button>
           <label><span>Quelle / Gerät</span><select id="eventSourceFilter"><option value="">Alle Quellen</option></select></label><label><span>Sortierung</span><select id="eventSortOrder"><option value="newest">Neueste zuerst</option><option value="oldest">Älteste zuerst</option><option value="source">Quelle / Gerät</option><option value="type">Ereignistyp</option></select></label></div>
           <div id="eventList" class="event-list"></div>
         </section>
@@ -440,7 +445,24 @@
   <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
   <dialog id="planVersionsDialog" class="plan-versions-dialog" aria-labelledby="planVersionsTitle"><header><h2 id="planVersionsTitle">Planversionen</h2><button id="closePlanVersions" type="button" class="secondary-button" aria-label="Planversionen schließen">Schließen</button></header><p>Die letzten 20 vorherigen Speicherstände. Wiederherstellen sichert zuerst den aktuellen Stationsplan und sendet keine Schaltbefehle.</p><div id="planVersionsList" aria-live="polite"></div></dialog>
-  <script type="module" src="/app/main.js?v=workspace-v11"></script>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpDialogTitle">
+    <header><div><p class="eyebrow">DYNORASTATION · HILFE</p><h2 id="helpDialogTitle">Anleitung</h2><p>Bereiche und typische Abläufe der Anlage.</p></div><button id="closeHelpDialog" class="secondary-button" type="button">Schließen</button></header>
+    <div class="help-layout">
+      <nav class="help-index" aria-label="Inhalt der Hilfe"><strong>Inhalt</strong><a href="#help-start">Erste Schritte</a><a href="#help-operation">Betrieb</a><a href="#help-builder">Gleisplan bearbeiten</a><a href="#help-devices">Geräte &amp; Anschlüsse</a><a href="#help-automation">Automationen</a><a href="#help-defaults">Grundstellung</a><a href="#help-ota">Firmware-Update (OTA)</a><a href="#help-logbook">Logbuch</a><a href="#help-trouble">Fehlersuche &amp; Support</a></nav>
+      <div class="help-dialog-content">
+        <section id="help-start"><h3>Erste Schritte</h3><p>DynoraStation besteht aus dem Gleisplan, den verbundenen ESP-Modulen und den dafür eingerichteten Schaltfunktionen. Prüfe zuerst im Gerätecenter, ob die Module online sind. Danach kannst du im Betrieb testen oder im Builder den Plan und seine Hardware-Zuordnungen einrichten.</p><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="modules">Module öffnen →</button></section>
+        <section id="help-operation"><h3>Betrieb: Anlage schalten</h3><p>Im Betriebsbild schaltest du Weichen, Märklin-Signale, ESP-Signale und zugeordnete Stromabschnitte. Ein Status im Gleisbild wird nach bestätigter Rückmeldung aktualisiert. Ein rotes oder offline Modul kann zugewiesene Funktionen blockieren. Das mobile Bedienfeld lässt sich über die Abschnittsüberschriften ein- und ausklappen.</p><button class="help-jump-link secondary-button" type="button" data-help-page="track">Betrieb öffnen →</button></section>
+        <section id="help-builder"><h3>Gleisplan bearbeiten</h3><p>Öffne den Builder über „Gleisbild bearbeiten“. Bauteile findest du links in der Artikelliste: Kategorie wählen, suchen und ein Element in die Fläche ziehen. Mit dem Mausrad kannst du die Artikelliste horizontal durchblättern. Ein Element auswählen, um es zu verschieben, zu drehen, zu verbinden oder seine Eigenschaften zu öffnen. Dort kannst du, sofern unterstützt, ESP-Modul und Relais zuweisen. Speichere den Plan, damit er auf der Station übernommen wird.</p><button class="help-jump-link secondary-button" type="button" data-help-page="builder" data-help-panel="library">Builder und Artikelliste öffnen →</button></section>
+        <section id="help-devices"><h3>Geräte &amp; Anschlüsse</h3><p>Unter Einstellungen findest du Module, Relais, Sensoren sowie LEDs und Signale. Benenne Kanäle eindeutig und ordne sie nur einem passenden Planelement zu. Sensoren liefern Rückmeldungen; Relais schalten angeschlossene Stromkreise oder Verbraucher. Das Gerätecenter zeigt den Verbindungsstatus der ESPs.</p><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="modules">Geräte verwalten →</button><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="relays">Relais ansehen →</button></section>
+        <section id="help-automation"><h3>Automationen</h3><p>Unter Einstellungen → Automationen erstellst du WENN-DANN-Regeln. Wähle einen Auslöser, etwa einen Sensor oder eine Weiche, und füge eine oder mehrere Aktionen hinzu. Regeln kannst du suchen und gesammelt auswählen. Ungespeicherte Änderungen mit „Änderungen speichern“ übernehmen.</p><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="rules">Automationen öffnen →</button></section>
+        <section id="help-defaults"><h3>Grundstellung</h3><p>Hier legst du Schaltzustände fest, die bei „Jetzt anwenden“ gesetzt werden sollen. Suche nach Einträgen und wähle einzelne oder sichtbare Einträge für das Löschen aus. Änderungen zuerst speichern; „Jetzt anwenden“ sendet die konfigurierten Zustände an die Anlage.</p><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="defaults">Grundstellung öffnen →</button></section>
+        <section id="help-ota"><h3>Firmware-Update per OTA</h3><p><strong>Voraussetzung:</strong> In der <code>.env</code>-Datei neben der Compose-Datei muss <code>OTA_SHARED_SECRET</code> gesetzt sein. Der Schlüssel muss mindestens 24 Zeichen haben. Danach DynoraStation neu starten. Ein ESP, der noch keinen passenden OTA-Schlüssel hat, muss einmalig per USB mit diesem Schlüssel geflasht werden; bereits OTA-fähige ESPs brauchen das nicht erneut.</p><ol><li>Ein unterstütztes, online angezeigtes ESP-Modul auswählen.</li><li>„Firmware erstellen“ anklicken und warten, bis der Server die passende Firmware gebaut hat.</li><li>„Auf ESP installieren“ anklicken. Der ESP lädt die Datei im Netzwerk, installiert sie und startet neu.</li><li>Warten, bis „Erfolgreich installiert“ angezeigt wird. Den ESP währenddessen eingeschaltet und im Netzwerk lassen.</li></ol><p>Firmwarevorlagen und angepasste Quellen liegen im Appdata-Ordner unter <code>firmware-source/</code>.</p><button class="help-jump-link secondary-button" type="button" data-help-page="settings" data-help-view="updates">Firmware-Updates öffnen →</button></section>
+        <section id="help-logbook"><h3>Logbuch</h3><p>Das Logbuch enthält System-, Sensor-, Schalt- und OTA-Meldungen. Suche, Typ, Quelle und Sortierung helfen beim Eingrenzen. Einträge bleiben nach Neustarts erhalten. „Logbuch löschen“ entfernt alle gespeicherten Einträge.</p><button class="help-jump-link secondary-button" type="button" data-help-page="events">Logbuch öffnen →</button></section>
+        <section id="help-trouble"><h3>Fehlersuche &amp; Support</h3><p><strong>ESP offline:</strong> Stromversorgung, WLAN und angezeigte IP-Adresse prüfen. <strong>Befehl wird nicht ausgeführt:</strong> Modulzuordnung und Online-Status kontrollieren. Bei wiederholten ESP-Abstürzen helfen die seriellen Logs mit Resetgrund und freiem Speicher. Bei Problemen beschreibe Gerät, betroffenen Bereich und angezeigte Fehlermeldung.</p><div class="help-support-actions"><a class="secondary-button" href="https://discord.gg/2dRWwNhGyZ" target="_blank" rel="noopener noreferrer">Discord öffnen</a><a class="primary-button" href="mailto:hahn.dominic@proton.me">E-Mail schreiben</a></div></section>
+      </div>
+    </div>
+  </dialog>
+  <script type="module" src="/app/main.js?v=workspace-v20"></script>
 
 
 

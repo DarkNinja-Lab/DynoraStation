@@ -4,10 +4,10 @@ import { setBuilderPanel } from "../builder/panels.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
-import { renderRulesGrid } from "../rules/rules.js?v=workspace-v11";
+import { renderRulesGrid } from "../rules/rules.js?v=workspace-v15";
 import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=workspace-v11";
-import { renderTrackLayout } from "../track/track.js?v=workspace-v11";
-import { showToast } from "./toast.js?v=workspace-v11";
+import { renderTrackLayout } from "../track/track.js?v=workspace-v15";
+import { showToast } from "./toast.js?v=workspace-v15";
 import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
@@ -306,10 +306,19 @@ function renderModuleManagement() {
 
 }
 
+const selectedDefaultIndices = new Set();
 function renderDefaultStates() {
   const host = byId("defaultStateGrid");
   if (!host) return;
   if (!Array.isArray(state.defaults)) state.defaults = [];
+  const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
+  const visibleDefaults = state.defaults.map((item, index) => ({ item, index })).filter(({ item }) => !search || `${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search));
+  const selectAll = byId("defaultSelectVisible");
+  if (selectAll) { selectAll.checked = visibleDefaults.length > 0 && visibleDefaults.every(({ index }) => selectedDefaultIndices.has(index)); selectAll.indeterminate = visibleDefaults.some(({ index }) => selectedDefaultIndices.has(index)) && !selectAll.checked; }
+  const count = byId("defaultSelectionCount");
+  if (count) count.textContent = `${selectedDefaultIndices.size} ausgewählt`;
+  const deleteSelected = byId("deleteSelectedDefaults");
+  if (deleteSelected) deleteSelected.disabled = selectedDefaultIndices.size === 0;
 
   host.innerHTML = `
     <div class="rules-head">
@@ -317,8 +326,9 @@ function renderDefaultStates() {
       <button type="button" class="primary-button" data-action="add-default">+ Zustand</button>
     </div>
     <div class="rules-cards">
-      ${state.defaults.map((d, i) => `
-        <div class="rule-card" data-default-index="${i}">
+      ${visibleDefaults.map(({ item: d, index: i }) => `
+        <div class="rule-card ${selectedDefaultIndices.has(i) ? "selected" : ""}" data-default-index="${i}">
+          <label class="collection-item-select"><input type="checkbox" data-select-default="${i}" ${selectedDefaultIndices.has(i) ? "checked" : ""}> Auswählen</label>
           <label>Typ</label>
           <select data-field="targetType">${optionList([
             ["switch", "Weiche"], ["crossing", "Kreuzungsweiche"], ["signal", "Märklin-Signal"],
@@ -330,7 +340,7 @@ function renderDefaultStates() {
           <select data-field="action" ${d.targetType ? "" : "disabled"}>${optionList(defaultActionOptions(d.targetType), d.action, "Aktion wählen…")}</select>
           <button class="secondary-button" data-action="remove-default" type="button">Löschen</button>
         </div>
-      `).join("") || `<div class="sidebar-esp-empty">Keine Standardzustände konfiguriert.</div>`}
+      `).join("") || `<div class="sidebar-esp-empty">${search ? "Keine passende Grundstellung gefunden." : "Keine Standardzustände konfiguriert."}</div>`}
     </div>
   `;
 }
@@ -689,6 +699,25 @@ async function saveSettingsSection(section) {
 }
 
 function bindSettingsInput() {
+  byId("defaultSearch")?.addEventListener("input", renderDefaultStates);
+  byId("defaultSelectVisible")?.addEventListener("change", (event) => {
+    const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
+    state.defaults.forEach((item, index) => { if (!search || `${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search)) event.target.checked ? selectedDefaultIndices.add(index) : selectedDefaultIndices.delete(index); });
+    renderDefaultStates();
+  });
+  byId("deleteSelectedDefaults")?.addEventListener("click", () => {
+    const indices = [...selectedDefaultIndices].filter((index) => index >= 0 && index < state.defaults.length).sort((a, b) => b - a);
+    if (!indices.length || !confirm(`${indices.length} Grundstellung${indices.length === 1 ? "" : "en"} löschen? Änderungen müssen anschließend gespeichert werden.`)) return;
+    indices.forEach((index) => state.defaults.splice(index, 1)); selectedDefaultIndices.clear();
+    state.settingsDirty.defaults = true; renderDefaultStates(); setSaveStatus("saveDefaultsStatus", "Ungespeichert");
+  });
+  document.addEventListener("change", (event) => {
+    if (event.target.matches("[data-select-default]")) {
+      const index = Number(event.target.dataset.selectDefault);
+      if (event.target.checked) selectedDefaultIndices.add(index); else selectedDefaultIndices.delete(index);
+      renderDefaultStates();
+    }
+  });
   document.addEventListener("change", (ev) => {
     if (ev.target.closest("[data-default-index]") && ev.target.dataset.field) {
       ev.target.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1046,6 +1075,8 @@ function bindSettingsInput() {
       const i = Number(row.dataset.defaultIndex);
       if (!Number.isNaN(i)) {
         state.defaults.splice(i, 1);
+        const updatedSelection = [...selectedDefaultIndices].filter((index) => index !== i).map((index) => index > i ? index - 1 : index);
+        selectedDefaultIndices.clear(); updatedSelection.forEach((index) => selectedDefaultIndices.add(index));
         state.settingsDirty.defaults = true;
         renderDefaultStates();
         setSaveStatus("saveDefaultsStatus", "Ungespeichert");
@@ -1165,6 +1196,27 @@ export function eventsRegistrieren() {
     if (["overview", "modules", "updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
+  const helpDialog = byId("helpDialog");
+  byId("openHelpDialog")?.addEventListener("click", () => helpDialog?.showModal());
+  byId("closeHelpDialog")?.addEventListener("click", () => helpDialog?.close());
+  helpDialog?.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-help-page]");
+    if (!link) return;
+    const page = link.dataset.helpPage;
+    const view = link.dataset.helpView || "";
+    const panel = link.dataset.helpPanel || "";
+    helpDialog.close();
+    setActivePage(page);
+    if (page === "settings" && view) {
+      state.settingsView = view;
+      renderSettingsTab();
+      try { localStorage.setItem("dynora.settingsView", view); } catch {}
+    }
+    if (page === "builder" && panel) setBuilderPanel(panel);
+  });
+  helpDialog?.addEventListener("click", (event) => {
+    if (event.target === helpDialog) helpDialog.close();
+  });
   bindTrackFocusMode();
   bindSettingsInput();
   bindTrackLightsQuickToggle();

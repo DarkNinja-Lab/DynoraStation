@@ -10,8 +10,6 @@ export function showToast(message, type = "success") {
   toast.setAttribute("role", type === "error" ? "alert" : "status");
   while (stack.children.length >= 4) stack.firstElementChild.remove();
   
-  toast.classList.add(`toast-${type}`);
-
   stack.appendChild(toast);
-  setTimeout(() => toast.remove(), type === "error" ? 7000 : 3500);
+  setTimeout(() => toast.remove(), type === "error" ? 4500 : 1800);
 }

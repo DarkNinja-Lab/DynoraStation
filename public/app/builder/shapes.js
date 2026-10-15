@@ -183,33 +183,38 @@ function drawCurvedTurnoutRoute(g, startX, radius, angle, sign, railColor) {
 export function turnout5141Geometry(geometry, sign) {
   const scale = .5;
   const innerRadius = Math.max(250, Number(geometry.radius) || 360) * scale;
-  const outerRadius = Math.max(innerRadius, Math.max(250, Number(geometry.branchRadius) || 437.4) * scale);
-  const innerAngleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
-  const outerAngleDeg = Math.max(innerAngleDeg + 4, Math.min(48, Number(geometry.branchAngleDeg) || 38));
-  const innerAngle = innerAngleDeg * Math.PI / 180;
-  const outerAngle = outerAngleDeg * Math.PI / 180;
-  const outerSpan = outerRadius * Math.sin(outerAngle);
-  const startX = -outerSpan / 2;
+  const branchLead = Math.max(0, Number(geometry.branchLead) || 77.4) * scale;
+  const angleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
+  const angle = angleDeg * Math.PI / 180;
+  const curveSpan = innerRadius * Math.sin(angle);
+  const startX = -(branchLead + curveSpan) / 2;
+  const outerStartX = startX + branchLead;
+  const innerPath = curvedRoutePath(startX, innerRadius, angle, sign);
+  const outerCurve = curvedRoutePath(outerStartX, innerRadius, angle, sign);
+  const outerArc = outerCurve.slice(outerCurve.indexOf(" A"));
   return {
-    startX, innerRadius, outerRadius, innerAngle, outerAngle,
-    innerEnd: { x: startX + innerRadius * Math.sin(innerAngle), y: sign * innerRadius * (1 - Math.cos(innerAngle)), angle: sign * innerAngleDeg },
-    outerEnd: { x: startX + outerSpan, y: sign * outerRadius * (1 - Math.cos(outerAngle)), angle: sign * outerAngleDeg }
+    startX, outerStartX, branchLead, innerRadius, angle, angleDeg,
+    innerPath,
+    outerPath: `M ${startX} 0 L ${outerStartX} 0${outerArc}`,
+    innerEnd: { x: startX + curveSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg },
+    outerEnd: { x: outerStartX + curveSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg }
   };
 }
 
 function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute, geometry) {
   const layout = turnout5141Geometry(geometry, sign);
-  const innerPath = drawCurvedTurnoutRoute(g, layout.startX, layout.innerRadius, layout.innerAngle, sign, railColor);
-  const outerPath = drawCurvedTurnoutRoute(g, layout.startX, layout.outerRadius, layout.outerAngle, sign, railColor);
+  drawCurvedTurnoutRoute(g, layout.startX, layout.innerRadius, layout.angle, sign, railColor);
+  drawDoubleRailLine(g, layout.startX, 0, layout.outerStartX, 0, railColor, 8);
+  drawCurvedTurnoutRoute(g, layout.outerStartX, layout.innerRadius, layout.angle, sign, railColor);
 
-  [{ path: innerPath, active: !isGerade }, { path: outerPath, active: isGerade }].forEach((route) => {
+  [{ path: layout.innerPath, active: !isGerade }, { path: layout.outerPath, active: isGerade }].forEach((route) => {
     const stateRoute = svg("path");
     attrs(stateRoute, { d: route.path, fill: "none", stroke: route.active ? activeRoute : passiveRoute, "stroke-width": route.active ? 4.6 : 2.6, "stroke-linecap": "round", opacity: route.active ? .96 : .65 });
     g.appendChild(stateRoute);
   });
 
-  const splitX = layout.startX + layout.innerRadius * Math.sin(layout.innerAngle * .42);
-  const splitY = sign * layout.innerRadius * (1 - Math.cos(layout.innerAngle * .42));
+  const splitX = layout.startX + layout.innerRadius * Math.sin(layout.angle * .42);
+  const splitY = sign * layout.innerRadius * (1 - Math.cos(layout.angle * .42));
   const blade = svg("path");
   attrs(blade, { d: `M ${layout.startX + 12} ${sign * 1.8} Q ${layout.startX + 31} ${sign * 3.5} ${splitX} ${splitY}`, fill: "none", stroke: "#eef1f2", "stroke-width": 2.2, "stroke-linecap": "round" });
   const frog = svg("path");
@@ -223,7 +228,7 @@ function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute
   g.append(blade, frog, lanternBase, marker);
 }
 
-export function drawSwitchShape(g, handed = "left", isGerade = true, geometry = {}, occupied = false) {
+export function drawSwitchShape(g, handed = "left", isGerade = true, geometry = {}, occupied = false, powered = false) {
   const sign = handed === "right" ? 1 : -1;
   const scale = .5;
   const length = Math.max(120, Number(geometry.length) || 180) * scale;
@@ -233,7 +238,7 @@ export function drawSwitchShape(g, handed = "left", isGerade = true, geometry = 
   const a = angle * Math.PI / 180;
   const branchX = -half + radius * Math.sin(a);
   const branchY = sign * radius * (1 - Math.cos(a));
-  const activeRoute = "#f6b94c";
+  const activeRoute = powered ? "#32f29a" : "#f6b94c";
   const passiveRoute = "#566675";
   const straightCol = isGerade ? activeRoute : passiveRoute;
   const branchCol = isGerade ? passiveRoute : activeRoute;
@@ -310,13 +315,13 @@ export function drawBumperShape(g, geometry = {}, occupied = false) {
   g.append(stopA, stopB, beam);
 }
 
-export function drawCrossingShape(g, geometry = {}, xState = "gerade", occupied = false) {
+export function drawCrossingShape(g, geometry = {}, xState = "gerade", occupied = false, powered = false) {
   const scale = .5;
   const length = Math.max(120, Number(geometry.length) || 193) * scale;
   const angle = Math.max(10, Math.min(60, Number(geometry.crossingAngleDeg) || 30));
   const half = length / 2;
   const rise = Math.tan((angle / 2) * Math.PI / 180) * half;
-  const active = "#f6b94c";
+  const active = powered ? "#32f29a" : "#f6b94c";
   const inactive = "#566675";
 
   const railColor = occupied ? "#ff5f69" : "#d5dbe0";

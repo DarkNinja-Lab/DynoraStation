@@ -768,6 +768,7 @@ void setup() {
   delay(100);
   Serial.println();
   Serial.println("Dynora Relay/Sensor Controller startet");
+  Serial.printf("[DIAG] Reset: %s · Heap frei: %u Byte\n", ESP.getResetReason().c_str(), ESP.getFreeHeap());
 
   pinMode(STATUS_LED_PIN, OUTPUT);
   writeStatusLed(false);

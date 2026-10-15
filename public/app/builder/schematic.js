@@ -1,6 +1,6 @@
 "use strict";
 
-import { svg, attrs, localConnectionPorts, turnout5141Geometry, curvedRoutePath } from "./shapes.js?v=workspace-v11";
+import { svg, attrs, localConnectionPorts, turnout5141Geometry, curvedRoutePath } from "./shapes.js?v=workspace-v12";
 
 // Same connection geometry as the measured track view. Only presentation changes.
 export function drawSchematicShape(group, element, item = {}) {
@@ -31,8 +31,8 @@ export function drawSchematicShape(group, element, item = {}) {
       let through,branch;
       if (item.switchGeometry === "5141") {
         const g = turnout5141Geometry(item,sign);
-        through = curvedRoutePath(g.startX,g.outerRadius,g.outerAngle,sign);
-        branch = curvedRoutePath(g.startX,g.innerRadius,g.innerAngle,sign);
+        through = g.outerPath;
+        branch = g.innerPath;
       } else if (item.switchStyle === "curved") {
         const r = Math.max(250,Number(item.radius)||437.4)*.5;
         const outer = Math.max(r,Number(item.branchRadius||437.4)*.5);

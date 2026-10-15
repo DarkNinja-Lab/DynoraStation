@@ -1,6 +1,6 @@
 "use strict";
 
-import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v11";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v12";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { icon } from "../ui/icons.js?v=workspace-v11";
@@ -44,6 +44,22 @@ export function analyzePlan(layout = state.layout) {
   const byId = new Map(elements.map(element => [element.id, element]));
   const portUse = new Set();
   const ledUse = new Map();
+  const switchPairOwners = new Map();
+  const sharedSwitchGroupById = new Map();
+  elements.forEach((element) => {
+    if (element.typ !== "switch" || !element.module) return;
+    const straight = Number(element.relayStraight || 0);
+    const branch = Number(element.relayBranch || 0);
+    if (!straight || !branch || straight === branch) return;
+    const pair = [straight, branch].sort((a, b) => a - b).join(":");
+    const key = `${element.module}:${pair}`;
+    if (!switchPairOwners.has(key)) switchPairOwners.set(key, new Set());
+    switchPairOwners.get(key).add(String(element.id));
+  });
+  switchPairOwners.forEach((owners, key) => {
+    if (owners.size < 2) return;
+    owners.forEach((id) => sharedSwitchGroupById.set(id, `switch-pair:${key}`));
+  });
   for (const link of connections) {
     const from = byId.get(link.von);
     const to = byId.get(link.nach);
@@ -85,7 +101,11 @@ export function analyzePlan(layout = state.layout) {
       if (!element.module) return;
       const key = `${element.module}:${channel}`;
       if (!relayUse.has(key)) relayUse.set(key, []);
-      relayUse.get(key).push({ purpose, label, sharingGroup: element.stromkreis ? `circuit:${element.stromkreis}` : "" });
+      relayUse.get(key).push({
+        purpose,
+        label,
+        sharingGroup: sharedSwitchGroupById.get(String(element.id)) || (element.stromkreis ? `circuit:${element.stromkreis}` : "")
+      });
     });
 
     ledFields(element).forEach(([field, purpose]) => {

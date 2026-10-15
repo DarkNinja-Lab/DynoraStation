@@ -4,10 +4,11 @@ import { apiCall } from "../core/api.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=workspace-v11";
-import { refreshSettingsHardwareStatus } from "../ui/events.js?v=workspace-v11";
+import { refreshSettingsHardwareStatus } from "../ui/events.js?v=workspace-v15";
 import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
-import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=workspace-v11";
+import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=workspace-v15";
 import { layoutNormalisieren } from "../layout/layout.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v15";
 
 export function renderEvents() {
   const host = document.getElementById("eventList");
@@ -48,6 +49,19 @@ export function renderEvents() {
 for (const id of ["eventSearch","eventTypeFilter","eventSourceFilter","eventSortOrder"]) {
   document.getElementById(id)?.addEventListener(id === "eventSearch" ? "input" : "change",renderEvents);
 }
+document.getElementById("clearEventsButton")?.addEventListener("click", async (event) => {
+  if (!confirm("Das gesamte Logbuch dauerhaft löschen?")) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    await apiCall("/events", { method: "DELETE" });
+    state.events = [];
+    renderEvents();
+    document.dispatchEvent(new CustomEvent("dynora:events-cleared"));
+  } catch (error) {
+    showToast(`Logbuch konnte nicht gelöscht werden: ${error.message || error}`, "error");
+  } finally { button.disabled = false; }
+});
 
 function setText(id, value) {
   const el = document.getElementById(id);
@@ -63,12 +77,12 @@ function setServerOnline(online) {
   dashboard?.classList.toggle("offline", !online);
 
   if (badge) {
-    badge.textContent = online ? "WEBSERVER ONLINE" : "WEBSERVER OFFLINE";
+    badge.textContent = online ? "DYNORASTATION ONLINE" : "DYNORASTATION OFFLINE";
     badge.classList.toggle("offline", !online);
     badge.classList.toggle("online", online);
   }
   if (sidebar) {
-    sidebar.textContent = online ? "WebServer online" : "WebServer offline";
+    sidebar.textContent = online ? "DynoraStation online" : "DynoraStation offline";
     sidebar.closest(".sidebar-status-box")?.classList.toggle("online", online);
     sidebar.closest(".sidebar-status-box")?.classList.toggle("offline", !online);
   }
@@ -180,7 +194,7 @@ async function loadStatus({ ruhig = true } = {}) {
     const data = await apiCall(`/status?${query}`, { timeoutMs: 8000 });
     if (data?.instanceId) state.stationInstanceId = data.instanceId;
     if (data?.revisions) state.statusRevisions = { ...revisions, ...data.revisions };
-    state.statusPollMs = Math.max(250, Number(data?.uiStatusIntervalMs) || 400);
+    state.statusPollMs = Math.max(200, Number(data?.uiStatusIntervalMs) || 200);
     state.connection = data?.connection && typeof data.connection === "object" ? data.connection : null;
     state.serverVersion = String(data?.serverVersion || "");
     state.serverUptimeSec = Math.max(0, Number(data?.uptimeSec) || 0);

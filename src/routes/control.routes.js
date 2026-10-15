@@ -292,7 +292,11 @@ function createControlRoutes({
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "SWITCH_NO_MODULE", "Der Weiche ist kein ESP-Modul zugewiesen");
     requireControllableModule(moduleId);
-    ensureNoPending(moduleId, (command) => command.data?.elementId === element.id, element.name || "Weiche");
+    ensureNoPending(
+      moduleId,
+      (command) => command.type === "RELAY_PULSE" && Number(command.data?.channel) === channel,
+      `Relais ${channel}`
+    );
     const cmd = commandQueueApi.createCommand("RELAY_PULSE", {
       channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("SWITCH"), triggerOnConfirm: true, triggerKind: "switch"
     }, moduleId);

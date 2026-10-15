@@ -3,9 +3,9 @@
 import { state } from "../core/state.js?v=workspace-v11";
 import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
 import { duplicateForPlacement, normalizedRotation } from "./model.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v11";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v13";
 import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v11";
-import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v11";
 

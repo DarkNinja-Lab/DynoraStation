@@ -2,12 +2,12 @@
 
 import { drawSchematicShape } from "./schematic.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v11";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v13";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "./shapes.js?v=workspace-v11";
+} from "./shapes.js?v=workspace-v13";
 import { persistDraft } from "../layout/layout.js?v=workspace-v11";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { refreshPlanValidation } from "./validation.js?v=workspace-v11";
@@ -342,6 +342,8 @@ function drawElement(root, element, layer) {
 }
 
 function drawElementShape(group, element) {
+  const linkedSignal = (state.layout?.elemente || []).find((item) => item.id === element.linkedSignalId && item.typ === "signal");
+  if (linkedSignal?.signalState === "fahrt") element = { ...element, powerState: true };
   if (state.builderView !== "rails" && drawSchematicShape(group, element, elementCatalogItem(element))) return;
   switch (element.typ) {
     case "track":
@@ -366,7 +368,7 @@ function drawElementShape(group, element) {
       break;
     case "switch":
       const item = catalogItem(element, "switches");
-        drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item);
+        drawSwitchShape(group, item.handed || "left", element.switchState !== "abzweig", item, false, element.powerState);
       break;
     case "bumper":
       drawBumperShape(group, catalogItem(element, "bumpers"));
@@ -374,7 +376,7 @@ function drawElementShape(group, element) {
     case "crossing":
       {
         const item = catalogItem(element, "crossings");
-        drawCrossingShape(group, item, element.xState || "gerade");
+        drawCrossingShape(group, item, element.xState || "gerade", false, element.powerState);
       }
       break;
     case "signal":

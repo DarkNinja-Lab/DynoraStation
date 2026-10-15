@@ -474,6 +474,8 @@ void executeCommand(const JsonObject& cmd) {
   int id = cmd["id"] | 0;
   int channel = cmd["channel"] | 0;
 
+  Serial.printf("[BEFEHL] #%d %s · Kanal %d · Heap frei: %u Byte\n", id, type, channel, ESP.getFreeHeap());
+
   if (strcmp(type, "LED_SET") == 0) {
     if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     bool state = cmd["state"] | false;
@@ -651,6 +653,7 @@ void ensureWifi() {
 void setup() {
   Serial.begin(115200);
   delay(120);
+  Serial.printf("[DIAG] Reset: %s · Heap frei: %u Byte\n", ESP.getResetReason().c_str(), ESP.getFreeHeap());
 
   analogWriteRange(PWM_RANGE);
   analogWriteFreq(PWM_FREQ);

@@ -2,7 +2,7 @@
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=workspace-v11";
-import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v11";
+import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v12";
 import { icon } from "./icons.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
@@ -61,8 +61,8 @@ function controlTileVisual(element) {
     const straight = element.switchState !== "abzweig";
     if (switchItem.switchStyle === "curved") {
       if (switchItem.switchGeometry === "5141") {
-        const throughPath = branchRight ? "M10 10C42 10 76 22 103 48" : "M10 46C42 46 76 34 103 8";
-        const branchPath = branchRight ? "M10 10C38 10 61 17 82 31" : "M10 46C38 46 61 39 82 25";
+        const throughPath = branchRight ? "M10 10L31 10C52 10 82 22 103 46" : "M10 46L31 46C52 46 82 34 103 10";
+        const branchPath = branchRight ? "M10 10C32 10 68 20 89 43" : "M10 46C32 46 68 36 89 13";
         return `<svg class="control-symbol" viewBox="0 0 112 56" aria-hidden="true">
           <path class="symbol-base" d="${throughPath}"/><path class="symbol-base" d="${branchPath}"/>
           <path class="symbol-route ${straight ? "selected" : ""}" d="${throughPath}"/>

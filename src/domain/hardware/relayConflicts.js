@@ -7,6 +7,25 @@ function findRelayConflicts(layout) {
   const circuits = Array.isArray(safeLayout.stromkreise) ? safeLayout.stromkreise : [];
   const circuitMap = new Map(circuits.map((circuit) => [String(circuit.id || ""), circuit]));
   const assignments = new Map();
+  const sharedSwitchGroupById = new Map();
+  const switchPairOwners = new Map();
+
+  (Array.isArray(safeLayout.elemente) ? safeLayout.elemente : []).forEach((element) => {
+    if (element?.typ !== "switch") return;
+    const module = cleanText(element.module || "", 48);
+    const straight = validRelay(element.relayStraight);
+    const branch = validRelay(element.relayBranch);
+    if (!module || !straight || !branch || straight === branch || !element.id) return;
+    const pair = [straight, branch].sort((a, b) => a - b).join(":");
+    const key = `${module}:${pair}`;
+    if (!switchPairOwners.has(key)) switchPairOwners.set(key, new Set());
+    switchPairOwners.get(key).add(String(element.id));
+  });
+
+  switchPairOwners.forEach((ownerIds, key) => {
+    if (ownerIds.size < 2) return;
+    ownerIds.forEach((ownerId) => sharedSwitchGroupById.set(ownerId, `switch-pair:${key}`));
+  });
 
   function add(moduleId, channel, owner) {
     const module = cleanText(moduleId || "", 48);
@@ -48,13 +67,14 @@ function findRelayConflicts(layout) {
       const sameCircuitRelay = circuit &&
         cleanText(circuit.module || "", 48) === cleanText(element.module || "", 48) &&
         validRelay(circuit.relay) === relay;
+      const switchPairGroup = sharedSwitchGroupById.get(String(element.id || "")) || "";
       add(element?.module, relay, {
         ownerType: "element",
         ownerId: String(element?.id || ""),
         field,
         purpose,
         label: String(element?.name || element?.id || element?.typ || "Element"),
-        sharingGroup: sameCircuitRelay ? `circuit:${circuitId}` : ""
+        sharingGroup: switchPairGroup || (sameCircuitRelay ? `circuit:${circuitId}` : "")
       });
     });
   });

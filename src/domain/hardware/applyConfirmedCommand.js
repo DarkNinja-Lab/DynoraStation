@@ -27,7 +27,35 @@ function createConfirmedCommandApplier({
     const element = runtimeState.layout?.elemente?.find((item) => item.id === elementId);
     if (!element) return false;
     const state = command.data?.logicalState ?? command.data?.state;
-    if (element.typ === "switch" && ["gerade", "abzweig"].includes(state)) element.switchState = state;
+    if (element.typ === "switch" && ["gerade", "abzweig"].includes(state)) {
+      const moduleId = String(command.module || element.module || "");
+      const channel = validRelay(command.data?.channel);
+      let changed = false;
+
+      for (const candidate of runtimeState.layout.elemente || []) {
+        if (candidate.typ !== "switch" || String(candidate.module || "") !== moduleId) continue;
+
+        if (candidate.id === elementId) {
+          candidate.switchState = state;
+          changed = true;
+          continue;
+        }
+
+        if (!channel) continue;
+        const relayStraight = validRelay(candidate.relayStraight);
+        const relayBranch = validRelay(candidate.relayBranch);
+        const matchesStraight = relayStraight === channel;
+        const matchesBranch = relayBranch === channel;
+
+        // One physical pulse can move every turnout wired to that coil.
+        // If a turnout uses the same channel for both positions, its result
+        // cannot be inferred safely, so leave its display untouched.
+        if (matchesStraight === matchesBranch) continue;
+        candidate.switchState = matchesStraight ? "gerade" : "abzweig";
+        changed = true;
+      }
+      return changed;
+    }
     else if (element.typ === "xtrack" && ["gerade", "abzweig"].includes(state)) element.xState = state;
     else if (element.typ === "signal" && ["halt", "fahrt"].includes(state)) element.signalState = state;
     else if (element.typ === "ledSignal" && ["halt", "warnung", "fahrt"].includes(state)) {
@@ -116,9 +144,11 @@ function createConfirmedCommandApplier({
 
     if (hardwareChanged) {
       runtimeState.hardware.updatedAt = Date.now();
-      await queueWriteHardware();
+      // Persist in the background so the ESP ACK returns immediately and it
+      // can fetch the next queued command without waiting for disk I/O.
+      queueWriteHardware();
     }
-    if (layoutChanged) await queueWriteLayout();
+    if (layoutChanged) queueWriteLayout();
 
     const trigger = confirmedTrigger(command);
     if (trigger && operationIsConfirmed(command.data?.operationId)) {

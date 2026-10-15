@@ -4,7 +4,7 @@ import { setBuilderPanel } from "./panels.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { renderCanvas } from "./render.js?v=workspace-v11";
-import { showToast } from "../ui/toast.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { renderCs3Tiles } from "../ui/render.js?v=workspace-v11";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { icon } from "../ui/icons.js?v=workspace-v11";
@@ -138,6 +138,18 @@ function inspectorHtmlForElement(el) {
   return html;
 }
 
+function signalLinkField(el) {
+  const signals = (state.layout?.elemente || []).filter((item) => item.typ === "signal" && item.id !== el.id);
+  return `<label class="inspector-field">
+    <span>Märklin-Signal für Fahrstrom</span>
+    <select id="inspLinkedSignal">
+      <option value="">Keine Verknüpfung</option>
+      ${signals.map((signal) => `<option value="${esc(signal.id)}" ${el.linkedSignalId === signal.id ? "selected" : ""}>${esc(signal.name || signal.id)}</option>`).join("")}
+    </select>
+    <small>Fahrt (Grün) markiert dieses Gleis im Plan als eingeschaltet.</small>
+  </label>`;
+}
+
 function inspectorTrack(el) {
   const isUncoupler = String(el.trackCode || el.catalogCode || "") === "5112";
   return `
@@ -158,7 +170,7 @@ function inspectorTrack(el) {
         <span>Stromabschnitt (optional)</span>
         <input type="text" id="inspCircuit" list="powerSectionNames" value="${esc(el.stromkreis || "")}" placeholder="z. B. Bahnhof Gleis 1">
         ${powerSectionDatalist()}
-      </label>`}
+      </label>${!isUncoupler ? signalLinkField(el) : ""}`}
 
       <label class="inspector-field">
         <span>Belegtsensor</span>
@@ -187,6 +199,8 @@ function inspectorCurve(el) {
           ${getRelayOptions(el.module || "", el.relay || 0)}
         </select>
       </label>
+
+      ${signalLinkField(el)}
 
       <label class="inspector-field">
         <span>Stromabschnitt (optional)</span>
@@ -236,9 +250,11 @@ function inspectorSwitch(el) {
         </select>
       </label>
 
+      ${signalLinkField(el)}
+
       <div class="inspector-info">
         ${isCurved5141
-          ? "Die überarbeitete Geometrie zeigt Außen- und Innenbogen klar getrennt. Für jeden Fahrweg wird ein eigener Relaisimpuls verwendet."
+          ? "Beide Fahrwege folgen R1 mit 30°. Der Außenbogen erhält zusätzlich 77,4 mm geraden Vorlauf. Für jeden Fahrweg wird ein eigener Relaisimpuls verwendet."
           : "Ein Relais für die gerade Lage, eines für den Abzweig."}
       </div>
     </div>
@@ -278,6 +294,8 @@ function inspectorCrossing(el) {
           ${getSensorOptions(el.module || "", el.sensorId || "")}
         </select>
       </label>
+
+      ${signalLinkField(el)}
 
       <div class="inspector-info">
         Kreuzungsweiche 5128: reale 30°-Geometrie, getrennte Relais für beide Stellungen.
@@ -413,6 +431,7 @@ function saveInspectorChanges(element) {
     case "curve":
       element.relay = parseInt(document.getElementById("inspRelay")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
+      element.linkedSignalId = document.getElementById("inspLinkedSignal")?.value || "";
       if (!(element.typ === "track" && String(element.trackCode || element.catalogCode || "") === "5112")) {
         element.stromkreis = String(document.getElementById("inspCircuit")?.value || "").trim().slice(0, 80);
       }
@@ -425,12 +444,14 @@ function saveInspectorChanges(element) {
       element.relayA = parseInt(document.getElementById("inspRelayA")?.value || 0);
       element.relayB = parseInt(document.getElementById("inspRelayB")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
+      element.linkedSignalId = document.getElementById("inspLinkedSignal")?.value || "";
       break;
 
     case "switch":
       element.relayStraight = parseInt(document.getElementById("inspRelayStraight")?.value || 0);
       element.relayBranch = parseInt(document.getElementById("inspRelayBranch")?.value || 0);
       element.sensorId = document.getElementById("inspSensor")?.value || "";
+      element.linkedSignalId = document.getElementById("inspLinkedSignal")?.value || "";
       break;
 
     case "signal":
