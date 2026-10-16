@@ -4,6 +4,72 @@ DynoraStation trennt Anwendungscode und Installer. Der Branch `main` enthält ke
 
 Repository: `DarkNinja-Lab/DynoraStation`
 
+## Installationsmethoden im Überblick
+
+Es gibt vier Wege, DynoraStation zu installieren – sortiert vom einfachsten zum aufwendigsten. Jede Methode funktioniert unter Windows und Linux.
+
+| # | Methode | Aufwand | Dienst/Autostart | Details |
+| --- | --- | --- | --- | --- |
+| 1 | One-Liner | sehr gering | ja | [Linux](#1-one-liner-linux) · [Windows](#1-one-liner-windows) |
+| 2 | Installer-Dateien | gering | ja | [Linux](#linux) · [Windows](#windows) |
+| 3 | Docker | mittel | ja (Container-Neustartrichtlinie) | [Docker](#3-docker-windows--linux) |
+| 4 | npm (manuell) | höher | nein | [npm](#4-npm-windows--linux) |
+
+### 1. One-Liner Linux
+
+```bash
+curl -fsSL https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Linux.sh | sudo bash -s -- install
+```
+
+### 1. One-Liner Windows
+
+PowerShell (der Installer fordert Administratorrechte an):
+
+```powershell
+iwr https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Windows.cmd -OutFile "$env:TEMP\DynoraStation-Windows.cmd"; Start-Process -Verb RunAs cmd.exe "/c `"$env:TEMP\DynoraStation-Windows.cmd`" install"
+```
+
+### 2. Installer-Dateien
+
+`DynoraStation-Linux.sh` bzw. `DynoraStation-Windows.cmd` aus dem GitHub Release herunterladen und starten. Optionen, Standardwerte und direkte Aktionen stehen in den Abschnitten [Linux](#linux) und [Windows](#windows) weiter unten.
+
+### 3. Docker (Windows / Linux)
+
+Voraussetzung: Docker mit Docker Compose (Linux: Docker Engine; Windows: Docker Desktop).
+
+```bash
+git clone https://github.com/DarkNinja-Lab/DynoraStation.git
+cd DynoraStation
+docker compose up -d --build
+```
+
+Die Weboberfläche läuft anschließend auf Port `8181`. Wichtige Einstellungen kommen aus Umgebungsvariablen oder einer `.env`-Datei neben `docker-compose.yaml`:
+
+```text
+SERVER_PORT=8181
+DISCOVERY_PORT=8182
+DYNORA_APPDATA=/pfad/zu/den/daten
+OTA_SHARED_SECRET=<mindestens 24 Zeichen>
+```
+
+`docker-compose.yaml` verwendet `network_mode: host`, damit die UDP-Discovery der ESPs funktioniert. Unter Windows mit Docker Desktop ist Host-Netzwerk eingeschränkt; dort Ports `8181` und `8182/udp` veröffentlichen und ESPs auf die Server-IP einstellen.
+
+Update: `git pull && docker compose up -d --build`. Stoppen: `docker compose down`.
+
+### 4. npm (Windows / Linux)
+
+Voraussetzung: Node.js 18 oder neuer, npm und Git. Es wird kein Dienst und kein Autostart eingerichtet.
+
+```bash
+git clone https://github.com/DarkNinja-Lab/DynoraStation.git
+cd DynoraStation
+npm install
+cp .env.example .env    # Windows (cmd.exe): copy .env.example .env
+npm start
+```
+
+Update: `git pull && npm install`, danach neu starten.
+
 ## Voraussetzungen
 
 Für den Betrieb werden Node.js 18 oder neuer und npm benötigt. Die Installer richten fehlende Abhängigkeiten soweit möglich selbst ein.

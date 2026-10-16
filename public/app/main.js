@@ -19,7 +19,7 @@ async function clearLegacyFrontendCaches() {
 clearLegacyFrontendCaches();
 console.info(`[DynoraStation] Build ${DYNORA_BUILD}`);
 
-import { startApp } from "./bootstrap.js?v=workspace-v20";
+import { startApp } from "./bootstrap.js?v=workspace-v21";
 
 document.addEventListener("DOMContentLoaded", () => {
   startApp().catch(error => {

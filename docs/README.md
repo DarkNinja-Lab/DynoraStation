@@ -4,7 +4,7 @@ Dieser Ordner enthält die technische Dokumentation von DynoraStation. Die Root-
 
 | Datei | Inhalt |
 | --- | --- |
-| [INSTALLATION.md](INSTALLATION.md) | Installation unter Linux und Windows |
+| [INSTALLATION.md](INSTALLATION.md) | Die vier Installationsmethoden (One-Liner, Installer, Docker, npm) unter Linux und Windows |
 | [CONFIGURATION.md](CONFIGURATION.md) | `.env`, Ports, Discovery, CORS und Limits |
 | [OPERATIONS.md](OPERATIONS.md) | Start, Stop, Neustart, Update, Backups und Logs |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Aufbau von Backend, Frontend, Persistenz und ESP-Kommunikation |
