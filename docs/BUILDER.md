@@ -55,9 +55,9 @@ Geprüft werden fehlende Zuweisungen, unabhängige Relais-Doppelbelegungen, dopp
 Die Prüfung ist eine Planungshilfe. Sie prüft weder die elektrische Verdrahtung noch sämtliche physischen Kollisionen und ersetzt keinen Test an der Anlage. Beim Verkleinern der Platte bleiben bestehende Positionen erhalten; außerhalb liegende Elemente werden gemeldet und nicht beim Zeichnen still verschoben.
 
 
-## Stand 3.5
+## Gleisfotos und Katalogbilder
 
-Die 18 Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen. Aktuelle Browserabnahme und Testumfang: [Prüfbericht 3.5](PRUEFBERICHT-3.5.md).
+Die Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen.
 
 
 ## Eigenes Foto für das Märklin-Hauptsignal 7039 (ab 3.5.1)
@@ -67,6 +67,6 @@ Speichere ein echtes JPEG-Foto als `public/assets/track/7039.jpg` (Dateiname kle
 Das Foto muss nicht in das gebündelte Gleisbildmodul aufgenommen werden. Beim Neuladen erhält die Bildadresse eine neue Cachekennung, damit auch ein später ergänztes oder ersetztes Foto geladen wird. Solange das Foto fehlt oder nicht geladen werden kann, bleibt das Ersatzsymbol sichtbar. Die Darstellung und Schaltfunktion im Anlagenplan bleiben gleich. Das Paket enthält noch kein Foto von 7039.
 
 
-## Planversionen und Speicherkonflikte (3.6)
+## Planversionen und Speicherkonflikte
 
-Unter **Planoptionen → Planversionen** lassen sich die letzten 20 vorherigen Stationspläne wiederherstellen. Dabei wird der aktuelle Plan zuerst gesichert. Bei einem Speicherkonflikt bleibt dein Entwurf erhalten: lade ihn herunter und hole anschließend über **Stationsplan laden** den neuen Stand. Details: [Update 3.6](UPDATE-3.6.md).
+Unter **Planoptionen → Planversionen** lassen sich die letzten 20 vorherigen Stationspläne wiederherstellen. Dabei wird der aktuelle Plan zuerst gesichert. Bei einem Speicherkonflikt bleibt dein Entwurf erhalten: lade ihn herunter und hole anschließend über **Stationsplan laden** den neuen Stand.

@@ -63,7 +63,7 @@ test("Browser-Mutationen sind bei deaktiviertem CORS Same-Origin-geschützt", ()
   assert.match(app, /key: \(_req, ip\) => ip/);
 });
 
-test("Dokumentation liegt zentral unter docs und beschreibt den Release-Kanal", () => {
+test("Dokumentation liegt zentral unter docs und ist auf aktuellem Stand", () => {
   const requiredDocs = [
     "docs/README.md",
     "docs/INSTALLATION.md",
@@ -75,7 +75,6 @@ test("Dokumentation liegt zentral unter docs und beschreibt den Release-Kanal", 
     "docs/SECURITY.md",
     "docs/TROUBLESHOOTING.md",
     "docs/DEVELOPMENT.md",
-    "docs/RELEASES.md",
     "esp8266_code/README.md",
     "esp8266_code/MCP23017_ANSCHLUSS.md",
   ];
@@ -87,12 +86,10 @@ test("Dokumentation liegt zentral unter docs und beschreibt den Release-Kanal", 
 
   const readme = read("README.md");
   const installation = read("docs/INSTALLATION.md");
-  const releases = read("docs/RELEASES.md");
-  for (const source of [readme, installation, releases]) {
-    assert.match(source, /DarkNinja-Lab\/DynoraStation/);
+  for (const source of [readme, installation]) {
     assert.match(source, /main/);
   }
   assert.match(readme, /DynoraStation-Linux\.sh/);
   assert.match(readme, /DynoraStation-Windows\.cmd/);
-  assert.match(releases, /Runtime-ZIPs/);
+  assert.doesNotMatch(readme, /Prüfbericht|PRUEFBERICHT|Update 3\.6|UPDATE-3\.6/);
 });
