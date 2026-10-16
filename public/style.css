@@ -129,6 +129,12 @@ button {
   flex-wrap: wrap;
 }
 
+.language-toggle {
+  min-width: 88px;
+  text-align: center;
+  font-weight: 700;
+}
+
 .status-pill {
   border: 1px solid rgb(125, 49, 49);
   color: rgb(255, 141, 141);

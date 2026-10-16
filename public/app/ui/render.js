@@ -5,6 +5,7 @@ import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from 
 import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v12";
 import { icon } from "./icons.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
+import { getLocale, t } from "../core/i18n.js?v=workspace-v21";
 
 function dashboardCatalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;
@@ -20,7 +21,7 @@ export function renderSidebarEspStatus() {
   if (!espList) return;
 
   if (!state.hardware.modules || Object.keys(state.hardware.modules).length === 0) {
-    espList.innerHTML = '<div class="sidebar-esp-empty">Noch kein ESP verbunden.</div>';
+    espList.innerHTML = `<div class="sidebar-esp-empty">${esc(t("sidebar.noModules"))}</div>`;
     return;
   }
 
@@ -29,16 +30,16 @@ export function renderSidebarEspStatus() {
     const metadataWarning = !incompatible && m.compatibility?.status === "warning";
     const kind = m.kind === "SIGNAL_LED" ? "Signal/LED" : m.kind === "RELAY_SENSOR" ? "Relay/Sensor" : m.kind === "HYBRID" ? "Hybrid" : "Typ wird erkannt";
     const version = `FW ${m.firmwareVersion || "?"} · P${m.protocolVersion ?? "?"} · ${m.hardwareType || kind}`;
-    const hardwareWarning = m.health?.relayDriverReady === false ? "MCP23017 nicht erreichbar" : "";
-    const status = !m.online ? "OFFLINE" : hardwareWarning ? "HARDWAREFEHLER" : incompatible ? "INKOMPATIBEL" : metadataWarning ? "WARNUNG" : "ONLINE";
+    const hardwareWarning = m.health?.relayDriverReady === false ? t("hardware.mcp") : "";
+    const status = !m.online ? t("status.offline").toUpperCase() : hardwareWarning ? t("status.hardwareError").toUpperCase() : incompatible ? t("status.incompatible").toUpperCase() : metadataWarning ? t("status.warning").toUpperCase() : t("status.online").toUpperCase();
     return `
     <div class="sidebar-esp-item ${m.online && !hardwareWarning ? "online" : "offline"} ${incompatible || hardwareWarning ? "incompatible" : metadataWarning ? "compat-warning" : ""}">
       <div class="esp-status-dot" aria-hidden="true"></div>
       <div class="esp-status-copy">
         <strong>${esc(m.name || m.id)}</strong>
-        <small>${esc(version)} · ${esc(m.ip || (m.online ? "verbunden" : "keine aktuelle IP"))}</small>
+        <small>${esc(version)} · ${esc(m.ip || (m.online ? t("module.connected") : t("module.noIp")))}</small>
         ${hardwareWarning ? `<small class="compatibility-warning">${esc(hardwareWarning)}</small>` : ""}
-        ${incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(m.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}
+        ${incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(m.compatibility?.reason || t("compat.incomplete"))}</small>` : ""}
       </div>
       <span class="esp-connection-state">${status}</span>
     </div>`;
@@ -151,7 +152,7 @@ export function renderCs3Tiles() {
     </button>`;
   }).join("");
 
-  grid.innerHTML = tiles || '<div class="empty-state">Keine schaltbaren Weichen, Signale oder Entkuppler im Plan</div>';
+  grid.innerHTML = tiles || `<div class="empty-state">${esc(t("dashboard.noControls"))}</div>`;
 }
 
 export function renderDashboardOverview() {
@@ -166,17 +167,17 @@ export function renderDashboardOverview() {
       const metadataWarning = !incompatible && module.compatibility?.status === "warning";
       const hardwareWarning = module.health?.relayDriverReady === false;
       const version = `FW ${module.firmwareVersion || "?"} · P${module.protocolVersion ?? "?"} · ${module.hardwareType || kind}`;
-      return `<article class="dashboard-module-row ${incompatible || hardwareWarning ? "incompatible" : metadataWarning ? "compat-warning" : ""}"><span class="module-health-dot ${module.online && !incompatible && !hardwareWarning ? "online" : "offline"}"></span><div><strong>${esc(module.name || module.id)}</strong><small>${esc(version)} · ${channels}</small>${hardwareWarning ? `<small class="compatibility-warning">MCP23017 nicht erreichbar</small>` : incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || "Kompatibilitätsdaten unvollständig")}</small>` : ""}</div><b>${!module.online ? "Offline" : hardwareWarning ? "Hardwarefehler" : incompatible ? "Inkompatibel" : metadataWarning ? "Warnung" : "Online"}</b></article>`;
-    }).join("") : '<div class="empty-state">Noch keine ESP-Module registriert.</div>';
+      return `<article class="dashboard-module-row ${incompatible || hardwareWarning ? "incompatible" : metadataWarning ? "compat-warning" : ""}"><span class="module-health-dot ${module.online && !incompatible && !hardwareWarning ? "online" : "offline"}"></span><div><strong>${esc(module.name || module.id)}</strong><small>${esc(version)} · ${channels}</small>${hardwareWarning ? `<small class="compatibility-warning">${esc(t("hardware.mcp"))}</small>` : incompatible || metadataWarning ? `<small class="compatibility-warning">${esc(module.compatibility?.reason || t("compat.incomplete"))}</small>` : ""}</div><b>${!module.online ? t("status.offline") : hardwareWarning ? t("status.hardwareError") : incompatible ? t("status.incompatible") : metadataWarning ? t("status.warning") : t("status.online")}</b></article>`;
+    }).join("") : `<div class="empty-state">${esc(t("dashboard.noModules"))}</div>`;
   }
 
   const eventHost = document.getElementById("dashboardEventList");
   if (eventHost) {
     const events = Array.isArray(state.events) ? state.events.slice(0, 5) : [];
     eventHost.innerHTML = events.length ? events.map((event) => {
-      const time = event.timestamp || event.time ? new Date(event.timestamp || event.time).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "–";
+      const time = event.timestamp || event.time ? new Date(event.timestamp || event.time).toLocaleTimeString(getLocale(), { hour: "2-digit", minute: "2-digit" }) : "–";
       return `<article class="dashboard-event-row"><span>${esc(event.type || "SYSTEM")}</span><div><strong>${esc(event.text || "Ereignis")}</strong><small>${esc(event.source || "System")}</small></div><time>${time}</time></article>`;
-    }).join("") : '<div class="empty-state">Noch keine Ereignisse vorhanden.</div>';
+    }).join("") : `<div class="empty-state">${esc(t("dashboard.noEvents"))}</div>`;
   }
 
   renderDashboardTrack();

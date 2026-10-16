@@ -5,11 +5,12 @@ import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
 import { renderRulesGrid } from "../rules/rules.js?v=workspace-v15";
-import { renderSidebarEspStatus, renderCs3Tiles } from "./render.js?v=workspace-v11";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./render.js?v=workspace-v11";
 import { renderTrackLayout } from "../track/track.js?v=workspace-v15";
 import { showToast } from "./toast.js?v=workspace-v15";
 import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
+import { getLanguage, initLanguage, setLanguage, t } from "../core/i18n.js?v=workspace-v21";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -23,24 +24,71 @@ function hasCapability(module, capability) {
 }
 
 const PAGE_META = {
-  dashboard: { title: "Übersicht", subtitle: "Betriebsbild, Systemzustand und letzte Aktivitäten", section: "Zentrale" },
-  track: { title: "Betrieb", subtitle: "Fahrwege, Signale und Anlagenfunktionen steuern", section: "Workspace" },
-  settings: { title: "Einstellungen", subtitle: "Geräte, Ein-/Ausgänge und Ereignisse", section: "Administration" },
-  events: { title: "Logbuch", subtitle: "System-, Schalt- und Sensorereignisse", section: "Administration" }
+  dashboard: { title: "page.dashboard.title", subtitle: "page.dashboard.subtitle", section: "page.dashboard.section" },
+  track: { title: "page.track.title", subtitle: "page.track.subtitle", section: "page.track.section" },
+  settings: { title: "page.settings.title", subtitle: "page.settings.subtitle", section: "page.settings.section" },
+  events: { title: "page.events.title", subtitle: "page.events.subtitle", section: "page.events.section" }
 };
+
+function setNodeText(selector, text) {
+  const node = typeof selector === "string" ? document.querySelector(selector) : selector;
+  if (node) node.textContent = text;
+}
+
+function updateLanguageToggleButton() {
+  const button = byId("languageToggle");
+  if (!button) return;
+  const language = getLanguage();
+  button.setAttribute("aria-label", t("language.toggle"));
+  button.setAttribute("title", t("language.toggle"));
+  button.textContent = language === "en" ? "🇬🇧 EN" : "🇩🇪 DE";
+}
+
+function applyCoreTranslations() {
+  const navMap = [
+    [".nav-button[data-page='dashboard'] .nav-copy b", "nav.dashboard"],
+    [".nav-button[data-page='track'] .nav-copy b", "nav.track"],
+    [".nav-button[data-page='builder'] .nav-copy b", "nav.builder"],
+    [".nav-button[data-page='settings'] .nav-copy b", "nav.settings"],
+    [".nav-button[data-page='events'] .nav-copy b", "nav.events"],
+    ["#openHelpDialog .nav-copy b", "nav.help"],
+    [".mobile-nav-button[data-page-link='dashboard'] small", "nav.dashboard"],
+    [".mobile-nav-button[data-page-link='track'] small", "nav.track"],
+    [".mobile-nav-button[data-page-link='builder'] small", "nav.builder"],
+    [".mobile-nav-button[data-page-link='settings'] small", "nav.settings"],
+    [".mobile-nav-button[data-page-link='events'] small", "nav.events"]
+  ];
+  navMap.forEach(([selector, key]) => setNodeText(selector, t(key)));
+
+  const mobileAriaMap = [
+    [".mobile-nav-button[data-page-link='dashboard']", "mobile.dashboard.open"],
+    [".mobile-nav-button[data-page-link='track']", "mobile.track.open"],
+    [".mobile-nav-button[data-page-link='builder']", "mobile.builder.open"],
+    [".mobile-nav-button[data-page-link='settings']", "mobile.settings.open"],
+    [".mobile-nav-button[data-page-link='events']", "mobile.events.open"]
+  ];
+  mobileAriaMap.forEach(([selector, key]) => {
+    const button = document.querySelector(selector);
+    if (button) button.setAttribute("aria-label", t(key));
+  });
+
+  setNodeText("#emergencyButton span", t("button.emergency"));
+  setNodeText("#mobileMenuButton .drawer-desktop-label", t("button.deviceCenter"));
+  updateLanguageToggleButton();
+}
 
 if (!state.relayConfig || typeof state.relayConfig !== "object") state.relayConfig = {};
 if (!state.sensorConfig || typeof state.sensorConfig !== "object") state.sensorConfig = {};
 if (!Array.isArray(state.defaults)) state.defaults = [];
 
 function setPageHeader(page) {
-  const t = PAGE_META[page] || PAGE_META.dashboard;
+  const meta = PAGE_META[page] || PAGE_META.dashboard;
   const title = byId("pageTitle");
   const subtitle = byId("pageSubtitle");
   const section = byId("topbarSection");
-  if (title) title.textContent = t.title;
-  if (subtitle) subtitle.textContent = t.subtitle;
-  if (section) section.textContent = t.section;
+  if (title) title.textContent = window?.dynoraEditMode === "true" ? t("page.builder.title") : t(meta.title);
+  if (subtitle) subtitle.textContent = window?.dynoraEditMode === "true" ? t("page.builder.subtitle") : t(meta.subtitle);
+  if (section) section.textContent = window?.dynoraEditMode === "true" ? t("page.builder.section") : t(meta.section);
 }
 
 function setTrackWorkspaceMode(mode = "operate") {
@@ -61,12 +109,14 @@ function setTrackWorkspaceMode(mode = "operate") {
     const subtitle = byId("pageSubtitle");
     const section = byId("topbarSection");
     if (editing) {
-      if (title) title.textContent = "Stellwerk bearbeiten";
-      if (subtitle) subtitle.textContent = "Gleisbild bearbeiten, Elemente platzieren und Hardware zuweisen";
-      if (section) section.textContent = "Bearbeitung";
+      window.dynoraEditMode = "true";
+      if (title) title.textContent = t("page.builder.title");
+      if (subtitle) subtitle.textContent = t("page.builder.subtitle");
+      if (section) section.textContent = t("page.builder.section");
       document.dispatchEvent(new CustomEvent("dynora:builder-opened"));
       requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
     } else {
+      window.dynoraEditMode = "false";
       setPageHeader("track");
       requestAnimationFrame(renderTrackLayout);
     }
@@ -97,7 +147,10 @@ function setActivePage(page) {
     renderSettingsTab();
   }
   if (targetMeta === "track") setTrackWorkspaceMode(editRequested ? "edit" : "operate");
-  else document.body.classList.remove("track-edit-mode");
+  else {
+    window.dynoraEditMode = "false";
+    document.body.classList.remove("track-edit-mode");
+  }
 
   try {
     localStorage.setItem("dynora.activePage", targetMeta);
@@ -173,7 +226,7 @@ function bindTrackFocusMode() {
     page.classList.toggle("plan-focus", active);
     document.body.classList.toggle("track-focus-active", active);
     button.setAttribute("aria-pressed", String(active));
-    if (label) label.textContent = active ? "Maximierung beenden" : "Gleisbild maximieren";
+    if (label) label.textContent = active ? t("track.focus.disable") : t("track.focus.enable");
     if (exitButton) exitButton.hidden = !active;
 
     // Erst nach dem Layoutwechsel neu einpassen, damit wirklich die volle
@@ -568,7 +621,7 @@ function renderStationControlStatus() {
       (previousUptime > 2 && uptime + 2 < previousUptime);
     if (restarted) {
       restartButton.disabled = false;
-      restartButton.textContent = "Neu starten";
+      restartButton.textContent = t("button.restart");
       delete restartButton.dataset.stationPending;
       delete restartButton.dataset.previousPid;
       delete restartButton.dataset.previousUptime;
@@ -596,7 +649,7 @@ function renderFirmwareUpdates() {
   if (upload) upload.disabled = !current?.online || build?.status !== "ready";
   const status = byId("firmwareUpdateStatus");
   if (status && current && build) status.textContent = build.error || build.message || `Firmwarestatus: ${build.status}`;
-  if (status && !current) status.textContent = "Kein unterstütztes ESP-Modul gefunden.";
+  if (status && !current) status.textContent = t("status.noModuleSupported");
   if (current && !build) refreshFirmwareBuild(current.hardwareType).catch(() => {});
   const progress = byId("firmwareProgress");
   if (progress) progress.value = build?.progress || 0;
@@ -1191,11 +1244,33 @@ function bindTrackElementQuickToggle() {
 }
 
 export function eventsRegistrieren() {
+  initLanguage();
+  applyCoreTranslations();
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
     if (["overview", "modules", "updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
+  byId("languageToggle")?.addEventListener("click", () => {
+    const next = getLanguage() === "de" ? "en" : "de";
+    setLanguage(next);
+  });
+  document.addEventListener("dynora:language-changed", () => {
+    applyCoreTranslations();
+    renderSidebarEspStatus();
+    renderCs3Tiles();
+    renderDashboardOverview();
+    if (document.body.dataset.page === "track" && window?.dynoraEditMode === "true") {
+      const title = byId("pageTitle");
+      const subtitle = byId("pageSubtitle");
+      const section = byId("topbarSection");
+      if (title) title.textContent = t("page.builder.title");
+      if (subtitle) subtitle.textContent = t("page.builder.subtitle");
+      if (section) section.textContent = t("page.builder.section");
+    } else {
+      setPageHeader(document.body.dataset.page || "dashboard");
+    }
+  });
   const helpDialog = byId("helpDialog");
   byId("openHelpDialog")?.addEventListener("click", () => helpDialog?.showModal());
   byId("closeHelpDialog")?.addEventListener("click", () => helpDialog?.close());
