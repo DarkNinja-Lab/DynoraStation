@@ -8,6 +8,7 @@ import { showToast } from "./ui/toast.js?v=workspace-v15";
 import { state } from "./core/state.js?v=workspace-v11";
 import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v11";
 import { initializeTools } from "./builder/tools.js?v=workspace-v11";
+import { initTranslation } from "./core/translate.js?v=workspace-v21";
 import { eventsRegistrieren, renderSettingsTab } from "./ui/events.js?v=workspace-v21";
 import { katalogLaden } from "./catalog/catalog.js?v=workspace-v11";
 import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js?v=workspace-v11";
@@ -22,6 +23,7 @@ import { setupPlanValidation } from "./builder/validation.js?v=workspace-v11";
 
 export async function startApp() {
   eventsRegistrieren();
+  initTranslation();
   window.addEventListener("beforeunload", (event) => {
     const hasUnsavedChanges = state.layoutDirty || Object.values(state.settingsDirty || {}).some(Boolean);
     if (!hasUnsavedChanges) return;

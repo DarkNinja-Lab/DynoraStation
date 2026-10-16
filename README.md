@@ -12,45 +12,87 @@ DynoraStation verbindet Gleisplan, ESP8266-Module, Relais, Rückmelder, Signale 
 - Anlagenplan validieren, importieren, exportieren und als PDF drucken
 - Bedienung auf Desktop, Tablet und Smartphone
 
-## Schnellstart
+## Installation
 
-```bash
-npm install
-cp .env.example .env
-npm start
-```
+DynoraStation lässt sich auf vier Wegen installieren – vom einfachsten bis zum aufwendigsten. Alle Methoden funktionieren unter Windows und Linux (Details und Besonderheiten: [docs/INSTALLATION.md](docs/INSTALLATION.md)).
 
-Unter Windows:
+| # | Methode | Aufwand | Windows | Linux | Geeignet für |
+| --- | --- | --- | --- | --- | --- |
+| 1 | [One-Liner](#1-one-liner-am-schnellsten) | ⭐ sehr gering | ✅ | ✅ | Schnellster Start, ein einziger Befehl |
+| 2 | [Installer-Dateien](#2-installer-dateien) | ⭐⭐ gering | ✅ | ✅ | Installer manuell laden, mit Menü und Update-/Deinstallationsfunktion |
+| 3 | [Docker](#3-docker) | ⭐⭐⭐ mittel | ✅ | ✅ | Isolierter Betrieb, z. B. Unraid, NAS oder Server |
+| 4 | [npm (manuell)](#4-npm-manuell) | ⭐⭐⭐⭐ höher | ✅ | ✅ | Entwicklung und volle Kontrolle, ohne Dienst/Autostart |
 
-```bat
-copy .env.example .env
-npm start
-```
+### 1. One-Liner (am schnellsten)
 
-Tests:
+Lädt den Installer aus dem neuesten Release und installiert DynoraStation inklusive Dienst/Autostart.
 
-```bash
-npm test
-```
-
-## Installation mit Installer-Skripten
-
-Die Installer liegen bewusst **nicht im `main`-Branch** und werden getrennt als Release-Assets gepflegt:
-
-- `DynoraStation-Linux.sh`
-- `DynoraStation-Windows.cmd`
-
-Sie dienen als Bootstrap für Installation, Update und Deinstallation. Der Anwendungscode kommt immer aus `main`.
-
-One-Liner Installation:
+**Linux:**
 
 ```bash
 curl -fsSL https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Linux.sh | sudo bash -s -- install
 ```
 
+**Windows (PowerShell):**
+
 ```powershell
 iwr https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Windows.cmd -OutFile "$env:TEMP\DynoraStation-Windows.cmd"; Start-Process -Verb RunAs cmd.exe "/c `"$env:TEMP\DynoraStation-Windows.cmd`" install"
 ```
+
+### 2. Installer-Dateien
+
+`DynoraStation-Linux.sh` bzw. `DynoraStation-Windows.cmd` aus dem [neuesten Release](https://github.com/DarkNinja-Lab/DynoraStation/releases/latest) herunterladen und starten. Der Installer erkennt vorhandene Installationen und bietet Installieren, Aktualisieren, Reparieren und Deinstallieren an.
+
+**Linux:**
+
+```bash
+chmod +x DynoraStation-Linux.sh
+sudo ./DynoraStation-Linux.sh
+```
+
+**Windows:** `DynoraStation-Windows.cmd` per Rechtsklick **Als Administrator ausführen** starten.
+
+Die Installer liegen bewusst **nicht im `main`-Branch**, sondern werden als Release-Assets gepflegt. Der Anwendungscode kommt immer aus `main`.
+
+### 3. Docker
+
+Benötigt Docker mit Docker Compose. Das Image enthält Node.js und die Werkzeuge für den ESP-Firmware-Build.
+
+```bash
+git clone https://github.com/DarkNinja-Lab/DynoraStation.git
+cd DynoraStation
+docker compose up -d --build
+```
+
+Die Weboberfläche ist danach unter `http://<server-ip>:8181` erreichbar. Daten liegen im Volume `DYNORA_APPDATA` (Standard: `/mnt/user/appdata/dynora_station/data`); den Pfad per `.env` oder Umgebungsvariable anpassen.
+
+Hinweis: Die Compose-Datei nutzt `network_mode: host` für die UDP-Discovery der ESPs. Unter Windows (Docker Desktop) ist Host-Netzwerk nur eingeschränkt verfügbar – dort ggf. Ports `8181`/`8182/udp` veröffentlichen und die ESPs manuell auf die Server-IP einstellen.
+
+### 4. npm (manuell)
+
+Benötigt Node.js 18 oder neuer, npm und Git bzw. das Repository-Archiv. Kein Dienst, kein Autostart – DynoraStation läuft im Vordergrund.
+
+**Linux:**
+
+```bash
+git clone https://github.com/DarkNinja-Lab/DynoraStation.git
+cd DynoraStation
+npm install
+cp .env.example .env
+npm start
+```
+
+**Windows (`cmd.exe`):**
+
+```bat
+git clone https://github.com/DarkNinja-Lab/DynoraStation.git
+cd DynoraStation
+npm install
+copy .env.example .env
+npm start
+```
+
+Tests: `npm test`
 
 ## Dokumentation
 
@@ -58,7 +100,7 @@ Die vollständige technische Dokumentation liegt unter [docs/](docs/README.md):
 
 | Datei | Inhalt |
 | --- | --- |
-| [INSTALLATION.md](docs/INSTALLATION.md) | Installation unter Linux und Windows |
+| [INSTALLATION.md](docs/INSTALLATION.md) | Die vier Installationsmethoden (One-Liner, Installer, Docker, npm) unter Linux und Windows |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | `.env`, Ports, Discovery, CORS und Limits |
 | [OPERATIONS.md](docs/OPERATIONS.md) | Start, Stop, Neustart, Update, Backups und Logs |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Aufbau von Backend, Frontend, Persistenz und ESP-Kommunikation |
