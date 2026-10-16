@@ -14,6 +14,12 @@ Windows unterstützt Windows 10/11 und nutzt PowerShell, Aufgabenplanung und Win
 
 ## Linux
 
+One-Liner Installation:
+
+```bash
+curl -fsSL https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Linux.sh | sudo bash -s -- install
+```
+
 `DynoraStation-Linux.sh` aus dem aktuellen GitHub Release herunterladen:
 
 ```bash
@@ -75,6 +81,12 @@ sudo dynora-uninstall --purge
 Die Installer-Version selbst wird nicht aus `main` aktualisiert. Wenn ein neuer Installer veröffentlicht wird, die neue Release-Datei einmal manuell starten und bei bestehender Installation `Reparieren / darüber installieren` wählen.
 
 ## Windows
+
+One-Liner Installation (PowerShell als Administrator):
+
+```powershell
+iwr https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Windows.cmd -OutFile "$env:TEMP\DynoraStation-Windows.cmd"; Start-Process -Verb RunAs cmd.exe "/c `"$env:TEMP\DynoraStation-Windows.cmd`" install"
+```
 
 `DynoraStation-Windows.cmd` aus dem GitHub Release herunterladen und als Administrator starten.
 

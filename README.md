@@ -42,6 +42,16 @@ Die Installer liegen bewusst **nicht im `main`-Branch** und werden getrennt als 
 
 Sie dienen als Bootstrap für Installation, Update und Deinstallation. Der Anwendungscode kommt immer aus `main`.
 
+One-Liner Installation:
+
+```bash
+curl -fsSL https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Linux.sh | sudo bash -s -- install
+```
+
+```powershell
+iwr https://github.com/DarkNinja-Lab/DynoraStation/releases/latest/download/DynoraStation-Windows.cmd -OutFile "$env:TEMP\DynoraStation-Windows.cmd"; Start-Process -Verb RunAs cmd.exe "/c `"$env:TEMP\DynoraStation-Windows.cmd`" install"
+```
+
 ## Dokumentation
 
 Die vollständige technische Dokumentation liegt unter [docs/](docs/README.md):
