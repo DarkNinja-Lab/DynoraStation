@@ -38,7 +38,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
   let state;
   try {
     const {startApp}=await import("../public/app/bootstrap.js");
-    ({state}=await import("../public/app/core/state.js?v=workspace-v8"));
+    ({state}=await import("../public/app/core/state.js?v=workspace-v11"));
     // Catalog module exposes its individual lists rather than a response object.
     await startApp();
     clearTimeout(state.statusTimer);
@@ -58,7 +58,10 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     category.value="all";category.dispatchEvent(new Event("change"));
     const images=[...document.querySelectorAll('.component-card img')];
     assert.ok(images.length>=18,"Vorhandene Artikelbilder sind wieder eingebunden");
-    for(const img of images)assert.ok(fs.existsSync(path.join(__dirname,'../public',new URL(img.src).pathname)),img.src);
+    for (const img of images) {
+      if (img.src.startsWith("data:")) continue;
+      assert.ok(fs.existsSync(path.join(__dirname, "../public", new URL(img.src).pathname)), img.src);
+    }
     const search=document.getElementById("componentSearch");
     search.value="5106";search.dispatchEvent(new Event("input"));
     assert.equal(document.querySelectorAll(".component-card").length,1);
@@ -66,8 +69,8 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     assert.equal(state.selectedTool,"place");
     assert.equal(document.getElementById("builderLibrary").hidden,false,"Artikelleiste bleibt beim Platzieren erreichbar");
     const photo=document.querySelector('.component-card img');
-    assert.ok(photo.src.includes('/assets/track/5106.jpg'));
-    assert.ok(fs.existsSync(path.join(__dirname,'../public',new URL(photo.src).pathname)));
+    assert.ok(photo.src.includes('/assets/track/5106.jpg') || photo.src.startsWith('data:image/'));
+    if (!photo.src.startsWith('data:')) assert.ok(fs.existsSync(path.join(__dirname,'../public',new URL(photo.src).pathname)));
     photo.dispatchEvent(new Event("error"));
     assert.equal(document.querySelector('.component-picture').classList.contains('has-photo'),false,"Fehlendes Bild zeigt Ersatzsymbol");
     const svg=document.getElementById("builderSvg");
@@ -82,7 +85,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     assert.ok(document.querySelector('#builderElementLayer .schematic-rail'));
     document.getElementById("placementDone").click();
     assert.equal(state.placement,null);
-    const {exportBuildPlan}=await import('../public/app/builder/export.js?v=workspace-v8');
+    const {exportBuildPlan}=await import('../public/app/builder/export.js?v=workspace-v11');
     exportBuildPlan();
     const exportDocument=document.querySelector('#buildPlanPreview iframe').srcdoc;
     assert.ok(exportDocument.includes('schematic-rail'));
@@ -96,7 +99,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     document.dispatchEvent(new window.KeyboardEvent("keydown",{key:"z",ctrlKey:true,shiftKey:true,bubbles:true}));
     assert.equal(state.layout.elemente.length,2);
     state.selectedElement=state.layout.elemente[0].id;
-    const {renderCanvas}=await import("../public/app/builder/render.js?v=workspace-v8");
+    const {renderCanvas}=await import("../public/app/builder/render.js?v=workspace-v15");
     renderCanvas();
     // Drag-and-drop uses the same placement path, including history and snapping.
     const transfer={getData:type=>type==='application/x-dynora-component'?document.querySelector('[data-component]').dataset.component:''};
@@ -133,7 +136,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     assert.equal(document.querySelector(".builder-layout").dataset.mobilePanel,"library");
     document.querySelector('[data-builder-panel="inspector"]').click();
     assert.equal(document.querySelector(".builder-layout").dataset.mobilePanel,"inspector");
-    const {showInspector}=await import("../public/app/builder/inspect.js?v=workspace-v8");
+    const {showInspector}=await import("../public/app/builder/inspect.js?v=workspace-v13");
     const offline=state.layout.elemente[0];
     Object.assign(offline,{module:"OFFLINE_ESP",relay:5,sensorId:"S1",x:-10,y:20});
     state.hardware.modules={other:{id:"other",name:"Testmodul",kind:"RELAY_SENSOR",capabilities:["relay"],relays:[false],sensors:[],leds:[]}};

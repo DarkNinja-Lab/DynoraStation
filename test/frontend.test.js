@@ -8,7 +8,7 @@ global.localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>st
 test.after(()=>{global.fetch=originalFetch;delete global.document;delete global.localStorage;});
 
 test("API unterscheidet ungültiges JSON, Serverfehler und Aufrufer-Abbruch",async()=>{
-  const {apiCall}=await import("../public/app/core/api.js?v=workspace-v8");
+  const {apiCall}=await import("../public/app/core/api.js?v=workspace-v11");
   global.fetch=async()=>new Response("<html>Proxy</html>",{status:200});
   await assert.rejects(apiCall("/layout"),{code:"INVALID_RESPONSE"});
   global.fetch=async()=>new Response(JSON.stringify({message:"Disk full",code:"SAVE_FAILED"}),{status:500});
@@ -18,7 +18,7 @@ test("API unterscheidet ungültiges JSON, Serverfehler und Aufrufer-Abbruch",asy
   await assert.rejects(apiCall("/layout",{signal:controller.signal}),{name:"AbortError"});
 });
 test("Änderungen während einer Speicheranfrage bleiben ungespeichert und im Entwurf",async()=>{
-  const {state}=await import("../public/app/core/state.js?v=workspace-v8");
+  const {state}=await import("../public/app/core/state.js?v=workspace-v11");
   const {layoutSpeichern}=await import("../public/app/layout/layout.js");
   state.layout={metadaten:{name:"A"},elemente:[],verbindungen:[]};state.layoutDirty=true;
   let finish;let requests=0;
@@ -35,7 +35,7 @@ test("Änderungen während einer Speicheranfrage bleiben ungespeichert und im En
   assert.equal(state.layoutDirty,false);assert.equal(storage.has("dynora.layoutDraft"),false);
 });
 test("Lokaler Entwurf wird auch bei ausgefallener Station geladen",async()=>{
-  const {state}=await import("../public/app/core/state.js?v=workspace-v8");
+  const {state}=await import("../public/app/core/state.js?v=workspace-v11");
   const {layoutLaden}=await import("../public/app/layout/layout.js");
   storage.set("dynora.layoutDraft",JSON.stringify({layout:{metadaten:{name:"Offline"},elemente:[],verbindungen:[]}}));
   global.fetch=async()=>{throw new Error("offline")};

@@ -48,6 +48,13 @@ async function ackAll(moduleId) {
   return commands;
 }
 
+async function postLayout(layout, headers = { "content-type": "application/json" }) {
+  const status = await (await fetch(`${baseUrl}/api/status`)).json();
+  const requestHeaders = { ...headers };
+  if (status?.layoutVersion) requestHeaders["If-Match"] = status.layoutVersion;
+  return fetch(`${baseUrl}/api/layout`, { method: "POST", headers: requestHeaders, body: JSON.stringify(layout) });
+}
+
 test.before(async () => {
   for (const name of dataFiles) {
     const file = path.join(testDataDir, name);
@@ -112,7 +119,7 @@ test("Navigation und responsive Arbeitsbereiche sind konsistent eingebunden", ()
   assert.doesNotMatch(html, /id="page-rules"/);
   assert.match(html, /class="global-header"/);
   assert.match(html, /class="system-drawer"/);
-  assert.match(html, /class="station-overview"/);
+  assert.match(html, /class="overview-board"/);
   assert.match(workspaceCss, /#page-dashboard\.active/);
   assert.match(workspaceCss, /#page-builder\.active/);
   assert.match(workspaceCss, /#page-track\.active/);
@@ -149,8 +156,9 @@ test("alle Gleisbilder werden vollständig ausgeliefert", async () => {
     assert.equal(response.status, 200, file);
     const body = Buffer.from(await response.arrayBuffer());
     assert.equal(body.length, fs.statSync(path.join(assetDir, file)).size, file);
-    assert.equal(body[0], 0xff, file);
-    assert.equal(body[1], 0xd8, file);
+    const isJpeg = body[0] === 0xff && body[1] === 0xd8;
+    const isPng = body[0] === 0x89 && body[1] === 0x50 && body[2] === 0x4e && body[3] === 0x47;
+    assert.equal(isJpeg || isPng, true, file);
   }));
 });
 
@@ -511,14 +519,11 @@ test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom He
 
 test("Anlagenplattenmasse und Raster werden sofort persistent gespeichert", async () => {
   const headers = { "content-type": "application/json" };
-  const response = await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({
-      metadaten: { name: "Mass-Test", massstab: "H0", plateWidthMm: 4200, plateHeightMm: 2100, rasterMm: 25, raster: 12.5 },
-      elemente: [{ id: "hidden-switch", typ: "switch", x: 200, y: 200, switchCode: "5141", showInDirectControl: false }],
-      verbindungen: [], stromkreise: []
-    })
-  });
+  const response = await postLayout({
+    metadaten: { name: "Mass-Test", massstab: "H0", plateWidthMm: 4200, plateHeightMm: 2100, rasterMm: 25, raster: 12.5 },
+    elemente: [{ id: "hidden-switch", typ: "switch", x: 200, y: 200, switchCode: "5141", showInDirectControl: false }],
+    verbindungen: [], stromkreise: []
+  }, headers);
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(body.layout.metadaten.plateWidthMm, 4200);
@@ -571,10 +576,7 @@ test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfeh
   });
   const baseElement = { id: "signal-test", typ: "espSignal", x: 200, y: 200, module: moduleId, ledChannelRed: 1, ledChannelGreen: 2, ledState: "halt" };
 
-  let response = await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({ metadaten: {}, elemente: [{ ...baseElement, signalAspectMode: "rg", ledChannelYellow: 0 }], verbindungen: [], stromkreise: [] })
-  });
+  let response = await postLayout({ metadaten: {}, elemente: [{ ...baseElement, signalAspectMode: "rg", ledChannelYellow: 0 }], verbindungen: [], stromkreise: [] }, headers);
   assert.equal(response.status, 200);
   response = await fetch(`${baseUrl}/api/esp-signal/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "signal-test", state: "fahrt" }) });
   assert.equal(response.status, 200);
@@ -582,10 +584,7 @@ test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfeh
   response = await fetch(`${baseUrl}/api/esp-signal/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "signal-test", state: "warnung" }) });
   assert.equal(response.status, 400);
 
-  response = await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({ metadaten: {}, elemente: [{ ...baseElement, signalAspectMode: "rgy", ledChannelYellow: 3 }], verbindungen: [], stromkreise: [] })
-  });
+  response = await postLayout({ metadaten: {}, elemente: [{ ...baseElement, signalAspectMode: "rgy", ledChannelYellow: 3 }], verbindungen: [], stromkreise: [] }, headers);
   assert.equal(response.status, 200);
   response = await fetch(`${baseUrl}/api/esp-signal/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "signal-test", state: "warnung" }) });
   assert.equal(response.status, 200);
@@ -685,13 +684,10 @@ test("Entkupplungsgleis 5112 nutzt einen sicheren Relais-Impuls und behält den 
     body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false, false], sensors: [{ id: "S1", state: false }] }))
   })).status, 200);
 
-  assert.equal((await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({ metadaten: {}, stromkreise: [], verbindungen: [], elemente: [{
-      id: "uncoupler-1", typ: "track", trackCode: "5112", module: moduleId, relay: 2,
-      sensorId: "S1", uncouplerDurationMs: 650
-    }] })
-  })).status, 200);
+  assert.equal((await postLayout({ metadaten: {}, stromkreise: [], verbindungen: [], elemente: [{
+    id: "uncoupler-1", typ: "track", trackCode: "5112", module: moduleId, relay: 2,
+    sensorId: "S1", uncouplerDurationMs: 650
+  }] }, headers)).status, 200);
 
   const response = await fetch(`${baseUrl}/api/track/control`, {
     method: "POST", headers, body: JSON.stringify({ elementId: "uncoupler-1", toggle: true })
@@ -729,9 +725,7 @@ test("Direktsteuerungs-Endpunkte übernehmen Zustände erst nach ESP-Bestätigun
     { id: "audit-crossing", typ: "crossing", module: moduleId, xTrackCode: "5128", relayA: 3, relayB: 4 },
     { id: "audit-signal", typ: "signal", module: moduleId, relayHp0: 5, relayHp1: 6 }
   ];
-  assert.equal((await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers, body: JSON.stringify({ metadaten: {}, elemente: elements, verbindungen: [], stromkreise: [] })
-  })).status, 200);
+  assert.equal((await postLayout({ metadaten: {}, elemente: elements, verbindungen: [], stromkreise: [] }, headers)).status, 200);
 
   const trackResponse = await fetch(`${baseUrl}/api/track/control`, { method: "POST", headers, body: JSON.stringify({ elementId: "audit-track", state: true }) });
   assert.equal(trackResponse.status, 200);
@@ -893,32 +887,26 @@ test("Fehlgeschlagene ESP-Bestätigung ändert den bestätigten Relaiszustand ni
 
 test("Layout-API meldet Relais-Konflikte und akzeptiert explizite gemeinsame Stromkreise", async () => {
   const headers = { "content-type": "application/json" };
-  let response = await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({
-      metadaten: {}, stromkreise: [], verbindungen: [],
-      elemente: [
-        { id: "conflict-a", typ: "track", module: "ESP-CONFLICT", relay: 4 },
-        { id: "conflict-b", typ: "curve", module: "ESP-CONFLICT", relay: 4 }
-      ]
-    })
-  });
+  let response = await postLayout({
+    metadaten: {}, stromkreise: [], verbindungen: [],
+    elemente: [
+      { id: "conflict-a", typ: "track", module: "ESP-CONFLICT", relay: 4 },
+      { id: "conflict-b", typ: "curve", module: "ESP-CONFLICT", relay: 4 }
+    ]
+  }, headers);
   assert.equal(response.status, 200);
   let body = await response.json();
   assert.equal(body.warnings.relayConflicts.length, 1);
 
-  response = await fetch(`${baseUrl}/api/layout`, {
-    method: "POST", headers,
-    body: JSON.stringify({
-      metadaten: {},
-      stromkreise: [{ id: "shared", name: "Gemeinsam", module: "ESP-CONFLICT", relay: 4 }],
-      verbindungen: [],
-      elemente: [
-        { id: "shared-a", typ: "track", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" },
-        { id: "shared-b", typ: "curve", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" }
-      ]
-    })
-  });
+  response = await postLayout({
+    metadaten: {},
+    stromkreise: [{ id: "shared", name: "Gemeinsam", module: "ESP-CONFLICT", relay: 4 }],
+    verbindungen: [],
+    elemente: [
+      { id: "shared-a", typ: "track", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" },
+      { id: "shared-b", typ: "curve", module: "ESP-CONFLICT", relay: 4, stromkreis: "shared" }
+    ]
+  }, headers);
   assert.equal(response.status, 200);
   body = await response.json();
   assert.deepEqual(body.warnings.relayConflicts, []);
@@ -929,10 +917,7 @@ test("Layout-API meldet einen Schreibfehler als Fehler statt als gespeicherten P
   const previousLayout = runtimeState.layout;
   try {
     runtimeState.paths.LAYOUT_FILE = path.join(testDataDir, "missing-directory", "layout.json");
-    const response = await fetch(`${baseUrl}/api/layout`, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ elemente: [], verbindungen: [], metadaten: { name: "Not saved" } })
-    });
+    const response = await postLayout({ elemente: [], verbindungen: [], metadaten: { name: "Not saved" } }, { "content-type": "application/json" });
     assert.equal(response.status, 500);
     assert.equal((await response.json()).code, "SAVE_FAILED");
   } finally {
