@@ -609,11 +609,12 @@ test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", (
   assert.ok(Math.abs(TRACK_CATALOG["5202"].radius * Math.sin(TRACK_CATALOG["5202"].angleDeg * Math.PI / 180) - TRACK_CATALOG["5202"].length) < 0.2);
   assert.equal(TRACK_CATALOG["5128"].crossingAngleDeg, 30);
   assert.equal(TRACK_CATALOG["5141"].radius, 360);
-  assert.equal(TRACK_CATALOG["5141"].branchLead, 77.4);
+  assert.equal(TRACK_CATALOG["5141"].branchRadius, 437.4);
   assert.equal(TRACK_CATALOG["5141"].angleDeg, 30);
   assert.equal(TRACK_CATALOG["5141"].innerCurveCode, "5100");
-  assert.equal(TRACK_CATALOG["5141"].outerCurveCode, "5100");
+  assert.equal(TRACK_CATALOG["5141"].outerCurveCode, "5200");
   assert.equal(TRACK_CATALOG["5141"].switchGeometry, "5141");
+  assert.equal(TRACK_CATALOG["5142"].handed, "right");
 });
 
 test("Direktsteuerung priorisiert bei ESP-Signalen den LED-Zustand", async () => {
@@ -662,16 +663,15 @@ test("Planprüfung erkennt Hardwarefehler, Relais-Konflikte und isolierte Gleise
 
 test("5141 stellt drei klar getrennte und korrekt ausgerichtete Anschluesse bereit", async () => {
   const { localConnectionPorts } = await import("../public/app/builder/shapes.js");
-  const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, branchLead: 77.4, angleDeg: 30 });
+  const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, branchRadius: 437.4, angleDeg: 30 });
   assert.equal(ports.length, 3);
-  assert.ok(Math.abs(ports[0].x + 64.35) < .02);
+  assert.ok(Math.abs(ports[0].x + 54.675) < .02);
   assert.equal(ports[0].y, 0);
   assert.equal(ports[0].angle, 180);
-  assert.equal(ports[1].y, ports[2].y);
   assert.equal(ports[1].angle, -30);
   assert.equal(ports[2].angle, -30);
-  assert.notEqual(ports[1].x, ports[2].x);
-  assert.ok(Math.abs((ports[1].x - ports[2].x) - 38.7) < .02);
+  assert.ok(ports[1].x > ports[2].x);
+  assert.ok(ports[1].y < ports[2].y);
 });
 
 test("Entkupplungsgleis 5112 nutzt einen sicheren Relais-Impuls und behält den Sensor", async () => {

@@ -11,6 +11,7 @@ import {
 import { persistDraft } from "../layout/layout.js?v=workspace-v11";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { refreshPlanValidation } from "./validation.js?v=workspace-v11";
+import { showToast } from "../ui/toast.js?v=workspace-v14";
 
 export function canvasSize() {
   return {
@@ -204,6 +205,18 @@ function connectElement(element) {
   const source = state.layout.elemente?.find((item) => item.id === state.connectFrom);
   const target = element;
   if (source && source.id !== target.id) {
+    const links = Array.isArray(state.layout.verbindungen) ? state.layout.verbindungen : [];
+    const sourceHasOtherLinks = links.some((link) =>
+      (link.von === source.id || link.nach === source.id) &&
+      !((link.von === source.id && link.nach === target.id) || (link.von === target.id && link.nach === source.id))
+    );
+    if (sourceHasOtherLinks) {
+      showToast("Quellgleis ist bereits mit anderen Bauteilen verbunden. Bitte zuerst trennen.", "warning");
+      state.connectFrom = null;
+      state.selectedElement = target.id;
+      renderCanvas();
+      return;
+    }
     const sourcePorts = localConnectionPorts(source, elementCatalogItem(source));
     const targetPorts = localConnectionPorts(target, elementCatalogItem(target));
     let best = null;

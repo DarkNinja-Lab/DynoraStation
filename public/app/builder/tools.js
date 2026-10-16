@@ -299,6 +299,7 @@ function deleteElement() {
   state.layout.verbindungen = (state.layout.verbindungen || []).filter(
     connection => connection.von !== state.selectedElement && connection.nach !== state.selectedElement
   );
+  state.connectFrom = null;
   state.layoutDirty = true;
   state.selectedElement = null;
   renderCanvas();
