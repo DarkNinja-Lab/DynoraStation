@@ -183,29 +183,27 @@ function drawCurvedTurnoutRoute(g, startX, radius, angle, sign, railColor) {
 export function turnout5141Geometry(geometry, sign) {
   const scale = .5;
   const innerRadius = Math.max(250, Number(geometry.radius) || 360) * scale;
-  const branchLead = Math.max(0, Number(geometry.branchLead) || 77.4) * scale;
+  const outerRadius = Math.max(innerRadius + 1, Math.max(250, Number(geometry.branchRadius) || 437.4) * scale);
   const angleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
   const angle = angleDeg * Math.PI / 180;
-  const curveSpan = innerRadius * Math.sin(angle);
-  const startX = -(branchLead + curveSpan) / 2;
-  const outerStartX = startX + branchLead;
+  const innerSpan = innerRadius * Math.sin(angle);
+  const outerSpan = outerRadius * Math.sin(angle);
+  const startX = -outerSpan / 2;
   const innerPath = curvedRoutePath(startX, innerRadius, angle, sign);
-  const outerCurve = curvedRoutePath(outerStartX, innerRadius, angle, sign);
-  const outerArc = outerCurve.slice(outerCurve.indexOf(" A"));
+  const outerPath = curvedRoutePath(startX, outerRadius, angle, sign);
   return {
-    startX, outerStartX, branchLead, innerRadius, angle, angleDeg,
+    startX, innerRadius, outerRadius, angle, angleDeg,
     innerPath,
-    outerPath: `M ${startX} 0 L ${outerStartX} 0${outerArc}`,
-    innerEnd: { x: startX + curveSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg },
-    outerEnd: { x: outerStartX + curveSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg }
+    outerPath,
+    innerEnd: { x: startX + innerSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg },
+    outerEnd: { x: startX + outerSpan, y: sign * outerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg }
   };
 }
 
 function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute, geometry) {
   const layout = turnout5141Geometry(geometry, sign);
   drawCurvedTurnoutRoute(g, layout.startX, layout.innerRadius, layout.angle, sign, railColor);
-  drawDoubleRailLine(g, layout.startX, 0, layout.outerStartX, 0, railColor, 8);
-  drawCurvedTurnoutRoute(g, layout.outerStartX, layout.innerRadius, layout.angle, sign, railColor);
+  drawCurvedTurnoutRoute(g, layout.startX, layout.outerRadius, layout.angle, sign, railColor);
 
   [{ path: layout.innerPath, active: !isGerade }, { path: layout.outerPath, active: isGerade }].forEach((route) => {
     const stateRoute = svg("path");

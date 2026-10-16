@@ -37,7 +37,7 @@ services:
       - "${DYNORA_APPDATA:-/mnt/user/appdata/dynora_station/data}:/data"
 
     labels:
-      net.unraid.docker.icon: "http://[IP]:${SERVER_PORT:-8181}/assets/brand/dynora-logo-180.png"
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/DarkNinja-Lab/DynoraStation/main/public/assets/brand/dynora-logo-180.png"
       net.unraid.docker.webui: "http://[IP]:${SERVER_PORT:-8181}/"
       net.unraid.docker.shell: sh
 

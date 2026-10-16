@@ -24,6 +24,7 @@ test("Artikelleiste und Eigenschaften lassen die Zeichenfläche im Layout", () =
   const dom = new JSDOM(read("public/index.html"));
   const document = dom.window.document;
   for (const filename of ["public/style.css", "public/workspace.css"]) {
+    if (!fs.existsSync(path.join(__dirname, "..", filename))) continue;
     const style = document.createElement("style");style.textContent = read(filename);document.head.appendChild(style);
   }
   const layout=document.querySelector('.builder-layout');

@@ -5,3 +5,5 @@ npm-debug.log*
 *.log
 yarn.lock
 installer/
+DynoraStation-Linux.sh
+DynoraStation-Windows.cmd
