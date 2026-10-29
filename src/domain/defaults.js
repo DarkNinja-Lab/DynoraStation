@@ -2,10 +2,10 @@
 
 function defaultLightButtons() {
   return [
-    { id: 1, name: "Licht 1", module: "", relay: 0 },
-    { id: 2, name: "Licht 2", module: "", relay: 0 },
-    { id: 3, name: "Licht 3", module: "", relay: 0 },
-    { id: 4, name: "Licht 4", module: "", relay: 0 }
+    { id: 1, name: "Licht 1", icon: "light", module: "", relay: 0 },
+    { id: 2, name: "Licht 2", icon: "light", module: "", relay: 0 },
+    { id: 3, name: "Licht 3", icon: "light", module: "", relay: 0 },
+    { id: 4, name: "Licht 4", icon: "light", module: "", relay: 0 }
   ];
 }
 

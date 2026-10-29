@@ -1,6 +1,6 @@
 "use strict";
 
-import { getLanguage } from "./i18n.js?v=workspace-v21";
+import { getLanguage } from "./i18n.js?v=workspace-v23";
 
 // German source text -> English. Whole strings are matched first, then phrases
 // (longest first) so dynamic messages built from several fragments are covered.
@@ -61,9 +61,15 @@ const PHRASES = {
   "Schnellzugriff": "Quick access", "Erste Schritte": "Getting started", "Fahrwege, Rückmelder und Schaltzustände auf einen Blick.": "Routes, feedback sensors and switching states at a glance.",
   "Geräte prüfen": "Check devices", "Stromversorgung, WLAN und angezeigte IP-Adresse prüfen.": "Check power supply, Wi-Fi and the displayed IP address.",
   "Gleisplan bearbeiten": "Edit track plan", "Gleisbild bearbeiten": "Edit track plan", "Gleisbild bedienen, Weichen und Signale schalten, Anlagenlicht steuern.": "Operate the track plan, switch turnouts and signals, control layout lighting.",
+  "Gleise lassen sich bis an alle vier Plattenränder ziehen. Wenn das Raster den letzten Schritt zu grob macht, deaktiviere „Am Raster einrasten“ unter Plan & Raster.": "Tracks can be moved right to all four board edges. If grid snapping makes the final adjustment too coarse, turn off “Snap to grid” under Plan & Grid.",
   "Geräte konfigurieren": "Configure devices", "Wähle aus, was du einrichten möchtest.": "Choose what you want to set up.",
   "Verbindungen prüfen und Geräte benennen": "Check connections and name devices", "Wenn-Dann-Abläufe anlegen": "Create if-then sequences",
   "Automationen verwalten": "Manage automations", "Grundstellungen verwalten": "Manage default states", "Startzustände der Anlage festlegen": "Define the layout's start states",
+  "DynoraStation-Updates": "DynoraStation updates", "DynoraStation aktualisieren": "Update DynoraStation", "ESP-Firmware": "ESP firmware",
+  "Versionsprüfung gegen die version.txt im GitHub-main-Zweig.": "Check the version.txt on the GitHub main branch.", "Jetzt prüfen": "Check now",
+  "Versionsprüfung wird geladen …": "Loading version status …", "Verbindung zu GitHub wird geprüft.": "Checking the connection to GitHub.",
+  "DynoraStation ist aktuell": "DynoraStation is up to date", "Update verfügbar": "Update available", "Aktuell": "Up to date",
+  "Prüfung fehlgeschlagen": "Check failed", "GitHub-Prüfung nicht möglich": "Could not check GitHub", "Erneut prüfen": "Check again",
   "Firmware-Updates": "Firmware updates", "Firmware-Update (OTA)": "Firmware update (OTA)", "Firmware-Update per OTA": "Firmware update via OTA",
   "Firmware per OTA aktualisieren": "Update firmware via OTA", "ESP-Firmware erstellen und per OTA installieren": "Build ESP firmware and install via OTA",
   "Firmware auf dem Server bauen und anschließend per OTA auf einen ESP übertragen.": "Build firmware on the server and then transfer it to an ESP via OTA.",
@@ -164,6 +170,7 @@ const PHRASES = {
   "konnte nicht gesteuert werden:": "could not be controlled:", "konnten nicht gespeichert werden:": "could not be saved:",
   "Hier": "Here", "Keine passende Automation": "No matching automation", "Automationen suchen": "Search automations", "Noch keine Automation": "No automation yet",
   "Neue Automation": "New automation", "Automation anlegen": "Create automation", "Automation auswählen": "Select automation", "Automation löschen": "Delete automation",
+  "Einklappen": "Collapse", "Aufklappen": "Expand", "Automation einklappen": "Collapse automation", "Automation ausklappen": "Expand automation",
   "Automationen gespeichert": "Automations saved", "Aktion hinzufügen": "Add action", "Aktion wählen…": "Choose action…", "Auslöser wählen…": "Choose trigger…",
   "Ziel wählen…": "Choose target…", "Typ wählen…": "Choose type…", "Zieltyp": "Target type", "Sperrzeit": "Cooldown", "Sekunden": "seconds", "Min": "min", "Std": "h",
   "WENN": "IF", "DANN": "THEN", "Lege eine Automation an und ergänze darunter beliebig mehrere WENN-DANN-Regeln.": "Create an automation and add any number of IF-THEN rules below it.",
@@ -265,7 +272,7 @@ const PHRASES = {
   "Signal": "Signal", "Hauptsignal": "Main signal", "Hauptsignal-Konfiguration": "Main signal configuration", "Märklin-Hauptsignal": "Märklin main signal", "Märklin-Signal": "Märklin signal",
   "Märklin-Signal für Fahrstrom": "Märklin signal for track power", "ESP-Signal": "ESP signal", "ESP-Signalmast": "ESP signal mast", "ESP-Signal-Konfiguration": "ESP signal configuration",
   "Transformator": "Transformer", "Transformator-Konfiguration": "Transformer configuration", "Trafo": "Transformer", "Belegtsensor": "Occupancy sensor", "Einzelne LED": "Single LED",
-  "Signaltyp": "Signal type", "Kanäle für Rot und Grün": "Channels for red and green", "Kanäle für Rot, Gelb und Grün": "Channels for red, yellow and green",
+  "Signaltyp": "Signal type", "Fahrtrichtung": "Direction of travel", "Nach rechts (Pfeil →)": "To the right (arrow →)", "Nach links (Pfeil ←)": "To the left (arrow ←)", "Der Pfeil zeigt, für welche Fahrtrichtung das Signal gilt.": "The arrow shows which travel direction the signal applies to.", "Kanäle für Rot und Grün": "Channels for red and green", "Kanäle für Rot, Gelb und Grün": "Channels for red, yellow and green",
   "Rot": "Red", "Gelb": "Yellow", "Grün": "Green", "Blau": "Blue", "Weiß": "White", "Warmweiß": "Warm white", "Orange": "Orange", "Rot und Grün": "Red and green", "Rot, Gelb und Grün": "Red, yellow and green",
   "Grün / Fahrt": "Green / Go", "2-begriffig · Rot / Grün": "2-aspect · Red / Green", "3-begriffig · Rot / Gelb / Grün": "3-aspect · Red / Yellow / Green",
   "ESP-Signal · Rot / Gelb / Grün": "ESP signal · Red / Yellow / Green", "ESP-Signal · Rot / Grün": "ESP signal · Red / Green", "LED GRÜN Kanal": "LED GREEN channel", "LED ROT Kanal": "LED RED channel",
@@ -294,6 +301,17 @@ const PHRASES = {
   "“ wirklich löschen?": "” really delete?", "„ wirklich löschen?": "” really delete?", "wirklich löschen?": "really delete?", "Abzweig/Innenbogen": "Branch/inner curve", "Stromabschnitt (optional)": "Track section (optional)",
   "Relay (Gleisstrom)": "Relay (track power)", "Relay (Stromversorgung)": "Relay (power supply)", "z. B. Beleuchtung": "e.g. Lighting", "Anschlussgleis mit Entstörung": "Feed track with interference suppression",
   "Quellen und Typen erscheinen, sobald Meldungen eintreffen.": "Sources and types appear as soon as messages arrive.", "Keine Ereignisse": "No events", "mit": "with",
+  // ---- settings guidance
+  "Wenn ein Ereignis eintritt, führt DynoraStation die festgelegten Aktionen aus. Erstelle eine Automation, füge Regeln hinzu und speichere sie anschließend.": "When an event occurs, DynoraStation runs the configured actions. Create an automation, add rules, and save them.",
+  "Eine Automation besteht aus Regeln": "An automation is made up of rules",
+  "Automation benennen.": "Name the automation.", "Je Regel einen Auslöser festlegen, zum Beispiel einen Sensor.": "Choose a trigger for each rule, such as a sensor.",
+  "Eine oder mehrere Aktionen ergänzen und die Änderungen speichern.": "Add one or more actions and save your changes.",
+  "Zurück zu allen Einstellungen": "Back to all settings",
+  "Lege fest, welche Weichen und Signale mit „Jetzt anwenden“ in ihre gewünschte Ausgangslage geschaltet werden.": "Choose which turnouts and signals should move to their desired starting state when you select “Apply now”.",
+  "Lege die Startzustände fest. DynoraStation sendet sie automatisch, sobald sich das zuständige ESP-Modul verbindet oder neu startet.": "Set the startup states. DynoraStation sends them automatically when the matching ESP module connects or restarts.",
+  "Automatisch beim Verbinden": "Automatically on connection", "Bauteiltyp, Ziel und gewünschte Startaktion wählen.": "Choose a component type, target, and desired startup action.",
+  "Beim nächsten Start oder Verbinden erhält jedes ESP nur die für seine Ausgänge passenden Zustände.": "On the next start or connection, each ESP receives only the states that match its outputs.",
+  "Standards speichern sichert die Liste.": "Save defaults to keep the list.", "Nach dem Speichern sendet DynoraStation die passenden Zustände automatisch, wenn sich das zuständige ESP-Modul verbindet oder neu startet.": "After saving, DynoraStation automatically sends the matching states when the ESP module connects or restarts.",
   // ---- misc
   "Alle": "All", "Keine": "None", "Hilfe": "Help", "und": "and", "oder": "or", "Fehler ·": "Error ·", "Fehler:": "Error:", "Fehlgeschlagen:": "Failed:",
   "Ungültig": "Invalid", "Synchronisiert ·": "Synchronized ·", "· LED": "· LED", "· Protokoll": "· Protocol", "· Regel": "· Rule", "· Relay": "· Relay", "Relais ·": "Relays ·", "LEDs ·": "LEDs ·",
@@ -335,7 +353,7 @@ export function translateText(text) {
 }
 
 export function maybeTranslate(text) {
-  return getLanguage() === "en" ? translateText(text) : text;
+  return getLanguage() !== "de" ? translateText(text) : text;
 }
 
 const textRecords = new WeakMap();
@@ -447,7 +465,7 @@ function stop() {
 
 function sync() {
   if (typeof MutationObserver === "undefined" || typeof document.createTreeWalker !== "function") return;
-  if (getLanguage() === "en") start(); else stop();
+  if (getLanguage() !== "de") start(); else stop();
 }
 
 function wrapDialogs() {

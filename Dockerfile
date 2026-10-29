@@ -31,6 +31,7 @@ ENV NODE_ENV=production \
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
+COPY version.txt ./
 COPY src ./src
 COPY public ./public
 COPY esp8266_code ./esp8266_code

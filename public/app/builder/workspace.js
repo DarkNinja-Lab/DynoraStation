@@ -1,12 +1,12 @@
-"use strict";
+﻿"use strict";
 
 import { trackImages } from "../catalog/images.js?v=workspace-v16";
-import { setBuilderPanel, syncBuilderContext } from "./panels.js?v=workspace-v11";
+import { setBuilderPanel, setupBuilderPanelControls, syncBuilderContext } from "./panels.js?v=workspace-v12";
 import { validateImport } from "./model.js?v=workspace-v11";
 
 import { state } from "../core/state.js?v=workspace-v11";
-import { beginPlacement, cancelPlacement, commitPlacement } from "./canvas.js?v=workspace-v11";
-import { renderCanvas, inspectorLeer, canvasPointFromEvent } from "./render.js?v=workspace-v11";
+import { beginPlacement, cancelPlacement, commitPlacement } from "./canvas.js?v=workspace-v12";
+import { renderCanvas, inspectorLeer, canvasPointFromEvent } from "./render.js?v=workspace-v17";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { layoutNormalisieren } from "../layout/layout.js?v=workspace-v11";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
@@ -33,11 +33,14 @@ function downloadPlan() {
 }
 
 export function initializeWorkspace() {
+  setupBuilderPanelControls();
   // Refresh optional user-supplied photos on each page load.
   const photoRevision = Date.now();
   let category = "tracks";
   let selectedIndex = -1;
-  const items = groups.flatMap(([key, typ, label, symbol]) => (state.catalog?.[key] || []).map(item => ({ ...item, typ, category: key, categoryLabel: label, symbol })));
+  const items = groups.flatMap(([key, typ, label, symbol]) => (state.catalog?.[key] || [])
+    .filter(item => !item.deprecatedForPlacement)
+    .map(item => ({ ...item, typ, category: key, categoryLabel: label, symbol })));
   items.push(
     { typ: "signal", label: "Märklin-Hauptsignal", code: "7039", imagePath: "/assets/track/7039.jpg", category: "control", symbol: "signal" },
     { typ: "espSignal", label: "ESP-Signal · Rot / Grün", code: "", mode: "rg", category: "control", symbol: "signal" },
@@ -60,14 +63,14 @@ export function initializeWorkspace() {
       const index = items.indexOf(item);
       const detail = item.length ? `${item.length} mm` : item.radius ? `R ${item.radius} · ${item.angleDeg}°` : item.handed ? (item.handed === "right" ? "Rechts" : "Links") : "Steuerung";
       const code = String(item.code || "");
-      const fallbackPath = item.imagePath || (code ? `/assets/track/${encodeURIComponent(code)}.jpg` : "");
+      const fallbackPath = item.imagePath || "";
       const imageSource = trackImages[code] || (fallbackPath ? `${fallbackPath}?v=${photoRevision}` : "");
       const image = imageSource
         ? `<img data-image-src="${esc(imageSource)}" alt="${esc(item.label)}" width="120" height="66" draggable="false">`
         : "";
       const symbol = item.typ === "espSignal" || item.typ === "signal"
         ? `<svg viewBox="0 0 100 60" aria-hidden="true"><path d="M50 40V55M40 55H60" stroke="#303a40" stroke-width="4"/><rect x="40" y="2" width="20" height="43" rx="7" fill="#252c31"/><circle cx="50" cy="11" r="5" fill="#df4548"/>${item.mode === "rgy" ? '<circle cx="50" cy="23" r="5" fill="#e8ba39"/>' : ""}<circle cx="50" cy="35" r="5" fill="#29a85c"/></svg>`
-        : icon(String(item.code) === "5112" ? "uncoupler" : item.symbol);
+        : icon(String(item.code) === "5112" ? "uncoupler" : item.typ === "switch" ? (item.handed === "right" ? "turnout-right" : "turnout-left") : item.symbol);
       return `<button type="button" class="component-card${index === selectedIndex && state.placement ? " active" : ""}" data-component="${index}" draggable="true" aria-pressed="${index === selectedIndex && Boolean(state.placement)}" title="${esc(item.label)}: anklicken oder in den Plan ziehen"><span class="component-picture${image ? " has-photo" : ""}">${image}<span class="component-symbol">${symbol}</span></span><span class="component-description"><strong>${esc(item.code || "ESP")} <span>${esc(item.categoryLabel || (item.typ === "transformer" ? "Trafo" : "Signal"))}</span></strong><small>${esc(item.label === item.code ? detail : `${item.label} · ${detail}`)}</small></span></button>`;
     }).join("") || '<div class="library-empty">Keine Bauteile gefunden.<br>Versuche eine andere Artikelnummer oder Kategorie.</div>';
     list.querySelectorAll(".component-picture img").forEach((image) => {

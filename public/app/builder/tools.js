@@ -1,13 +1,13 @@
-"use strict";
+﻿"use strict";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
 import { duplicateForPlacement, normalizedRotation } from "./model.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v13";
-import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v11";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v14";
+import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v17";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { recordHistory } from "./history.js?v=workspace-v11";
-import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v11";
+import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v12";
 
 
 function isTypingTarget(target) {
@@ -274,7 +274,7 @@ function duplicateElement() {
   state.selectedElement = newElement.id;
   state.layoutDirty = true;
   renderCanvas();
-  showInspector(newElement);
+  showInspector(newElement, { focusPanel: false });
   showToast("Kopie erstellt · Hardware bitte neu zuweisen");
 }
 
@@ -287,7 +287,7 @@ function rotateElement(degrees) {
   el.winkel = el.rotation;
   state.layoutDirty = true;
   renderCanvas();
-  showInspector(el);
+  showInspector(el, { focusPanel: false });
   showToast(`Rotiert um ${degrees}°`);
 }
 

@@ -2,9 +2,11 @@
 
 const express = require("express");
 const crypto = require("node:crypto");
+const fs = require("node:fs/promises");
+const path = require("node:path");
 const { wrap, apiError } = require("../utils/errors");
 const { ipFromReq } = require("../utils/network");
-const { cleanText, validLedChannel, validBrightness } = require("../utils/sanitize");
+const { cleanText, validRelay, validLedChannel, validBrightness, makeOperationId } = require("../utils/sanitize");
 const { parseState } = require("../utils/parse");
 const { executeRulesForTrigger } = require("../domain/rules/executeRulesForTrigger");
 const { buildFirmware, SKETCHES } = require("../services/ota/buildFirmware");
@@ -39,6 +41,92 @@ function createModuleRoutes({
     }
   }
 
+  function normalizeFirmwareConfiguration(body) {
+    const wifiSsid = typeof body?.wifiSsid === "string" ? body.wifiSsid : "";
+    const wifiPassword = typeof body?.wifiPassword === "string" ? body.wifiPassword : "";
+    const serverHost = typeof body?.serverHost === "string" ? body.serverHost.trim() : "";
+    const serverPort = Number(body?.serverPort);
+    if (!wifiSsid || wifiSsid.length > 32 || /[\u0000-\u001f\u007f]/.test(wifiSsid)) {
+      throw apiError(400, "WIFI_SSID_INVALID", "Der WLAN-Name muss 1 bis 32 Zeichen lang sein und darf keine Steuerzeichen enthalten.");
+    }
+    if (wifiPassword.length > 63 || /[\u0000-\u001f\u007f]/.test(wifiPassword) || (wifiPassword && wifiPassword.length < 8)) {
+      throw apiError(400, "WIFI_PASSWORD_INVALID", "Das WLAN-Passwort muss leer oder 8 bis 63 Zeichen lang sein.");
+    }
+    if (!/^[A-Za-z0-9.-]{1,253}$/.test(serverHost) || serverHost.startsWith(".") || serverHost.endsWith(".") || serverHost.includes("..") || serverHost.toLowerCase() === "localhost") {
+      throw apiError(400, "SERVER_HOST_INVALID", "Bitte eine erreichbare IPv4-Adresse oder einen Hostnamen statt localhost eintragen.");
+    }
+    if (!Number.isInteger(serverPort) || serverPort < 1 || serverPort > 65535) {
+      throw apiError(400, "SERVER_PORT_INVALID", "Der Stations-Port muss zwischen 1 und 65535 liegen.");
+    }
+    return { wifiSsid, wifiPassword, serverHost, serverPort };
+  }
+
+  function queueDefaultsForConnectedModule(moduleId, module) {
+    const defaults = Array.isArray(runtimeState.hardware?.defaults) ? runtimeState.hardware.defaults : [];
+    const layoutElements = Array.isArray(runtimeState.layout?.elemente) ? runtimeState.layout.elemente : [];
+    let queued = 0;
+    const hasRelay = module.capabilities?.includes("relay") && module.health?.relayDriverReady !== false;
+    const hasLed = module.capabilities?.includes("led");
+    const relayChannel = (value) => {
+      const channel = validRelay(value);
+      return hasRelay && channel && channel <= (module.relays?.length || 0) ? channel : 0;
+    };
+    const ledChannel = (value) => {
+      const channel = validLedChannel(value);
+      return hasLed && channel && channel <= (module.leds?.length || 0) ? channel : 0;
+    };
+    const enqueue = (type, data) => {
+      commandQueueApi.createCommand(type, data, moduleId);
+      queued += 1;
+    };
+
+    defaults.slice(0, 100).forEach((item, index) => {
+      const type = String(item?.targetType || "").trim().toLowerCase();
+      const targetId = String(item?.targetId || "").trim();
+      const action = String(item?.action || "").trim().toLowerCase();
+      if (!targetId || !action) return;
+      const operationId = makeOperationId(`BOOT_DEFAULT_${index}`);
+
+      if (type === "relay") {
+        const prefix = `${moduleId}:`;
+        if (!targetId.startsWith(prefix)) return;
+        const channel = relayChannel(targetId.slice(prefix.length));
+        if (!channel) return;
+        enqueue("RELAY_SET", { channel, state: ["on", "ein", "1", "true"].includes(action), operationId });
+        return;
+      }
+
+      const element = layoutElements.find((candidate) => candidate.id === targetId);
+      if (!element || String(element.module || "") !== moduleId) return;
+      if (type === "switch" && element.typ === "switch") {
+        const straight = action === "gerade" || action === "straight";
+        const channel = relayChannel(straight ? element.relayStraight : element.relayBranch);
+        if (channel) enqueue("RELAY_PULSE", { channel, duration: 220, state: straight ? "gerade" : "abzweig", elementId: element.id, operationId });
+      } else if (type === "signal" && element.typ === "signal") {
+        const go = action === "fahrt" || action === "green";
+        const channel = relayChannel(go ? element.relayHp1 : element.relayHp0);
+        if (channel) enqueue("RELAY_PULSE", { channel, duration: 220, state: go ? "fahrt" : "halt", elementId: element.id, operationId });
+      } else if ((type === "crossing" || type === "xtrack") && element.typ === "xtrack") {
+        const straight = action === "gerade" || action === "straight";
+        const channel = relayChannel(straight ? element.relayA : element.relayB);
+        if (channel) enqueue("RELAY_PULSE", { channel, duration: 220, state: straight ? "gerade" : "abzweig", elementId: element.id, operationId });
+      } else if ((type === "espsignal" || type === "ledsignal") && element.typ === "ledSignal") {
+        const aspect = ["halt", "warnung", "fahrt"].includes(action) ? action : "halt";
+        const channels = {
+          halt: ledChannel(element.ledChannelRed),
+          warnung: ledChannel(element.ledChannelYellow),
+          fahrt: ledChannel(element.ledChannelGreen)
+        };
+        if (!channels[aspect]) return;
+        for (const [name, channel] of Object.entries(channels)) {
+          if (!channel) continue;
+          enqueue("LED_PWM", { channel, brightness: name === aspect ? validBrightness(runtimeState.hardware?.ledConfig?.[`${moduleId}:${channel}`]?.brightness ?? 255) : 0, state: aspect, elementId: element.id, operationId });
+        }
+      }
+    });
+    return queued;
+  }
+
   function commandPayload(cmd) {
     if (!cmd) return null;
     return {
@@ -62,6 +150,9 @@ function createModuleRoutes({
     const module = moduleRegistry.getOrCreateModule(moduleId);
     const wasOnline = moduleRegistry.moduleIsOnline(module);
     const heartbeatNow = Date.now();
+    const bootSessionId = cleanText(req.body?.bootId || "", 48);
+    const newBootSession = bootSessionId ? module.bootSessionId !== bootSessionId : !wasOnline;
+    if (bootSessionId) module.bootSessionId = bootSessionId;
     const firstRuntimeHeartbeat = module._heartbeatSeen !== true;
     module._heartbeatSeen = true;
 
@@ -107,6 +198,35 @@ function createModuleRoutes({
     }
     if (!wasOnline) {
       console.log(`[ESP] online · ${module.name} · ID ${moduleId} · ${module.ip || "IP unbekannt"}`);
+    }
+
+    const compatibility = moduleRegistry.moduleCompatibility(module);
+    if (!compatibility.compatible) {
+      if (!runtimeState.hardware.modules || typeof runtimeState.hardware.modules !== "object") runtimeState.hardware.modules = {};
+      runtimeState.hardware.modules[moduleId] = {
+        ...(runtimeState.hardware.modules[moduleId] || {}),
+        id: moduleId, name: module.name, customName: Boolean(module.customName),
+        type: module.type, kind: module.kind, capabilities: module.capabilities,
+        ip: module.ip, lastHeartbeat: module.lastHeartbeat,
+        firmwareVersion: module.firmwareVersion, protocolVersion: module.protocolVersion,
+        hardwareType: module.hardwareType, health: module.health
+      };
+      runtimeState.hardware.updatedAt = heartbeatNow;
+      const lastHeartbeatPersistAt = Number(module._lastHeartbeatPersistAt || 0);
+      if (firstRuntimeHeartbeat || heartbeatNow - lastHeartbeatPersistAt >= env.HEARTBEAT_PERSIST_INTERVAL_MS) {
+        module._lastHeartbeatPersistAt = heartbeatNow;
+        queueWriteHardware();
+      }
+      return res.json({
+        ok: true,
+        serverTime: heartbeatNow,
+        serverVersion: env.APP_VERSION,
+        protocolVersion: env.PROTOCOL_VERSION,
+        compatibility,
+        health: module.health,
+        command: null,
+        accepted: { module: moduleId, relays: 0, sensors: 0, leds: 0 }
+      });
     }
 
     const pendingModuleCommands = runtimeState.commandQueue.filter((command) => command.module === moduleId);
@@ -314,11 +434,18 @@ function createModuleRoutes({
       });
     }
 
-    const compatibility = moduleRegistry.moduleCompatibility(module);
+    let startupDefaultsQueued = 0;
+    if (compatibility.compatible && newBootSession) {
+      startupDefaultsQueued = queueDefaultsForConnectedModule(moduleId, module);
+      if (startupDefaultsQueued) addEvent("DEFAULTS", moduleId, `${startupDefaultsQueued} Grundstellungs-Befehl(e) nach ESP-Verbindung vorgemerkt`);
+    }
+
     // Der Heartbeat ist ein zweiter, robuster Zustellweg. Falls ein Router oder
     // Proxy das schnelle GET-Polling stört, erhält der ESP den Befehl spätestens
     // mit dem nächsten ohnehin funktionierenden Heartbeat.
-    const heartbeatCommand = commandQueueApi.nextCommandForModule(moduleId);
+    const heartbeatCommand = compatibility.compatible
+      ? commandQueueApi.nextCommandForModule(moduleId)
+      : null;
     res.json({
       ok: true,
       serverTime: Date.now(),
@@ -326,6 +453,7 @@ function createModuleRoutes({
       protocolVersion: env.PROTOCOL_VERSION,
       compatibility,
       health: module.health,
+      startupDefaultsQueued,
       command: commandPayload(heartbeatCommand),
       accepted: {
         module: moduleId,
@@ -376,6 +504,8 @@ function createModuleRoutes({
     module.ip = ipFromReq(req) || module.ip || "";
 
     const triggered = parseState(req.body?.triggered);
+    const priorSensor = runtimeState.hardware.sensors.find((sensor) => sensor.module === moduleId && sensor.id === sensorId);
+    const duplicateState = Boolean(priorSensor && Boolean(priorSensor.triggered) === triggered);
 
     upsertSensor(runtimeState.hardware, moduleId, sensorId, {
       triggered,
@@ -394,6 +524,8 @@ function createModuleRoutes({
 
     runtimeState.hardware.updatedAt = Date.now();
     queueWriteHardware();
+
+    if (duplicateState) return res.json({ ok: true, duplicate: true, automations: { matched: 0, executed: 0 } });
 
     addEvent("SENSOR", `${moduleId}:${sensorId}`, `${sensorName} ${triggered ? "ausgelöst" : "frei"}`);
 
@@ -509,17 +641,46 @@ function createModuleRoutes({
       });
     }
 
+    const module = runtimeState.modules[moduleId];
+    if (!module || !moduleRegistry.moduleCanControl(module)) {
+      const compatibility = module
+        ? moduleRegistry.moduleCompatibility(module)
+        : { compatible: false, status: "unknown", reason: "Modul hat noch keinen Heartbeat gesendet" };
+      return res.json({ command: null, blocked: compatibility });
+    }
+
     const cmd = commandQueueApi.nextCommandForModule(moduleId);
     if (!cmd) return res.json({ command: null });
 
     res.json({ command: commandPayload(cmd) });
   });
 
+  router.get("/api/ota/config-status", (req, res) => {
+    const hardwareType = cleanText(req.query?.hardwareType || "", 80);
+    res.set("Cache-Control", "no-store");
+    res.json({ enabled: String(env.OTA_SHARED_SECRET || "").length >= 24, supportedHardware: Object.keys(SKETCHES), supported: Boolean(SKETCHES[hardwareType]) });
+  });
+
+  router.get("/api/ota/sketch-template", wrap(async (req, res) => {
+    const hardwareType = cleanText(req.query?.hardwareType || "", 80);
+    const sketchName = SKETCHES[hardwareType];
+    if (!sketchName) throw apiError(400, "FIRMWARE_TYPE_UNSUPPORTED", "Für diesen ESP-Hardwaretyp gibt es keine Firmwarevorlage.");
+    const sourcePath = path.join(__dirname, "../../esp8266_code", `${sketchName}.ino`);
+    const source = await fs.readFile(sourcePath, "utf8");
+    if (!source.includes("HIER_DEN_GLEICHEN_LANGEN_SCHLUESSEL_EINTRAGEN") || !source.includes('WIFI_SSID = "DEIN_WLAN_NAME"')) {
+      throw apiError(503, "FIRMWARE_TEMPLATE_UNSAFE", "Die USB-Vorlage enthält keine sicheren Standard-Platzhalter.");
+    }
+    res.set({ "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+    res.send(source);
+  }));
+
   router.post("/api/ota/build", wrap(async (req, res) => {
     const secret = String(env.OTA_SHARED_SECRET || "");
     const hardwareType = cleanText(req.body?.hardwareType || "", 80);
     if (!secret) throw apiError(503, "OTA_DISABLED", "OTA ist nicht aktiviert. OTA_SHARED_SECRET fehlt.");
     if (!SKETCHES[hardwareType]) throw apiError(400, "FIRMWARE_TYPE_UNSUPPORTED", "Für diesen ESP-Hardwaretyp gibt es keine Firmwarevorlage.");
+    if (secret.length < 24) throw apiError(503, "OTA_SECRET_TOO_SHORT", "OTA_SHARED_SECRET muss mindestens 24 Zeichen lang sein.");
+    const configuration = normalizeFirmwareConfiguration(req.body);
     const previous = runtimeState.firmwareBuilds.get(hardwareType);
     if (previous?.status === "building") throw apiError(409, "OTA_BUILD_RUNNING", "Diese Firmware wird bereits gebaut.");
     const build = { hardwareType, status: "building", progress: 5, message: "Firmware-Quelle wird vorbereitet …", version: "", firmware: null, updatedAt: Date.now(), error: "" };
@@ -529,7 +690,7 @@ function createModuleRoutes({
       try {
         build.progress = 15;
         build.message = "Arduino-Compiler wird gestartet …";
-        const result = await buildFirmware(hardwareType, secret, env.DYNORA_DATA_DIR || "/data", percent => { build.progress = Math.min(90, 15 + Math.floor(percent * 0.75)); build.message = `Firmware wird kompiliert … ${percent}%`; build.updatedAt = Date.now(); });
+        const result = await buildFirmware(hardwareType, secret, env.DYNORA_DATA_DIR || "/data", percent => { build.progress = Math.min(90, 15 + Math.floor(percent * 0.75)); build.message = `Firmware wird kompiliert … ${percent}%`; build.updatedAt = Date.now(); }, configuration);
         build.progress = 95;
         build.message = "Firmware wird geprüft …";
         build.version = result.version;
@@ -544,11 +705,32 @@ function createModuleRoutes({
         build.status = "failed";
         build.progress = 100;
         build.message = "Firmware-Build fehlgeschlagen";
-        build.error = cleanText(error.message || "Firmware-Build fehlgeschlagen", 300);
+        const rawError = String(error.message || "Firmware-Build fehlgeschlagen");
+        build.error = cleanText([secret, configuration.wifiPassword, configuration.wifiSsid].filter(Boolean).reduce((message, value) => message.split(value).join("[geschützt]"), rawError), 300);
         build.updatedAt = Date.now();
         addEvent("OTA", hardwareType, `Firmware-Build fehlgeschlagen: ${build.error}`);
       }
     })();
+  }));
+
+  router.post("/api/ota/manual-firmware", express.raw({ type: "application/octet-stream", limit: "2mb" }), wrap(async (req, res) => {
+    const secret = String(env.OTA_SHARED_SECRET || "");
+    const hardwareType = cleanText(req.get("X-Dynora-Firmware-Hardware") || "", 80);
+    const version = cleanText(req.get("X-Dynora-Firmware-Version") || "", 40);
+    const firmware = req.body;
+    if (secret.length < 24) throw apiError(503, "OTA_DISABLED", "OTA_SHARED_SECRET muss vorhanden und mindestens 24 Zeichen lang sein.");
+    if (!SKETCHES[hardwareType]) throw apiError(400, "FIRMWARE_TYPE_UNSUPPORTED", "Wähle einen unterstützten ESP-Hardwaretyp.");
+    if (!/^[A-Za-z0-9][A-Za-z0-9._+-]{0,39}$/.test(version)) throw apiError(400, "FIRMWARE_VERSION_INVALID", "Trage die exakte Firmwareversion aus FIRMWARE_VERSION der BIN ein.");
+    if (!Buffer.isBuffer(firmware) || firmware.length < 8 || firmware.length > 2 * 1024 * 1024) throw apiError(400, "FIRMWARE_FILE_INVALID", "Die BIN-Datei ist leer oder größer als 2 MB.");
+    if (!firmware.includes(Buffer.from(hardwareType))) throw apiError(400, "FIRMWARE_HARDWARE_MISMATCH", "Die BIN enthält nicht den gewählten Hardwaretyp. Prüfe, ob sie für genau dieses ESP-Modell gebaut wurde.");
+    if (!firmware.includes(Buffer.from(version))) throw apiError(400, "FIRMWARE_VERSION_MISMATCH", "Die angegebene Version steht nicht in der BIN. Prüfe FIRMWARE_VERSION in der Firmwarequelle.");
+    if (!firmware.includes(Buffer.from(secret))) throw apiError(400, "FIRMWARE_OTA_KEY_MISMATCH", "Die BIN enthält nicht den OTA-Schlüssel dieser DynoraStation. Mit dem identischen OTA_SHARED_SECRET neu kompilieren.");
+    const previous = runtimeState.firmwareBuilds.get(hardwareType);
+    if (previous?.status === "building") throw apiError(409, "OTA_BUILD_RUNNING", "Für diesen Hardwaretyp läuft bereits ein Firmware-Build.");
+    const sha256 = crypto.createHash("sha256").update(firmware).digest("hex");
+    runtimeState.firmwareBuilds.set(hardwareType, { hardwareType, status: "ready", progress: 100, message: `Hochgeladene Firmware geprüft (${(firmware.length / 1024).toFixed(0)} KB)`, version, firmware: Buffer.from(firmware), sha256, source: "manual-upload", updatedAt: Date.now(), error: "" });
+    addEvent("OTA", hardwareType, `Manuelle Firmware ${version} geprüft und bereitgestellt`);
+    res.status(201).json({ ok: true, hardwareType, version, size: firmware.length, sha256, status: "ready" });
   }));
 
   router.get("/api/ota/build-status", (req, res) => {
@@ -628,10 +810,13 @@ function createModuleRoutes({
     const id = Number(req.body?.id);
     if (!Number.isInteger(id)) throw apiError(400, "BAD_COMMAND_ID", "Ungültige Befehls-ID");
     const moduleId = cleanText(req.body?.module || "", 48);
+    if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "Modul-ID fehlt");
     const success = req.body?.ok !== false;
     const reason = cleanText(req.body?.error || req.body?.reason || "", 160);
     const queued = runtimeState.commandQueue.find((item) => item.id === id);
-    if (queued && moduleId && queued.module !== moduleId) {
+    const priorResult = commandQueueApi.getCommandResult(id);
+    const owner = queued?.module || priorResult?.module;
+    if (owner && owner !== moduleId) {
       throw apiError(409, "COMMAND_MODULE_MISMATCH", "Befehl gehört zu einem anderen ESP-Modul");
     }
     const settled = commandQueueApi.ackCommand(id, { success, reason });

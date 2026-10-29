@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
+const http = require("node:http");
 
 const os = require("node:os");
 const testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "dynora-test-"));
@@ -15,6 +16,7 @@ test.beforeEach(() => runtimeState.rateBuckets.clear());
 const projectDir = path.resolve(__dirname, "..");
 let server;
 let baseUrl;
+let app;
 const dataFiles = ["layout.json", "hardware.json", "rules.json"];
 const dataSnapshot = new Map();
 
@@ -60,7 +62,7 @@ test.before(async () => {
     const file = path.join(testDataDir, name);
     dataSnapshot.set(file, fs.existsSync(file) ? fs.readFileSync(file) : null);
   }
-  const app = createApp();
+  app = createApp();
   await new Promise((resolve, reject) => {
     server = app.listen(0, "127.0.0.1", resolve);
     server.once("error", reject);
@@ -86,6 +88,35 @@ test("UI und Kern-API sind erreichbar", async () => {
   for (const endpoint of endpoints) {
     const response = await fetch(`${baseUrl}${endpoint}`);
     assert.equal(response.status, 200, endpoint);
+  }
+});
+
+test("Update-API vergleicht die Stationsversion mit GitHub main", async () => {
+  const originalFetch = global.fetch;
+  let requestedUrl = "";
+  global.fetch = async (url, options) => {
+    requestedUrl = String(url);
+    assert.equal(options.headers["User-Agent"], "DynoraStation-Update-Check");
+    return { ok: true, status: 200, text: async () => "1.1\n" };
+  };
+  try {
+    const result = await new Promise((resolve, reject) => {
+      http.get(`${baseUrl}/api/update/status`, response => {
+        let body = "";
+        response.setEncoding("utf8");
+        response.on("data", chunk => { body += chunk; });
+        response.on("end", () => resolve({ status: response.statusCode, headers: response.headers, body: JSON.parse(body) }));
+      }).on("error", reject);
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.headers["cache-control"], "no-store");
+    assert.match(requestedUrl, /DarkNinja-Lab\/DynoraStation\/main\/version\.txt$/);
+    assert.equal(result.body.localVersion, "1.0");
+    assert.equal(result.body.remoteVersion, "1.1");
+    assert.equal(result.body.updateAvailable, true);
+    assert.equal("otaSecret" in result.body, false);
+  } finally {
+    global.fetch = originalFetch;
   }
 });
 
@@ -209,13 +240,13 @@ test("BME280-Telemetrie wird validiert und im Status bereitgestellt", async () =
   const headers = { "content-type": "application/json" };
   const heartbeat = await fetch(`${baseUrl}/api/module/heartbeat`, {
     method: "POST", headers,
-    body: JSON.stringify({
+    body: JSON.stringify(compatibleHeartbeat({
       module: moduleId,
       moduleType: "RELAY_SENSOR_CONTROLLER",
       relays: Array(16).fill(false),
       sensorInventory: ["S1", "S2", "S3"],
       environment: { sensor: "BME280", temperatureC: 42.36, humidityPct: 51.24, pressureHpa: 1008.76 }
-    })
+    }))
   });
   assert.equal(heartbeat.status, 200);
 
@@ -291,6 +322,42 @@ test("Heartbeat liefert wartende Relaisbefehle als redundanten Zustellweg", asyn
   assert.equal(heartbeat.command.state, true);
   await ackCommand(moduleId, heartbeat.command);
   await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+});
+
+test("Grundstellungen werden bei einer neuen ESP-Bootsitzung einmal automatisch gesendet", async () => {
+  const moduleId = "ESP8266-STARTUP-DEFAULTS";
+  const headers = { "content-type": "application/json" };
+  const previousDefaults = runtimeState.hardware.defaults;
+  runtimeState.hardware.defaults = [{ targetType: "relay", targetId: `${moduleId}:1`, action: "on" }];
+  const heartbeat = (bootId) => fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({
+      module: moduleId, moduleType: "RELAY_SENSOR_CONTROLLER", hardwareType: "ESP8266_NODEMCU_MCP23017_BME280",
+      mcp23017: true, relays: Array(16).fill(false), bootId
+    }))
+  });
+
+  try {
+    const first = await (await heartbeat("boot-a")).json();
+    assert.equal(first.startupDefaultsQueued, 1);
+    assert.equal(first.command?.type, "RELAY_SET");
+    assert.equal(first.command?.channel, 1);
+    assert.equal(first.command?.state, true);
+    await ackCommand(moduleId, first.command);
+
+    const repeat = await (await heartbeat("boot-a")).json();
+    assert.equal(repeat.startupDefaultsQueued, 0);
+    assert.equal(repeat.command, null);
+
+    const restarted = await (await heartbeat("boot-b")).json();
+    assert.equal(restarted.startupDefaultsQueued, 1);
+    assert.equal(restarted.command?.type, "RELAY_SET");
+    await ackCommand(moduleId, restarted.command);
+  } finally {
+    runtimeState.hardware.defaults = previousDefaults;
+    runtimeState.commandQueue = runtimeState.commandQueue.filter((command) => command.module !== moduleId);
+    await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
+  }
 });
 
 
@@ -473,13 +540,13 @@ test("LED-ESP wird erkannt und LED-Konfiguration ueberlebt weitere Heartbeats", 
 test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom Heartbeat verworfen", async () => {
   const moduleId = "ESP8266-CONFIGTEST";
   const headers = { "content-type": "application/json" };
-  const heartbeatBody = {
+  const heartbeatBody = compatibleHeartbeat({
     module: moduleId,
     moduleName: "Konfigurationstest",
     moduleType: "RELAY_SENSOR_CONTROLLER",
     relays: [false, false],
     sensorInventory: ["S1", "S2"]
-  };
+  });
   assert.equal((await fetch(`${baseUrl}/api/module/heartbeat`, { method: "POST", headers, body: JSON.stringify(heartbeatBody) })).status, 200);
 
   const save = await fetch(`${baseUrl}/api/control/settings`, {
@@ -488,11 +555,12 @@ test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom He
       relayConfig: { [`${moduleId}:1`]: { name: "Bahnsteiglicht", role: "Beleuchtung" } },
       sensorConfig: { [`${moduleId}:S1`]: { name: "Einfahrt West" } },
       lightButtons: [
-        { name: "Bahnsteig", moduleId, relayIndex: 1 },
+        { name: "Bahnsteig", icon: "home", moduleId, relayIndex: 1 },
         { name: "Licht 2", moduleId: "", relayIndex: 0 },
         { name: "Licht 3", moduleId: "", relayIndex: 0 },
         { name: "Licht 4", moduleId: "", relayIndex: 0 }
-      ]
+      ],
+      defaults: [{ targetType: "relay", targetId: `${moduleId}:1`, action: "on", groupName: "Bahnsteig" }]
     })
   });
   assert.equal(save.status, 200);
@@ -506,6 +574,7 @@ test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom He
   assert.equal(sensor.name, "Einfahrt West");
   assert.equal(status.hardware.modules[moduleId].sensors.find((item) => item.id === "S1").name, "Einfahrt West");
   assert.equal(status.lightButtons[0].name, "Bahnsteig");
+  assert.equal(status.lightButtons[0].icon, "home");
   assert.equal(status.lightButtons[0].module, moduleId);
   assert.equal(status.lightButtons[0].relay, 1);
 
@@ -513,6 +582,8 @@ test("Relais-, Sensor- und Lichtnamen werden atomar gespeichert und nicht vom He
   assert.equal(persisted.relays.find((item) => item.module === moduleId && item.channel === 1).role, "Beleuchtung");
   assert.equal(persisted.sensors.find((item) => item.module === moduleId && item.id === "S1").name, "Einfahrt West");
   assert.equal(persisted.lightButtons[0].name, "Bahnsteig");
+  assert.equal(persisted.lightButtons[0].icon, "home");
+  assert.equal(persisted.defaults[0].groupName, "Bahnsteig");
 
   await fetch(`${baseUrl}/api/module/delete`, { method: "POST", headers, body: JSON.stringify({ module: moduleId }) });
 });
@@ -593,7 +664,7 @@ test("ESP-Signalmasten schalten mit zwei oder drei Signalbegriffen ohne Kanalfeh
 });
 
 test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", () => {
-  const { TRACK_CATALOG } = require("../src/domain/trackCatalog");
+  const { TRACK_CATALOG, defaultSwitchCode } = require("../src/domain/trackCatalog");
   assert.equal(TRACK_CATALOG["5106"].length, 180);
   assert.equal(TRACK_CATALOG["5129"].kind, "track");
   assert.equal(TRACK_CATALOG["5129"].length, 70);
@@ -601,6 +672,14 @@ test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", (
   assert.equal(TRACK_CATALOG["7191"].kind, "bumper");
   assert.equal(TRACK_CATALOG["5111"].length, 180);
   assert.equal(TRACK_CATALOG["5208"].length, 8);
+  assert.equal(TRACK_CATALOG["5105"].kind, "track");
+  assert.equal(TRACK_CATALOG["5105"].length, 180);
+  assert.equal(TRACK_CATALOG["5104"].kind, "curve");
+  assert.equal(TRACK_CATALOG["5104"].radius, 360);
+  assert.equal(TRACK_CATALOG["5104"].angleDeg, 30);
+  assert.equal(TRACK_CATALOG["5109"].length, 33.8);
+  assert.equal(TRACK_CATALOG["5114"].length, 192);
+  assert.equal(TRACK_CATALOG["5128"].length, 180);
   assert.equal(TRACK_CATALOG["5207"].kind, "xtrack");
   assert.equal(TRACK_CATALOG["5100"].radius, 360);
   assert.equal(TRACK_CATALOG["5100"].angleDeg, 30);
@@ -608,12 +687,25 @@ test("M-Gleis-Katalog verwendet konsistente reale Laengen, Radien und Winkel", (
   assert.ok(Math.abs(TRACK_CATALOG["5202"].radius * Math.sin(TRACK_CATALOG["5202"].angleDeg * Math.PI / 180) - TRACK_CATALOG["5202"].length) < 0.2);
   assert.equal(TRACK_CATALOG["5128"].crossingAngleDeg, 30);
   assert.equal(TRACK_CATALOG["5141"].radius, 360);
-  assert.equal(TRACK_CATALOG["5141"].branchRadius, 437.4);
   assert.equal(TRACK_CATALOG["5141"].angleDeg, 30);
+  assert.equal(TRACK_CATALOG["5141"].straightLeadMm, 77.4);
+  assert.equal(TRACK_CATALOG["5141"].length, 265.4);
+  assert.equal(TRACK_CATALOG["5142"].length, 265.4);
+  assert.equal(TRACK_CATALOG["5138"].angleDeg, 22.5);
+  assert.equal(TRACK_CATALOG["5139"].handed, "right");
+  assert.equal(TRACK_CATALOG["5203"].handed, "left");
+  assert.equal(TRACK_CATALOG["5204"].handed, "right");
+  assert.equal(TRACK_CATALOG["5202"].deprecatedForPlacement, true);
+  assert.equal(defaultSwitchCode(), "5203");
   assert.equal(TRACK_CATALOG["5141"].innerCurveCode, "5100");
-  assert.equal(TRACK_CATALOG["5141"].outerCurveCode, "5200");
+  assert.equal(TRACK_CATALOG["5141"].outerCurveCode, "5100");
   assert.equal(TRACK_CATALOG["5141"].switchGeometry, "5141");
   assert.equal(TRACK_CATALOG["5142"].handed, "right");
+  for (const [code, item] of Object.entries(TRACK_CATALOG)) {
+    if (item.kind !== "curve") continue;
+    const calculatedArcLength = Math.PI * item.radius * item.angleDeg / 180;
+    assert.ok(Math.abs(item.arcLength - calculatedArcLength) < 0.1, `${code}: arc length`);
+  }
 });
 
 test("Direktsteuerung priorisiert bei ESP-Signalen den LED-Zustand", async () => {
@@ -662,15 +754,95 @@ test("Planprüfung erkennt Hardwarefehler, Relais-Konflikte und isolierte Gleise
 
 test("5141 stellt drei klar getrennte und korrekt ausgerichtete Anschluesse bereit", async () => {
   const { localConnectionPorts } = await import("../public/app/builder/shapes.js");
-  const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, branchRadius: 437.4, angleDeg: 30 });
+  const ports = localConnectionPorts({ typ: "switch" }, { switchStyle: "curved", switchGeometry: "5141", handed: "left", radius: 360, straightLeadMm: 77.4, angleDeg: 30 });
   assert.equal(ports.length, 3);
-  assert.ok(Math.abs(ports[0].x + 54.675) < .02);
+  assert.ok(Math.abs(ports[0].x + 64.35) < .02);
   assert.equal(ports[0].y, 0);
   assert.equal(ports[0].angle, 180);
   assert.equal(ports[1].angle, -30);
   assert.equal(ports[2].angle, -30);
-  assert.ok(ports[1].x > ports[2].x);
-  assert.ok(ports[1].y < ports[2].y);
+  assert.ok(Math.abs(ports[1].x - 64.35) < .02);
+  assert.ok(Math.abs(ports[2].x - 25.65) < .02);
+  assert.ok(Math.abs(ports[1].y - ports[2].y) < .02);
+});
+
+test("ESP-Protokoll sperrt Befehlszustellung an inkompatible Firmware und bindet ACKs an ein Modul", async () => {
+  const moduleId = "ESP8266-PROTOCOL-GATE";
+  const headers = { "content-type": "application/json" };
+  const heartbeat = (protocolVersion, relays = [false]) => fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays, protocolVersion }))
+  });
+  assert.equal((await heartbeat(2)).status, 200);
+  const command = app.locals.dynora.commandQueueApi.createCommand("RELAY_SET", { channel: 1, state: true }, moduleId);
+
+  const incompatible = await (await heartbeat(1, [true])).json();
+  assert.equal(incompatible.compatibility.compatible, false);
+  assert.equal(incompatible.command, null);
+  assert.deepEqual(runtimeState.modules[moduleId].relays, [false]);
+  const poll = await (await fetch(`${baseUrl}/api/module/next-command?module=${moduleId}`)).json();
+  assert.equal(poll.command, null);
+  assert.equal(poll.blocked.compatible, false);
+  assert.equal(runtimeState.commandQueue.some((item) => item.id === command.id), true);
+
+  const compatible = await (await heartbeat(2)).json();
+  assert.equal(compatible.command.id, command.id);
+  const missingModule = await fetch(`${baseUrl}/api/module/ack`, {
+    method: "POST", headers, body: JSON.stringify({ id: command.id, ok: true })
+  });
+  assert.equal(missingModule.status, 400);
+  const wrongModule = await fetch(`${baseUrl}/api/module/ack`, {
+    method: "POST", headers, body: JSON.stringify({ id: command.id, module: "ESP8266-WRONG", ok: true })
+  });
+  assert.equal(wrongModule.status, 409);
+  assert.equal((await ackCommand(moduleId, command)).commandStatus, "confirmed");
+});
+
+test("doppelte Sensorzustände lösen durch wiederholte ESP-Requests keine zweite Automation aus", async () => {
+  const moduleId = "ESP8266-SENSOR-IDEMPOTENCY";
+  const headers = { "content-type": "application/json" };
+  await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "SENSOR_CONTROLLER", sensorInventory: ["S1"], sensors: [{ id: "S1", triggered: false }] }))
+  });
+  const before = runtimeState.events.length;
+  const send = () => fetch(`${baseUrl}/api/module/sensor`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId, sensor: "S1", triggered: true })
+  });
+  assert.equal((await send()).status, 200);
+  const duplicate = await (await send()).json();
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(runtimeState.events.length, before + 1);
+});
+
+test("API begrenzt Steuerbefehle auf tatsächlich vorhandene ESP-Kanäle und verhindert Teilanwendung", async () => {
+  const moduleId = "ESP8266-CAPABILITY-GUARD";
+  const headers = { "content-type": "application/json" };
+  await fetch(`${baseUrl}/api/module/heartbeat`, {
+    method: "POST", headers,
+    body: JSON.stringify(compatibleHeartbeat({ module: moduleId, moduleType: "RELAY_CONTROLLER", relays: [false] }))
+  });
+  const wrongCapability = await fetch(`${baseUrl}/api/led`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId, channel: 1, state: true })
+  });
+  assert.equal(wrongCapability.status, 409);
+  assert.equal((await wrongCapability.json()).code, "MODULE_CAPABILITY_MISSING");
+  const missingChannel = await fetch(`${baseUrl}/api/relay`, {
+    method: "POST", headers, body: JSON.stringify({ module: moduleId, channel: 2, state: true })
+  });
+  assert.equal(missingChannel.status, 400);
+  assert.equal((await missingChannel.json()).code, "BAD_RELAY_CHANNEL");
+
+  const before = runtimeState.commandQueue.length;
+  const defaults = await fetch(`${baseUrl}/api/control/defaults/apply`, {
+    method: "POST", headers,
+    body: JSON.stringify({ defaults: [
+      { targetType: "relay", targetId: `${moduleId}:1`, action: "on" },
+      { targetType: "relay", targetId: "ESP8266-OFFLINE:1", action: "on" }
+    ] })
+  });
+  assert.equal(defaults.status, 503);
+  assert.equal(runtimeState.commandQueue.length, before);
 });
 
 test("Entkupplungsgleis 5112 nutzt einen sicheren Relais-Impuls und behält den Sensor", async () => {

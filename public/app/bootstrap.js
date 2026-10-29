@@ -2,24 +2,24 @@
 
 import { initializePlanVersions } from "./layout/versions.js?v=workspace-v11";
 
-import { initializeWorkspace } from "./builder/workspace.js?v=workspace-v20";
+import { initializeWorkspace } from "./builder/workspace.js?v=workspace-v21";
 import { showToast } from "./ui/toast.js?v=workspace-v15";
 
 import { state } from "./core/state.js?v=workspace-v11";
-import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v11";
+import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v12";
 import { initializeTools } from "./builder/tools.js?v=workspace-v11";
-import { initTranslation } from "./core/translate.js?v=workspace-v21";
-import { eventsRegistrieren, renderSettingsTab } from "./ui/events.js?v=workspace-v21";
+import { initTranslation } from "./core/translate.js?v=workspace-v26";
+import { eventsRegistrieren, renderSettingsTab } from "./ui/events.js?v=workspace-v27";
 import { katalogLaden } from "./catalog/catalog.js?v=workspace-v11";
-import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js?v=workspace-v11";
+import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js?v=workspace-v12";
 import { renderTrackLayout } from "./track/track.js?v=workspace-v15";
 import { layoutLaden, layoutNormalisieren } from "./layout/layout.js?v=workspace-v11";
-import { rulesLaden, renderRulesGrid } from "./rules/rules.js?v=workspace-v15";
-import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js?v=workspace-v11";
+import { rulesLaden, renderRulesGrid } from "./rules/rules.js?v=workspace-v18";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js?v=workspace-v19";
 import { statusLaden } from "./status/status.js?v=workspace-v11";
-import { renderCanvas, inspectorLeer } from "./builder/render.js?v=workspace-v15";
+import { renderCanvas, inspectorLeer } from "./builder/render.js?v=workspace-v17";
 import { recordHistory, resetHistory } from "./builder/history.js?v=workspace-v11";
-import { setupPlanValidation } from "./builder/validation.js?v=workspace-v11";
+import { setupPlanValidation } from "./builder/validation.js?v=workspace-v12";
 
 export async function startApp() {
   eventsRegistrieren();

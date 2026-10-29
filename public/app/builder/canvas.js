@@ -1,12 +1,12 @@
-"use strict";
+﻿"use strict";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
-import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js?v=workspace-v11";
+import { renderCanvas, inspectorLeer, canvasSize, canvasPointFromEvent, snapCanvasPoint, renderPlacementPreview } from "./render.js?v=workspace-v17";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { recordHistory, undoHistory, redoHistory } from "./history.js?v=workspace-v11";
 import { exportBuildPlan } from "./export.js?v=workspace-v11";
-import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v12";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v20";
 
 
 export function ensureCanvasGeometry() {
@@ -123,7 +123,7 @@ function createElement(type, x, y, rotation = 0, requestedCatalogCode = "", sign
     module: preferredModule(type === "espSignal" ? "led" : "relay"),
     relay: 0, relayA: 0, relayB: 0, xState: "gerade", sensorId: "",
     relayStraight: 0, relayBranch: 0, switchState: "gerade",
-    relayHp0: 0, relayHp1: 0, signalState: "halt",
+    relayHp0: 0, relayHp1: 0, signalState: "halt", signalDirection: "forward",
     signalAspectMode: signalAspectMode === "rgy" ? "rgy" : "rg",
     ledChannelRed: 0, ledChannelYellow: 0, ledChannelGreen: 0, espState: "halt", ledState: "halt",
     showInDirectControl: true

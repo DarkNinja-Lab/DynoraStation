@@ -1,6 +1,6 @@
-"use strict";
+﻿"use strict";
 
-import { svg, attrs, localConnectionPorts, turnout5141Geometry, curvedRoutePath } from "./shapes.js?v=workspace-v12";
+import { svg, attrs, localConnectionPorts, turnout5141Geometry, curvedRoutePath } from "./shapes.js?v=workspace-v20";
 
 // Same connection geometry as the measured track view. Only presentation changes.
 export function drawSchematicShape(group, element, item = {}) {
@@ -31,18 +31,18 @@ export function drawSchematicShape(group, element, item = {}) {
       let through,branch;
       if (item.switchGeometry === "5141") {
         const g = turnout5141Geometry(item,sign);
-        through = g.outerPath;
-        branch = g.innerPath;
+        through = g.mainPath;
+        branch = g.branchPath;
       } else if (item.switchStyle === "curved") {
         const r = Math.max(250,Number(item.radius)||437.4)*.5;
-        const outer = Math.max(r,Number(item.branchRadius||437.4)*.5);
         const a = Math.max(10,Math.min(40,Number(item.angleDeg)||24.2833))*Math.PI/180;
         through = curvedRoutePath(ports[0].x,r,a,sign);
-        branch = curvedRoutePath(ports[0].x,outer,a,sign);
+        branch = curvedRoutePath(ports[0].x,r,a,sign);
       } else {
         through = line(ports[0],ports[1]);
-        const length = ports[1].x-ports[0].x;
-        branch = `M ${ports[0].x} 0 Q ${ports[0].x+length*.58} 0 ${ports[2].x} ${ports[2].y}`;
+        const r = Math.max(250,Number(item.radius)||437.4)*.5;
+        const a = Math.max(10,Math.min(40,Number(item.angleDeg)||24.2833))*Math.PI/180;
+        branch = curvedRoutePath(ports[0].x,r,a,sign);
       }
       // Paint the selected route last so the shared origin stays legible.
       route(straight ? branch : through,false,straight);
@@ -69,7 +69,8 @@ export function drawSchematicShape(group, element, item = {}) {
       path(`M0 ${three?28:14}V39 M-10 39H10`);group.append(body);
       dot(0,-14,aspect === "halt" || !aspect ? "#e44245" : "#643335");
       if(three)dot(0,2,aspect === "warnung" ? "#edbd35" : "#655932");
-      dot(0,three?18:2,aspect === "fahrt" ? "#26b55d" : "#315b43");break;
+      dot(0,three?18:2,aspect === "fahrt" ? "#26b55d" : "#315b43");
+      break;
     }
     case "transformer": {
       const rect=svg("rect");attrs(rect,{x:-22,y:-19,width:44,height:38,rx:5,fill:"#fff",stroke:"#5b6670","stroke-width":2});group.append(rect);

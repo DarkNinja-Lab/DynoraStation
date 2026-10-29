@@ -1,6 +1,6 @@
 "use strict";
 
-import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v12";
+import { localConnectionPorts, worldConnectionPort } from "./shapes.js?v=workspace-v20";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { icon } from "../ui/icons.js?v=workspace-v11";
@@ -21,7 +21,7 @@ function relayFields(element) {
   }
   if (type === "curve" || type === "transformer") return Number(element.relay || 0) ? [["relay", type === "transformer" ? "Versorgung" : "Schaltausgang"]] : [];
   const map = {
-    switch: [["relayStraight", "Gerade/Außenbogen"], ["relayBranch", "Abzweig/Innenbogen"]],
+    switch: [["relayStraight", "Gerade/Au\u00dfenbogen"], ["relayBranch", "Abzweig/Innenbogen"]],
     xtrack: [["relayA", "Gerade"], ["relayB", "Abzweig"]],
     signal: [["relayHp0", "Halt"], ["relayHp1", "Fahrt"]]
   };
@@ -31,8 +31,8 @@ function relayFields(element) {
 function ledFields(element) {
   if (!["espSignal", "ledSignal"].includes(element.typ)) return [];
   return element.signalAspectMode === "rgy"
-    ? [["ledChannelRed", "Rot"], ["ledChannelYellow", "Gelb"], ["ledChannelGreen", "Grün"]]
-    : [["ledChannelRed", "Rot"], ["ledChannelGreen", "Grün"]];
+    ? [["ledChannelRed", "Rot"], ["ledChannelYellow", "Gelb"], ["ledChannelGreen", "Gr\u00fcn"]]
+    : [["ledChannelRed", "Rot"], ["ledChannelGreen", "Gr\u00fcn"]];
 }
 
 export function analyzePlan(layout = state.layout) {
@@ -63,10 +63,10 @@ export function analyzePlan(layout = state.layout) {
   for (const link of connections) {
     const from = byId.get(link.von);
     const to = byId.get(link.nach);
-    if (!from || !to) { issues.push({ severity: "error", code: "BROKEN_LINK", title: "Ungültige Verbindung", detail: "Ein verbundenes Element fehlt." }); continue; }
+    if (!from || !to) { issues.push({ severity: "error", code: "BROKEN_LINK", title: "Ung\u00fcltige Verbindung", detail: "Ein verbundenes Element fehlt." }); continue; }
     const ports = [from, to].map((element, i) => {
       const key = `${element.id}:${Number(i ? link.nachPort : link.vonPort) || 0}`;
-      if (portUse.has(key)) issues.push({ severity: "error", code: "PORT_CONFLICT", title: `${elementLabel(element)}: Anschluss mehrfach belegt`, detail: "Verbindungen trennen und freie Anschlüsse verwenden." });
+      if (portUse.has(key)) issues.push({ severity: "error", code: "PORT_CONFLICT", title: `${elementLabel(element)}: Anschluss mehrfach belegt`, detail: "Verbindungen trennen und freie Anschl\u00fcsse verwenden." });
       portUse.add(key);
       const category = { track: "tracks", curve: "curves", switch: "switches", crossing: "crossings", xtrack: "crossings", bumper: "bumpers" }[element.typ];
       const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.bumperCode || element.catalogCode;
@@ -74,19 +74,19 @@ export function analyzePlan(layout = state.layout) {
       const local = localConnectionPorts(element, item)[Number(i ? link.nachPort : link.vonPort) || 0];
       return local ? worldConnectionPort(element, local) : null;
     });
-    if (ports.every(Boolean) && Math.hypot(ports[0].x - ports[1].x, ports[0].y - ports[1].y) > 2) issues.push({ severity: "warning", code: "GAP", title: `${elementLabel(from)} / ${elementLabel(to)}: Gleislücke`, detail: "Die verbundenen Enden liegen nicht aufeinander. Trennen und erneut verbinden." });
+    if (ports.every(Boolean) && Math.hypot(ports[0].x - ports[1].x, ports[0].y - ports[1].y) > 2) issues.push({ severity: "warning", code: "GAP", title: `${elementLabel(from)} / ${elementLabel(to)}: Gleisl\u00fccke`, detail: "Die verbundenen Enden liegen nicht aufeinander. Trennen und erneut verbinden." });
   }
   const trackElements = elements.filter((element) => TRACK_TYPES.has(element.typ));
 
   if (!elements.length) {
-    return [{ severity: "info", code: "EMPTY", title: "Plan ist noch leer", detail: "Füge das erste Gleiselement aus der Bauteilbibliothek hinzu." }];
+    return [{ severity: "info", code: "EMPTY", title: "Plan ist noch leer", detail: "F\u00fcge das erste Gleiselement aus der Bauteilbibliothek hinzu." }];
   }
 
   elements.forEach((element) => {
     const label = elementLabel(element);
     const width = (Number(layout.metadaten?.plateWidthMm) || 3200) * .5;
     const height = (Number(layout.metadaten?.plateHeightMm) || 1800) * .5;
-    if (element.x < 0 || element.y < 0 || element.x > width || element.y > height) issues.push({ severity: "warning", code: "OUTSIDE", elementId: element.id, title: `${label}: Außerhalb der Platte`, detail: "Position in den Eigenschaften anpassen oder Platte vergrößern." });
+    if (element.x < 0 || element.y < 0 || element.x > width || element.y > height) issues.push({ severity: "warning", code: "OUTSIDE", elementId: element.id, title: `${label}: Au\u00dferhalb der Platte`, detail: "Position in den Eigenschaften anpassen oder Platte vergr\u00f6\u00dfern." });
     const hardwareFields = [...relayFields(element), ...ledFields(element), ...(element.sensorId ? [["sensorId", "Sensor"]] : [])];
     if (hardwareFields.length && !String(element.module || "").trim()) {
       issues.push({ severity: "error", code: "NO_MODULE", elementId: element.id, title: `${label}: Kein Modul`, detail: "Hardware-Modul im Eigenschaftenbereich zuweisen." });
@@ -133,7 +133,7 @@ export function analyzePlan(layout = state.layout) {
     issues.push({
       severity: "error",
       code: "RELAY_CONFLICT",
-      title: `Relais-Konflikt: ${module} · ${channel}`,
+      title: `Relais-Konflikt: ${module} \u00b7 ${channel}`,
       detail: assignments.map((item) => `${item.label} (${item.purpose})`).join(" und ")
     });
   });
@@ -148,7 +148,7 @@ function renderValidationPanel(issues) {
   if (!list || !summary) return;
   const errors = issues.filter((issue) => issue.severity === "error").length;
   const warnings = issues.filter((issue) => issue.severity === "warning").length;
-  summary.textContent = errors || warnings ? `${errors} Fehler · ${warnings} Hinweise` : "Keine Probleme erkannt";
+  summary.textContent = errors || warnings ? `${errors} Fehler \u00b7 ${warnings} Hinweise` : "Keine Probleme erkannt";
   list.innerHTML = issues.length ? issues.map((issue) => `
     <article class="plan-validation-item severity-${issue.severity}">
       <span class="validation-status" aria-hidden="true">${icon(issue.severity === "error" ? "close" : issue.severity === "warning" ? "warning" : "info")}</span>

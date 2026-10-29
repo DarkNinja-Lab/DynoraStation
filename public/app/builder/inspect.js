@@ -1,16 +1,16 @@
-"use strict";
+﻿"use strict";
 
-import { setBuilderPanel } from "./panels.js?v=workspace-v11";
+import { setBuilderPanel } from "./panels.js?v=workspace-v12";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
-import { renderCanvas } from "./render.js?v=workspace-v11";
+import { renderCanvas } from "./render.js?v=workspace-v17";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
-import { renderCs3Tiles } from "../ui/render.js?v=workspace-v11";
+import { renderCs3Tiles } from "../ui/render.js?v=workspace-v18";
 import { recordHistory } from "./history.js?v=workspace-v11";
 import { icon } from "../ui/icons.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
-export function showInspector(element) {
+export function showInspector(element, { focusPanel = true } = {}) {
   if (!element) return;
   
   const inspector = document.getElementById("inspector");
@@ -21,7 +21,7 @@ export function showInspector(element) {
   inspector.innerHTML = html;
   inspector.dataset.elementId = element.id;
   inspector.querySelector(".inspector-hardware").open = hardwareOpen;
-  setBuilderPanel("inspector");
+  if (focusPanel) setBuilderPanel("inspector");
 
   // Event listeners für alle Inputs
   inspector.querySelectorAll("input, select").forEach(input => {
@@ -308,6 +308,8 @@ function inspectorSignal(el) {
   return `
     <div class="inspector-section">
       <strong>Hauptsignal-Konfiguration</strong>
+
+      ${signalDirectionField(el)}
       
       <label class="inspector-field">
         <span>Relay ROT (Halt)</span>
@@ -344,6 +346,8 @@ function inspectorEspSignal(el) {
   return `
     <div class="inspector-section">
       <strong>ESP-Signal-Konfiguration</strong>
+
+      ${signalDirectionField(el)}
 
       <label class="inspector-field">
         <span>Signaltyp</span>
@@ -387,6 +391,18 @@ function inspectorEspSignal(el) {
       </div>
     </div>
   `;
+}
+
+function signalDirectionField(el) {
+  const direction = el.signalDirection === "reverse" ? "reverse" : "forward";
+  return `<label class="inspector-field">
+    <span>Fahrtrichtung</span>
+    <select id="inspSignalDirection" aria-label="Fahrtrichtung des Signals">
+      <option value="forward" ${direction === "forward" ? "selected" : ""}>Nach rechts</option>
+      <option value="reverse" ${direction === "reverse" ? "selected" : ""}>Nach links</option>
+    </select>
+    <small>Legt fest, f?r welche Fahrtrichtung das Signal gilt.</small>
+  </label>`;
 }
 
 function inspectorTransformer(el) {
@@ -458,6 +474,7 @@ function saveInspectorChanges(element) {
       element.relayHp0 = parseInt(document.getElementById("inspRelayRed")?.value || 0);
       element.relayHp1 = parseInt(document.getElementById("inspRelayGreen")?.value || 0);
       element.signalState = document.getElementById("inspSignalState")?.value || "halt";
+      element.signalDirection = document.getElementById("inspSignalDirection")?.value === "reverse" ? "reverse" : "forward";
       break;
 
     case "espSignal":
@@ -466,6 +483,7 @@ function saveInspectorChanges(element) {
       element.ledChannelYellow = element.signalAspectMode === "rgy" ? parseInt(document.getElementById("inspLedYellow")?.value || 0) : 0;
       element.ledChannelGreen = parseInt(document.getElementById("inspLedGreen")?.value || 0);
       element.espState = document.getElementById("inspEspState")?.value || "halt";
+      element.signalDirection = document.getElementById("inspSignalDirection")?.value === "reverse" ? "reverse" : "forward";
       if (element.signalAspectMode === "rg" && element.espState === "warnung") element.espState = "halt";
       element.ledState = element.espState;
       break;

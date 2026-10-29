@@ -1,16 +1,17 @@
 "use strict";
 
 import { setBuilderPanel } from "../builder/panels.js?v=workspace-v11";
+import { icon } from "./icons.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
-import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
-import { renderRulesGrid } from "../rules/rules.js?v=workspace-v15";
+import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v12";
+import { collapseAllAutomations, renderRulesGrid } from "../rules/rules.js?v=workspace-v18";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./render.js?v=workspace-v11";
 import { renderTrackLayout } from "../track/track.js?v=workspace-v15";
 import { showToast } from "./toast.js?v=workspace-v15";
 import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
-import { getLanguage, initLanguage, setLanguage, t } from "../core/i18n.js?v=workspace-v21";
+import { getLanguage, initLanguage, LANGUAGES, setLanguage, t } from "../core/i18n.js?v=workspace-v23";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -38,10 +39,9 @@ function setNodeText(selector, text) {
 function updateLanguageToggleButton() {
   const button = byId("languageToggle");
   if (!button) return;
-  const language = getLanguage();
   button.setAttribute("aria-label", t("language.toggle"));
   button.setAttribute("title", t("language.toggle"));
-  button.textContent = language === "en" ? "🇬🇧 EN" : "🇩🇪 DE";
+  button.value = getLanguage();
 }
 
 function applyCoreTranslations() {
@@ -301,6 +301,7 @@ function ensureLightButtons() {
   while (state.lightButtons.length < 4) {
     state.lightButtons.push({
       name: `Licht ${state.lightButtons.length + 1}`,
+      icon: "light",
       moduleId: "",
       relayIndex: 0,
       active: false
@@ -314,15 +315,14 @@ function renderLightConfig() {
   if (!host) return;
   ensureLightButtons();
 
+  const lightIcons = [["light", "Lampe"], ["signal", "Signal"], ["transformer", "Trafo"], ["power", "Strom"], ["home", "Haus"], ["device", "Modul"], ["events", "Ablauf"], ["track-straight", "Gleis"]];
   host.innerHTML = state.lightButtons.map((b, i) => `
     <div class="light-config-card" data-light-index="${i}">
-      <h4>Button ${i + 1}</h4>
-      <label>Name</label>
-      <input data-field="name" value="${esc(b.name || `Licht ${i + 1}`)}">
-      <label>Modul</label>
-      <select data-field="moduleId">${modOptions(b.moduleId || "")}</select>
-      <label>Relay</label>
-      <select data-field="relayIndex">${relayOptions(Number(b.relayIndex || 0), b.moduleId || "")}</select>
+      <header class="light-config-card-head"><span class="light-icon-preview">${icon(b.icon || "light")}</span><div><small>LICHTTASTE ${String(i + 1).padStart(2, "0")}</small><h4>${esc(b.name || `Licht ${i + 1}`)}</h4></div></header>
+      <label><span>Name</span><input data-field="name" value="${esc(b.name || `Licht ${i + 1}`)}"></label>
+      <label><span>Symbol</span><select data-field="icon">${lightIcons.map(([value, label]) => `<option value="${value}" ${value === (b.icon || "light") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      <label><span>Modul</span><select data-field="moduleId">${modOptions(b.moduleId || "")}</select></label>
+      <label><span>Relay</span><select data-field="relayIndex">${relayOptions(Number(b.relayIndex || 0), b.moduleId || "")}</select></label>
     </div>
   `).join("");
 }
@@ -334,8 +334,10 @@ function renderModuleManagement() {
     Number(Boolean(b.online)) - Number(Boolean(a.online)) ||
     String(a.name || a.id).localeCompare(String(b.name || b.id), "de")
   );
+  const onlineCount = list.filter((module) => module.online).length;
+  const warningCount = list.filter((module) => module.health?.relayDriverReady === false || module.compatibility?.compatible === false).length;
   const opened = new Set([...host.querySelectorAll("details[open]")].map(item => item.dataset.managedModule));
-  host.innerHTML = list.length ? list.map(module => {
+  host.innerHTML = list.length ? `<div class="module-management-overview"><div><span>VERBINDUNGEN</span><strong>${onlineCount} <small>/ ${list.length} online</small></strong></div><div><span>PR\u00dcFEN</span><strong>${warningCount}</strong></div><p>Modul aufklappen, um Namen, Anschl\u00fcsse oder Firmware zu verwalten.</p></div><div class="module-management-list">${list.map(module => {
     const relays = module.relays?.length || 0;
     const leds = module.leds?.length || 0;
     const sensors = module.sensors?.length || 0;
@@ -355,17 +357,18 @@ function renderModuleManagement() {
         <dl class="module-tech-details"><div><dt>Modul-ID</dt><dd>${esc(module.id)}</dd></div><div><dt>IP-Adresse</dt><dd>${esc(module.ip || "Nicht verfügbar")}</dd></div><div><dt>Firmware</dt><dd>${esc(module.firmwareVersion || "Unbekannt")} · Protokoll ${esc(module.protocolVersion ?? "?")}</dd></div><div><dt>Hardware</dt><dd>${esc(module.hardwareType || module.type || "ESP-Modul")}</dd></div></dl>
         <details class="module-remove"><summary>Modul entfernen</summary><p>Ein eingeschalteter ESP meldet sich erneut an. Zum dauerhaften Entfernen zuerst ausschalten.</p><button class="module-delete-button" data-action="delete-module" data-module-id="${esc(module.id)}" type="button">Modul löschen</button></details>
       </div></details>`;
-  }).join("") : '<div class="settings-empty"><strong>Noch kein Modul verbunden</strong><p>Schalte deinen ESP ein und verbinde ihn mit demselben Netzwerk. Erkannte Module erscheinen hier automatisch.</p></div>';
+  }).join("")}</div>` : '<div class="settings-empty"><strong>Noch kein Modul verbunden</strong><p>Schalte deinen ESP ein und verbinde ihn mit demselben Netzwerk. Erkannte Module erscheinen hier automatisch.</p></div>';
 
 }
 
 const selectedDefaultIndices = new Set();
+const expandedDefaultGroups = new Set();
 function renderDefaultStates() {
   const host = byId("defaultStateGrid");
   if (!host) return;
   if (!Array.isArray(state.defaults)) state.defaults = [];
   const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
-  const visibleDefaults = state.defaults.map((item, index) => ({ item, index })).filter(({ item }) => !search || `${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search));
+  const visibleDefaults = state.defaults.map((item, index) => ({ item, index })).filter(({ item }) => !search || `${item.groupName || ""} ${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search));
   const selectAll = byId("defaultSelectVisible");
   if (selectAll) { selectAll.checked = visibleDefaults.length > 0 && visibleDefaults.every(({ index }) => selectedDefaultIndices.has(index)); selectAll.indeterminate = visibleDefaults.some(({ index }) => selectedDefaultIndices.has(index)) && !selectAll.checked; }
   const count = byId("defaultSelectionCount");
@@ -375,7 +378,7 @@ function renderDefaultStates() {
 
   host.innerHTML = `
     <div class="rules-head">
-      <div class="builder-message">Standardaktionen für "Jetzt anwenden"</div>
+      <div class="builder-message">Startzustände werden beim Verbinden des passenden ESP gesetzt.</div>
       <button type="button" class="primary-button" data-action="add-default">+ Zustand</button>
     </div>
     <div class="rules-cards">
@@ -396,6 +399,70 @@ function renderDefaultStates() {
       `).join("") || `<div class="sidebar-esp-empty">${search ? "Keine passende Grundstellung gefunden." : "Keine Standardzustände konfiguriert."}</div>`}
     </div>
   `;
+  const cardContainer = host.querySelector(".rules-cards");
+  const stateCards = [...host.querySelectorAll(".rule-card[data-default-index]")];
+  const groupToolbar = host.querySelector(".rules-head");
+  if (groupToolbar) {
+    const addGroup = document.createElement("button");
+    addGroup.type = "button";
+    addGroup.className = "secondary-button";
+    addGroup.dataset.action = "add-default-group";
+    addGroup.innerHTML = `${icon("plus")} Gruppe anlegen`;
+    groupToolbar.append(addGroup);
+  }
+  if (cardContainer && stateCards.length) {
+    cardContainer.className = "default-group-list";
+    const groups = new Map();
+    stateCards.forEach((card) => {
+      const entry = state.defaults[Number(card.dataset.defaultIndex)];
+      const name = String(entry?.groupName || "").trim();
+      const key = name || "__ungrouped__";
+      if (!groups.has(key)) groups.set(key, { name, cards: [] });
+      groups.get(key).cards.push(card);
+      const typeLabel = [...card.querySelectorAll("label")].find((label) => label.textContent.trim() === "Typ");
+      const groupLabel = document.createElement("label");
+      groupLabel.className = "default-state-group-field";
+      const groupCaption = document.createElement("span"); groupCaption.textContent = "Gruppe";
+      const groupInput = document.createElement("input");
+      groupInput.type = "text"; groupInput.maxLength = 48; groupInput.value = name;
+      groupInput.placeholder = "Ohne Gruppe"; groupInput.setAttribute("list", "defaultGroupNames"); groupInput.dataset.field = "groupName";
+      groupLabel.append(groupCaption, groupInput);
+      if (typeLabel) card.insertBefore(groupLabel, typeLabel);
+      [...card.querySelectorAll("label")].filter((label) => ["Typ", "Ziel", "Aktion"].includes(label.textContent.trim())).forEach((label) => {
+        const control = label.nextElementSibling;
+        if (!control || !["SELECT", "INPUT"].includes(control.tagName)) return;
+        const field = document.createElement("label"); field.className = "default-state-field";
+        const caption = document.createElement("span"); caption.textContent = label.textContent.trim();
+        field.append(caption, control); card.insertBefore(field, label); label.remove();
+      });
+    });
+    const groupNames = [...new Set(state.defaults.map((item) => String(item.groupName || "").trim()).filter(Boolean))];
+    const names = document.createElement("datalist"); names.id = "defaultGroupNames";
+    groupNames.forEach((name) => { const option = document.createElement("option"); option.value = name; names.append(option); });
+    host.append(names);
+    for (const [key, group] of groups) {
+      const details = document.createElement("details");
+      details.className = "default-group";
+      details.dataset.defaultGroup = key;
+      details.open = expandedDefaultGroups.has(key);
+      const summary = document.createElement("summary");
+      const title = document.createElement("strong"); title.textContent = group.name || "Ohne Gruppe";
+      const countLabel = document.createElement("span"); countLabel.className = "default-group-count";
+      countLabel.textContent = `${group.cards.length} ${group.cards.length === 1 ? "Zustand" : "Zust\u00e4nde"}`;
+      summary.append(title, countLabel);
+      const chevron = document.createElement("span"); chevron.className = "default-group-chevron"; chevron.innerHTML = icon("chevron-down"); summary.append(chevron);
+      details.append(summary);
+      const actions = document.createElement("div"); actions.className = "default-group-actions";
+      const addState = document.createElement("button"); addState.type = "button"; addState.className = "secondary-button"; addState.dataset.action = "add-default-to-group"; addState.dataset.groupName = group.name; addState.innerHTML = `${icon("plus")} Zustand`;
+      actions.append(addState);
+      if (group.name) {
+        const rename = document.createElement("button"); rename.type = "button"; rename.className = "text-button"; rename.dataset.action = "rename-default-group"; rename.dataset.groupName = group.name; rename.textContent = "Umbenennen"; actions.append(rename);
+      }
+      details.append(actions, ...group.cards);
+      cardContainer.append(details);
+      details.addEventListener("toggle", () => details.open ? expandedDefaultGroups.add(key) : expandedDefaultGroups.delete(key));
+    }
+  }
 }
 
 function renderRelayGrid() {
@@ -425,6 +492,7 @@ function renderRelayGrid() {
     ${rows.length ? rows.map((r) => {
         const key = `${r.m.id}:${r.idx + 1}`;
         const cfg = state.relayConfig[key] || {};
+        const linkedLights = (state.lightButtons || []).filter((button) => String(button.moduleId || button.module || "") === String(r.m.id) && Number(button.relayIndex ?? button.relay ?? 0) === r.idx + 1);
         const control = moduleControlInfo(r.m.id);
         const feedback = commandFeedbackForRelay(r.m.id, r.idx + 1);
         const commandText = commandStatusText(feedback) || (!control.enabled ? control.reason : "");
@@ -436,6 +504,8 @@ function renderRelayGrid() {
               <div class="io-channel-title"><small>Kanal ${String(r.idx + 1).padStart(2, "0")}</small><strong>${esc(cfg.name || `Relais ${r.idx + 1}`)}</strong></div>
               <span class="${r.on ? "badge-on" : "badge-off"}">${r.on ? "AN" : "AUS"}</span>
             </header>
+            ${linkedLights.length ? `<div class="relay-light-assignment" aria-label="Zugeordnete Lichttasten">${linkedLights.map((button) => `<span>${icon(button.icon || "light")}<span>${esc(button.name || "Lichttaste")}</span></span>`).join("")}</div>` : ""}
+
 
             <label class="io-field"><span>Name</span><input data-field="relayName" value="${esc(cfg.name || "")}" placeholder="z. B. Bahnhof Licht"></label>
             <label class="io-field"><span>Rolle</span><input data-field="relayRole" value="${esc(cfg.role || "")}" placeholder="z. B. Beleuchtung"></label>
@@ -592,7 +662,7 @@ function renderStationControlStatus() {
   const uptime = Number(station.uptimeSec ?? state.serverUptimeSec) || 0;
   if (status) status.textContent = station.state === "restart" ? "Startet neu …" : station.state === "shutdown" ? "Wird beendet …" : "Läuft";
   if (detail) detail.textContent = `Laufzeit ${formatUptime(uptime)}${Number(station.pid) > 0 ? ` · PID ${station.pid}` : ""} · ${managerLabel}`;
-  if (version) version.textContent = state.serverVersion ? `v${state.serverVersion}` : "–";
+  if (version) version.textContent = state.stationReleaseVersion || (state.serverVersion ? `v${state.serverVersion}` : "–");
   if (address) {
     const host = Array.isArray(state.connection?.lanAddresses) && state.connection.lanAddresses.length
       ? state.connection.lanAddresses[0]
@@ -631,9 +701,96 @@ function renderStationControlStatus() {
 }
 
 const SETTINGS_SECTIONS = {
-  overview: "Alle Einstellungen", modules: "Module", updates: "Updates", lights: "Lichttasten", relays: "Relais",
+  overview: "Alle Einstellungen", modules: "Module", updates: "ESP-Firmware", "station-updates": "DynoraStation-Updates", lights: "Lichttasten", relays: "Relais",
   sensors: "Sensoren", leds: "LEDs & Signale", rules: "Automationen", defaults: "Grundstellung", station: "Server & Neustart"
 };
+
+let lastRenderedSettingsView = "";
+let otaServerConfig = null;
+let otaServerConfigRequest = null;
+let stationUpdateRequest = null;
+
+async function refreshStationUpdateStatus({ force = false } = {}) {
+  if (stationUpdateRequest) return stationUpdateRequest;
+  stationUpdateRequest = fetch(`/api/update/status${force ? "?refresh=1" : ""}`, { cache: "no-store" }).then(async response => {
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.message || "Versionsprüfung fehlgeschlagen.");
+    const local = byId("stationLocalVersion");
+    const remote = byId("stationRemoteVersion");
+    const heading = byId("stationUpdateState");
+    const details = byId("stationUpdateDetails");
+    const instructions = byId("stationUpdateInstructions");
+    const dashboardLabel = byId("dashboardUpdateLabel");
+    const dashboardVersion = byId("dashboardUpdateVersion");
+    if (local) local.textContent = data.localVersion || "–";
+    state.stationReleaseVersion = data.localVersion || "";
+    renderStationControlStatus();
+    if (remote) remote.textContent = data.remoteVersion || "Nicht erreichbar";
+    if (heading) heading.textContent = data.checkError ? "GitHub-Prüfung nicht möglich" : data.updateAvailable ? "Update verfügbar" : "DynoraStation ist aktuell";
+    if (details) details.textContent = data.checkError || `Zuletzt geprüft: ${new Date(data.checkedAt).toLocaleString(getLocale())}`;
+    if (dashboardLabel) dashboardLabel.textContent = data.checkError ? "Prüfung fehlgeschlagen" : data.updateAvailable ? "Update verfügbar" : "Aktuell";
+    if (dashboardVersion) dashboardVersion.textContent = data.checkError ? "GitHub momentan nicht erreichbar" : `Installiert ${data.localVersion} · main ${data.remoteVersion}`;
+    const dashboard = byId("dashboardUpdateStatus");
+    dashboard?.classList.toggle("update-available", Boolean(data.updateAvailable));
+    dashboard?.classList.toggle("update-current", !data.updateAvailable && !data.checkError);
+    if (instructions) {
+      instructions.hidden = !data.updateAvailable;
+      if (data.updateAvailable) {
+        const guidance = data.managedBy === "docker"
+          ? "Docker aktualisiert sich nicht aus dem Container heraus. Im Compose-Projektordner auf dem Docker-Host den Quellstand aktualisieren und den Dienst neu bauen: git pull origin main && docker compose up -d --build. Bei einem Image-Setup stattdessen das konfigurierte Image aktualisieren und den Container neu erstellen."
+          : data.managedBy === "systemd"
+            ? "Auf dem Linux-Host den installierten Updater ausführen: sudo dynora-update. Er lädt main, sichert die Installation und prüft den Neustart."
+            : data.managedBy === "windows"
+              ? "Auf dem Windows-Rechner den DynoraStation-Installer mit „update“ ausführen. Der Installer aktualisiert aus main und erstellt zuvor ein Backup."
+              : "Das Update kommt aus dem main-Zweig. Nutze den Installer passend zu deiner Installation; bei einem direkten Start müssen Programmdateien und Abhängigkeiten auf dem Host aktualisiert und der Prozess neu gestartet werden.";
+        instructions.textContent = guidance;
+      }
+    }
+    return data;
+  }).catch(error => {
+    const heading = byId("stationUpdateState");
+    const details = byId("stationUpdateDetails");
+    const label = byId("dashboardUpdateLabel");
+    if (heading) heading.textContent = "Versionsprüfung fehlgeschlagen";
+    if (details) details.textContent = error.message || "GitHub ist nicht erreichbar.";
+    if (label) label.textContent = "Prüfung fehlgeschlagen";
+  }).finally(() => { stationUpdateRequest = null; });
+  return stationUpdateRequest;
+}
+
+async function refreshOtaServerConfig() {
+  if (otaServerConfigRequest) return otaServerConfigRequest;
+  otaServerConfigRequest = fetch("/api/ota/config-status", { cache: "no-store" })
+    .then(async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || `${response.status} ${response.statusText}`);
+      otaServerConfig = data;
+      return data;
+    })
+    .catch(() => { otaServerConfig = { enabled: false }; return otaServerConfig; })
+    .finally(() => { otaServerConfigRequest = null; renderFirmwareUpdates(); });
+  return otaServerConfigRequest;
+}
+
+function collectFirmwareConnectionSettings() {
+  const wifiSsid = String(byId("wifiSsidInput")?.value || "");
+  const wifiPassword = String(byId("wifiPasswordInput")?.value || "");
+  const serverHost = String(byId("stationHostInput")?.value || "").trim();
+  const serverPort = Number(byId("stationPortInput")?.value);
+  if (!wifiSsid || wifiSsid.length > 32 || /[\u0000-\u001f\u007f]/.test(wifiSsid)) throw new Error("Der WLAN-Name muss 1 bis 32 Zeichen lang sein.");
+  if ((wifiPassword && wifiPassword.length < 8) || wifiPassword.length > 63 || /[\u0000-\u001f\u007f]/.test(wifiPassword)) throw new Error("Das WLAN-Passwort muss leer oder 8 bis 63 Zeichen lang sein.");
+  if (!/^[A-Za-z0-9.-]{1,253}$/.test(serverHost) || serverHost.startsWith(".") || serverHost.endsWith(".") || serverHost.includes("..") || serverHost.toLowerCase() === "localhost") throw new Error("Trage die IP-Adresse oder den Hostnamen des Servers ein, nicht localhost.");
+  if (!Number.isInteger(serverPort) || serverPort < 1 || serverPort > 65535) throw new Error("Der Stations-Port muss zwischen 1 und 65535 liegen.");
+  return { wifiSsid, wifiPassword, serverHost, serverPort };
+}
+
+function updateManualFirmwareButton() {
+  const button = byId("uploadBinButton");
+  if (!button) return;
+  const file = byId("firmwareBinInput")?.files?.[0];
+  const version = String(byId("firmwareBinVersion")?.value || "").trim();
+  button.disabled = !otaServerConfig?.enabled || !file || file.size < 8 || file.size > 2 * 1024 * 1024 || !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,39}$/.test(version);
+}
 
 function renderFirmwareUpdates() {
   const select = byId("otaModuleSelect");
@@ -644,15 +801,31 @@ function renderFirmwareUpdates() {
   if (modules.some(module => module.id === selected)) select.value = selected;
   else if (modules.length) select.value = modules[0].id;
   const current = modules.find(module => module.id === select.value);
+  if (current) state.selectedOtaModule = current.id;
   const build = current ? state.firmwareBuilds?.[current.hardwareType] : null;
+  const buildButton = byId("buildFirmwareButton");
   const upload = byId("uploadFirmwareButton");
-  if (upload) upload.disabled = !current?.online || build?.status !== "ready";
+  if (buildButton) buildButton.disabled = !current || !otaServerConfig?.enabled || build?.status === "building";
+  if (upload) upload.disabled = !current?.online || build?.status !== "ready" || !otaServerConfig?.enabled;
   const status = byId("firmwareUpdateStatus");
   if (status && current && build) status.textContent = build.error || build.message || `Firmwarestatus: ${build.status}`;
-  if (status && !current) status.textContent = t("status.noModuleSupported");
+  if (status && current && !build) status.textContent = "WLAN und Stationsadresse eintragen; danach Firmware bauen oder eine BIN bereitstellen.";
+  if (status && !current) status.textContent = "Verbinde zuerst einen unterstützten ESP8266 oder prüfe seine Hardwareangabe.";
+  const readiness = byId("otaServerReadiness");
+  const keyState = byId("otaServerKeyState");
+  if (readiness) {
+    readiness.textContent = otaServerConfig === null ? "OTA-Konfiguration wird geprüft …" : otaServerConfig.enabled ? "Server-OTA-Schlüssel ist eingerichtet. Firmware kann erstellt und geprüft werden." : "OTA ist noch nicht eingerichtet. Setze OTA_SHARED_SECRET (mindestens 24 Zeichen) in der Server-/Compose-Konfiguration und starte DynoraStation neu.";
+    readiness.classList.toggle("ready", Boolean(otaServerConfig?.enabled));
+    readiness.classList.toggle("warning", otaServerConfig?.enabled === false);
+  }
+  if (keyState) keyState.textContent = otaServerConfig?.enabled ? "auf dem Server eingerichtet" : "auf dem Server nicht eingerichtet";
+  const downloadSketch = byId("downloadUsbSketchButton");
+  if (downloadSketch) downloadSketch.disabled = !current || !otaServerConfig?.enabled || String(byId("otaKeyInput")?.value || "").length < 24;
+  updateManualFirmwareButton();
   if (current && !build) refreshFirmwareBuild(current.hardwareType).catch(() => {});
   const progress = byId("firmwareProgress");
   if (progress) progress.value = build?.progress || 0;
+  if (!otaServerConfig && !otaServerConfigRequest) refreshOtaServerConfig();
 }
 
 async function refreshFirmwareBuild(hardwareType) {
@@ -664,13 +837,67 @@ async function refreshFirmwareBuild(hardwareType) {
   return build;
 }
 
+function replaceFirmwareStringConstant(source, name, value) {
+  if (/[\u0000-\u001f\u007f]/.test(value)) throw new Error(`${name} darf keine Steuerzeichen enthalten.`);
+  const pattern = new RegExp(`(const char\\s*\\*\\s*${name}\\s*=\\s*)"[^"\\r\\n]*";`);
+  if (!pattern.test(source)) throw new Error(`Die Quelltextvorlage enthält das Feld ${name} nicht.`);
+  const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return source.replace(pattern, (_match, prefix) => `${prefix}"${escaped}";`);
+}
+
+function replaceFirmwarePort(source, port) {
+  const pattern = /(const uint16_t\s+SERVER_PORT\s*=\s*)\d+;/;
+  if (!pattern.test(source)) throw new Error("Die Quelltextvorlage enthält keinen Stations-Port.");
+  return source.replace(pattern, (_match, prefix) => `${prefix}${port};`);
+}
+
+function downloadTextFile(filename, contents) {
+  const url = URL.createObjectURL(new Blob([contents], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function downloadConfiguredUsbSketch() {
+  const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
+  if (!module || !otaServerConfig?.enabled) throw new Error("Wähle ein unterstütztes Modul und richte den Server-OTA-Schlüssel ein.");
+  const configuration = collectFirmwareConnectionSettings();
+  const secret = String(byId("otaKeyInput")?.value || "");
+  if (secret.length < 24 || /[\u0000-\u001f\u007f]/.test(secret)) throw new Error("Der OTA-Schlüssel muss mindestens 24 Zeichen lang sein.");
+  const response = await fetch(`/api/ota/sketch-template?hardwareType=${encodeURIComponent(module.hardwareType)}`, { cache: "no-store" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.message || "Quelltextvorlage konnte nicht geladen werden.");
+  }
+  let source = await response.text();
+  const firmwareVersion = `usb-${Date.now()}`;
+  for (const [key, value] of Object.entries({
+    WIFI_SSID: configuration.wifiSsid,
+    WIFI_PASS: configuration.wifiPassword,
+    SERVER_HOST: configuration.serverHost,
+    OTA_SHARED_SECRET: secret,
+    FIRMWARE_VERSION: firmwareVersion
+  })) source = replaceFirmwareStringConstant(source, key, value);
+  source = replaceFirmwarePort(source, configuration.serverPort);
+  const sketchName = module.hardwareType === "ESP8266_NODEMCU_LED_DIRECT" ? "led_signalleuchten" : "relays_und_sensoren";
+  downloadTextFile(`${sketchName}-konfiguriert.ino`, source);
+  byId("otaKeyInput").value = "";
+  showToast("Konfigurierte .ino-Datei geladen. Der OTA-Schlüssel blieb im Browser.");
+}
+
 export function renderSettingsTab() {
   const renderers = {
-    modules: renderModuleManagement, updates: renderFirmwareUpdates, lights: renderLightConfig, defaults: renderDefaultStates,
+    modules: renderModuleManagement, updates: renderFirmwareUpdates, "station-updates": refreshStationUpdateStatus, lights: renderLightConfig, defaults: renderDefaultStates,
     relays: renderRelayGrid, sensors: renderSensorGrid, leds: renderLedGrid,
     station: renderStationControlStatus, rules: renderRulesGrid
   };
   if (!Object.hasOwn(SETTINGS_SECTIONS, state.settingsView)) state.settingsView = "overview";
+  if (state.settingsView !== lastRenderedSettingsView) {
+    if (state.settingsView === "defaults") expandedDefaultGroups.clear();
+    lastRenderedSettingsView = state.settingsView;
+  }
   renderers[state.settingsView]?.();
   applySettingsView();
 }
@@ -727,6 +954,7 @@ async function saveSettingsSection(section) {
         state.lightButtons = hardware.lightButtons.map((button, index) => ({
           id: button.id ?? index + 1,
           name: button.name || `Licht ${index + 1}`,
+          icon: button.icon || "light",
           moduleId: button.module || "",
           relayIndex: Number(button.relay || 0),
           active: false
@@ -755,7 +983,7 @@ function bindSettingsInput() {
   byId("defaultSearch")?.addEventListener("input", renderDefaultStates);
   byId("defaultSelectVisible")?.addEventListener("change", (event) => {
     const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
-    state.defaults.forEach((item, index) => { if (!search || `${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search)) event.target.checked ? selectedDefaultIndices.add(index) : selectedDefaultIndices.delete(index); });
+    state.defaults.forEach((item, index) => { if (!search || `${item.groupName || ""} ${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search)) event.target.checked ? selectedDefaultIndices.add(index) : selectedDefaultIndices.delete(index); });
     renderDefaultStates();
   });
   byId("deleteSelectedDefaults")?.addEventListener("click", () => {
@@ -765,6 +993,20 @@ function bindSettingsInput() {
     state.settingsDirty.defaults = true; renderDefaultStates(); setSaveStatus("saveDefaultsStatus", "Ungespeichert");
   });
   document.addEventListener("change", (event) => {
+    const lightIconCard = event.target.closest("[data-light-index]");
+    if (lightIconCard && event.target.matches('[data-field="icon"]')) {
+      const index = Number(lightIconCard.dataset.lightIndex);
+      const button = state.lightButtons?.[index];
+      if (button) {
+        button.icon = event.target.value;
+        state.settingsDirty.lights = true;
+        setSaveStatus("saveLightStatus", "Ungespeichert");
+        const preview = lightIconCard.querySelector(".light-icon-preview");
+        if (preview) preview.innerHTML = icon(button.icon);
+        renderTrackLightButtons();
+      }
+      return;
+    }
     if (event.target.matches("[data-select-default]")) {
       const index = Number(event.target.dataset.selectDefault);
       if (event.target.checked) selectedDefaultIndices.add(index); else selectedDefaultIndices.delete(index);
@@ -774,6 +1016,7 @@ function bindSettingsInput() {
   document.addEventListener("change", (ev) => {
     if (ev.target.closest("[data-default-index]") && ev.target.dataset.field) {
       ev.target.dispatchEvent(new Event("input", { bubbles: true }));
+      if (ev.target.dataset.field === "groupName") renderDefaultStates();
       return;
     }
     if (ev.target.id === "relayModuleSelect") {
@@ -863,7 +1106,17 @@ function bindSettingsInput() {
     }
   });
 
+  document.addEventListener("input", ev => {
+    if (ev.target?.id === "firmwareBinInput" || ev.target?.id === "firmwareBinVersion") updateManualFirmwareButton();
+    if (ev.target?.id === "otaKeyInput") {
+      const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
+      const button = byId("downloadUsbSketchButton");
+      if (button) button.disabled = !module || !otaServerConfig?.enabled || String(ev.target.value || "").length < 24;
+    }
+  });
+
   document.addEventListener("change", ev => {
+    if (ev.target?.id === "firmwareBinInput" || ev.target?.id === "firmwareBinVersion") { updateManualFirmwareButton(); return; }
     if (ev.target?.id !== "otaModuleSelect") return;
     state.selectedOtaModule = ev.target.value;
     renderFirmwareUpdates();
@@ -874,6 +1127,15 @@ function bindSettingsInput() {
   document.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
+
+    if (btn.id === "checkStationUpdate") {
+      btn.disabled = true;
+      btn.textContent = "Prüft …";
+      await refreshStationUpdateStatus({ force: true });
+      btn.disabled = false;
+      btn.textContent = "Erneut prüfen";
+      return;
+    }
 
     if (btn.dataset.action === "ota-firmware") {
       const moduleId = btn.dataset.moduleId || "";
@@ -888,6 +1150,43 @@ function bindSettingsInput() {
       return;
     }
 
+    if (btn.id === "downloadUsbSketchButton") {
+      btn.disabled = true;
+      try { await downloadConfiguredUsbSketch(); }
+      catch (error) { showToast(`USB-Firmwaredatei konnte nicht erstellt werden: ${error.message}`, "error"); }
+      finally { renderFirmwareUpdates(); }
+      return;
+    }
+
+    if (btn.id === "uploadBinButton") {
+      const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
+      const file = byId("firmwareBinInput")?.files?.[0];
+      const version = String(byId("firmwareBinVersion")?.value || "").trim();
+      const statusEl = byId("firmwareUpdateStatus");
+      if (!module || !file) { showToast("Wähle zuerst ESP-Modell und BIN-Datei aus.", "warning"); return; }
+      btn.disabled = true;
+      if (statusEl) statusEl.textContent = "BIN wird auf Hardwaretyp, Version und OTA-Schlüssel geprüft …";
+      try {
+        const response = await fetch("/api/ota/manual-firmware", {
+          method: "POST",
+          headers: { "Content-Type": "application/octet-stream", "X-Dynora-Firmware-Hardware": module.hardwareType, "X-Dynora-Firmware-Version": version },
+          body: file,
+          cache: "no-store"
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.message || result.fehler || `${response.status} ${response.statusText}`);
+        await refreshFirmwareBuild(module.hardwareType);
+        if (statusEl) statusEl.textContent = `BIN geprüft: ${result.version} · ${(result.size / 1024).toFixed(0)} KB. Du kannst sie jetzt per OTA installieren.`;
+        showToast(`BIN ${result.version} geprüft und für ${module.name || module.id} bereitgestellt.`);
+      } catch (error) {
+        if (statusEl) statusEl.textContent = `BIN abgelehnt: ${error.message}`;
+        showToast(`BIN konnte nicht bereitgestellt werden: ${error.message}`, "error");
+      } finally {
+        renderFirmwareUpdates();
+      }
+      return;
+    }
+
     if (btn.id === "buildFirmwareButton") {
       const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
       if (!module) { showToast("Wähle zuerst ein unterstütztes ESP-Modul.", "warning"); return; }
@@ -898,7 +1197,8 @@ function bindSettingsInput() {
       if (statusEl) statusEl.textContent = "Server kompiliert die ausgewählte Firmware …";
       if (progressEl) progressEl.value = 5;
       try {
-        const response = await fetch("/api/ota/build", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hardwareType: module.hardwareType }), cache: "no-store" });
+        const configuration = collectFirmwareConnectionSettings();
+        const response = await fetch("/api/ota/build", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hardwareType: module.hardwareType, ...configuration }), cache: "no-store" });
         const result = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(result.message || result.fehler || `${response.status} ${response.statusText}`);
         let buildDone = false;
@@ -1116,6 +1416,37 @@ function bindSettingsInput() {
     if (btn.dataset.action === "add-default") {
       if (!Array.isArray(state.defaults)) state.defaults = [];
       state.defaults.push({ targetType: "", targetId: "", action: "" });
+      expandedDefaultGroups.add("__ungrouped__");
+      state.settingsDirty.defaults = true;
+      renderDefaultStates();
+      setSaveStatus("saveDefaultsStatus", "Ungespeichert");
+      return;
+    }
+
+    if (btn.dataset.action === "add-default-group" || btn.dataset.action === "add-default-to-group") {
+      const groupName = btn.dataset.action === "add-default-to-group" ? String(btn.dataset.groupName || "").trim() : String(prompt("Name der neuen Gruppe") || "").trim();
+      if (btn.dataset.action === "add-default-group" && !groupName) return;
+      if (btn.dataset.action === "add-default-group" && state.defaults.some((item) => String(item.groupName || "").toLocaleLowerCase("de-DE") === groupName.toLocaleLowerCase("de-DE"))) {
+        showToast("Eine Gruppe mit diesem Namen gibt es bereits.", "warning"); return;
+      }
+      if (!Array.isArray(state.defaults)) state.defaults = [];
+      state.defaults.push({ targetType: "", targetId: "", action: "", groupName });
+      expandedDefaultGroups.add(groupName || "__ungrouped__");
+      state.settingsDirty.defaults = true;
+      renderDefaultStates();
+      setSaveStatus("saveDefaultsStatus", "Ungespeichert");
+      return;
+    }
+
+    if (btn.dataset.action === "rename-default-group") {
+      const currentName = String(btn.dataset.groupName || "").trim();
+      const nextName = String(prompt("Neuer Gruppenname", currentName) || "").trim();
+      if (!currentName || !nextName || nextName === currentName) return;
+      if (state.defaults.some((item) => String(item.groupName || "").toLocaleLowerCase("de-DE") === nextName.toLocaleLowerCase("de-DE"))) {
+        showToast("Eine Gruppe mit diesem Namen gibt es bereits.", "warning"); return;
+      }
+      state.defaults.forEach((item) => { if (String(item.groupName || "").trim() === currentName) item.groupName = nextName; });
+      expandedDefaultGroups.delete(currentName); expandedDefaultGroups.add(nextName);
       state.settingsDirty.defaults = true;
       renderDefaultStates();
       setSaveStatus("saveDefaultsStatus", "Ungespeichert");
@@ -1164,15 +1495,6 @@ function bindSettingsInput() {
       return;
     }
 
-    if (btn.id === "applyDefaultsButton") {
-      try {
-        const result = await apiCall("/control/defaults/apply", { method: "POST", body: { defaults: state.defaults || [] } });
-        rememberPendingCommands(result);
-        showToast("Standardzustände werden geschaltet …");
-      } catch (e) {
-        showToast(`Standardzustände konnten nicht angewendet werden: ${e?.message || e}`, "error");
-      }
-    }
   });
 }
 
@@ -1248,13 +1570,21 @@ export function eventsRegistrieren() {
   applyCoreTranslations();
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
-    if (["overview", "modules", "updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
+    if (["overview", "modules", "updates", "station-updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
   } catch {}
   bindNavigation();
-  byId("languageToggle")?.addEventListener("click", () => {
-    const next = getLanguage() === "de" ? "en" : "de";
-    setLanguage(next);
-  });
+  refreshStationUpdateStatus();
+  const languageSelect = byId("languageToggle");
+  if (languageSelect) {
+    languageSelect.replaceChildren(...LANGUAGES.map(({ code, name, flag }) => {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = `${flag} ${name}`;
+      return option;
+    }));
+    updateLanguageToggleButton();
+    languageSelect.addEventListener("change", () => setLanguage(languageSelect.value));
+  }
   document.addEventListener("dynora:language-changed", () => {
     applyCoreTranslations();
     renderSidebarEspStatus();

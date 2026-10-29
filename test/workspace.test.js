@@ -26,10 +26,12 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
   global.setTimeout=(fn,ms,...args)=>{const timer=originalTimeout(fn,ms,...args);timers.push(timer);return timer;};
   const catalog=require("../src/domain/trackCatalog");
   let persisted=null;
+  let savedSettings=null;
   global.fetch=async(url,options={})=>{
     let payload={};
     if(url.includes("track-catalog")) payload=Object.fromEntries([["tracks","track"],["curves","curve"],["switches","switch"],["crossings","xtrack"],["bumpers","bumper"]].map(([group,kind])=>[group,Object.entries(catalog.TRACK_CATALOG).filter(([,item])=>item.kind===kind).map(([code,item])=>({code,...item}))]));
     else if(url==="/api/status") payload={layout:{version:32,metadaten:{name:"Testanlage",raster:12.5,rasterMm:25,plateWidthMm:3200,plateHeightMm:1800},elemente:[],verbindungen:[]},hardware:{modules:{},relays:[],sensors:[],leds:[]},modules:[],events:[],rules:[],connection:{},revisions:{layout:1,events:1}};
+    else if(url==="/api/control/settings") { savedSettings=JSON.parse(options.body); payload={ok:true,hardware:{lightButtons:(savedSettings.lightButtons||[]).map((button,index)=>({id:index+1,name:button.name,icon:button.icon,module:button.moduleId,relay:button.relayIndex}))}}; }
     else if(url==="/api/layout" && options.method==="POST") {persisted=JSON.parse(options.body);payload={ok:true,layout:persisted,warnings:{relayConflicts:[]}};}
     else if(url.includes("light-buttons")) payload={lightButtons:[]};
     else if(url.includes("rules")) payload={rules:[]};
@@ -63,6 +65,10 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
       assert.ok(fs.existsSync(path.join(__dirname, "../public", new URL(img.src).pathname)), img.src);
     }
     const search=document.getElementById("componentSearch");
+    search.value="5202";search.dispatchEvent(new Event("input"));
+    assert.equal(document.querySelectorAll(".component-card").length,0,"5202 ist ein Weichenpaar, kein einzelnes platzierbares Gleis");
+    search.value="5203";search.dispatchEvent(new Event("input"));
+    assert.equal(document.querySelectorAll(".component-card").length,1,"Einzelweiche 5203 ist als linke R2-Weiche auffindbar");
     search.value="5106";search.dispatchEvent(new Event("input"));
     assert.equal(document.querySelectorAll(".component-card").length,1);
     document.querySelector(".component-card").click();
@@ -85,6 +91,71 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     assert.ok(document.querySelector('#builderElementLayer .schematic-rail'));
     document.getElementById("placementDone").click();
     assert.equal(state.placement,null);
+
+    const { renderCanvas: renderBuilderCanvas, snapCanvasPoint, canvasSize } = await import("../public/app/builder/render.js?v=workspace-v17");
+    const board = canvasSize();
+    const edgePoints = [
+      { x: 0, y: 0 }, { x: board.width, y: 0 },
+      { x: board.width, y: board.height }, { x: 0, y: board.height }
+    ];
+    for (const point of edgePoints) assert.deepEqual(snapCanvasPoint(point), point, "Rasterfang darf die Plattenränder nicht sperren");
+    const dragTrackTo = (x, y) => {
+      const track = state.layout.elemente[0];
+      const group = document.querySelector(`#builderElementLayer [data-id="${track.id}"]`);
+      group.dispatchEvent(new window.MouseEvent("pointerdown", { bubbles: true, button: 0, clientX: track.x, clientY: track.y }));
+      group.dispatchEvent(new window.MouseEvent("pointermove", { bubbles: true, clientX: x, clientY: y }));
+      group.dispatchEvent(new window.MouseEvent("pointerup", { bubbles: true, button: 0, clientX: x, clientY: y }));
+    };
+    dragTrackTo(0, 0);
+    assert.equal(state.layout.elemente[0].x, 0, "Gleis lässt sich bis an den linken Rand ziehen");
+    assert.equal(state.layout.elemente[0].y, 0, "Gleis lässt sich bis an den oberen Rand ziehen");
+    dragTrackTo(board.width, 0);
+    assert.equal(state.layout.elemente[0].x, board.width, "Gleis lässt sich bis an den rechten Rand ziehen");
+    dragTrackTo(board.width, board.height);
+    assert.equal(state.layout.elemente[0].y, board.height, "Gleis lässt sich bis an den unteren Rand ziehen");
+
+    const previousLayout = state.layout;
+    state.layout = { ...state.layout, elemente: [
+      { id: "branch-switch", typ: "switch", x: 600, y: 350, rotation: 0, winkel: 0, switchCode: "5118", switchState: "gerade" },
+      { id: "branch-track-a", typ: "track", x: 900, y: 500, rotation: 0, winkel: 0, trackCode: "5106" },
+      { id: "branch-track-b", typ: "track", x: 1050, y: 560, rotation: 0, winkel: 0, trackCode: "5106" }
+    ], verbindungen: [] };
+    state.selectedTool = "connect";
+    state.connectFrom = null;
+    renderBuilderCanvas();
+    assert.match(document.querySelector("#page-builder .pan-hint").textContent, /zuerst ein Gleis anklicken/i);
+    const clickBuilderElement = id => document.querySelector(`#builderElementLayer [data-id="${id}"]`).dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    clickBuilderElement("branch-switch");
+    assert.match(document.querySelector("#page-builder .pan-hint").textContent, /das nächste gleis anklicken/i);
+    clickBuilderElement("branch-track-a");
+    assert.equal(state.layout.verbindungen.length, 1, "Erster Weichenanschluss wird hergestellt");
+    clickBuilderElement("branch-switch");
+    clickBuilderElement("branch-track-b");
+    assert.equal(state.layout.verbindungen.length, 2, JSON.stringify({ links: state.layout.verbindungen, connectFrom: state.connectFrom, selectedTool: state.selectedTool }));
+    const switchPorts = state.layout.verbindungen.map(link => link.von === "branch-switch" ? link.vonPort : link.nachPort);
+    assert.equal(new Set(switchPorts).size, 2, "Verwendet zwei verschiedene Weichenanschlüsse");
+    const { analyzePlan } = await import("../public/app/builder/validation.js?v=workspace-v11");
+    assert.equal(analyzePlan(state.layout).some(issue => issue.code === "GAP"), false, "Der erste Anschluss bleibt beim Verbinden des zweiten Zweigs erhalten");
+    state.selectedTool = "select";
+    document.querySelector(`#builderElementLayer [data-id="branch-switch"]`).dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    assert.equal(document.querySelector(".builder-layout").dataset.panel, "inspector", "Inspector opens beside the plan");
+    assert.equal(document.getElementById("inspector").hidden, false);
+    assert.equal(document.getElementById("inspector").dataset.elementId, "branch-switch");
+    const testSignal = { id: "direction-signal", typ: "espSignal", x: 400, y: 400, rotation: 0, signalAspectMode: "rgy", espState: "halt", signalDirection: "forward" };
+    state.layout = { ...state.layout, elemente: [testSignal], verbindungen: [] };
+    renderBuilderCanvas();
+    document.querySelector(`#builderElementLayer [data-id="${testSignal.id}"]`).dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+    const direction = document.getElementById("inspSignalDirection");
+    assert.ok(direction, "Signale bieten eine Fahrtrichtungsauswahl");
+    direction.value = "reverse";
+    direction.dispatchEvent(new Event("change", { bubbles: true }));
+    assert.equal(testSignal.signalDirection, "reverse");
+    assert.equal(document.getElementById("inspector").dataset.elementId, testSignal.id);
+    state.layout = previousLayout;
+    state.selectedElement = previousLayout.elemente[0]?.id || null;
+
+    renderBuilderCanvas();
+    assert.equal(state.placement,null);
     const {exportBuildPlan}=await import('../public/app/builder/export.js?v=workspace-v11');
     exportBuildPlan();
     const exportDocument=document.querySelector('#buildPlanPreview iframe').srcdoc;
@@ -99,7 +170,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     document.dispatchEvent(new window.KeyboardEvent("keydown",{key:"z",ctrlKey:true,shiftKey:true,bubbles:true}));
     assert.equal(state.layout.elemente.length,2);
     state.selectedElement=state.layout.elemente[0].id;
-    const {renderCanvas}=await import("../public/app/builder/render.js?v=workspace-v15");
+    const {renderCanvas}=await import("../public/app/builder/render.js?v=workspace-v17");
     renderCanvas();
     // Drag-and-drop uses the same placement path, including history and snapping.
     const transfer={getData:type=>type==='application/x-dynora-component'?document.querySelector('[data-component]').dataset.component:''};
@@ -132,11 +203,11 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     await new Promise(resolve=>originalTimeout(resolve,20));
     assert.equal(state.layout.metadaten.name,"Import");assert.equal(state.layoutDirty,true);
     document.getElementById("undoButton").click();assert.equal(state.layout.metadaten.name,"Neuer Plan");
-    document.querySelector('[data-builder-panel="library"]').click();
+    if (document.querySelector(".builder-layout").dataset.panel !== "library") document.querySelector('[data-builder-panel="library"]').click();
     assert.equal(document.querySelector(".builder-layout").dataset.mobilePanel,"library");
     document.querySelector('[data-builder-panel="inspector"]').click();
     assert.equal(document.querySelector(".builder-layout").dataset.mobilePanel,"inspector");
-    const {showInspector}=await import("../public/app/builder/inspect.js?v=workspace-v13");
+    const {showInspector}=await import("../public/app/builder/inspect.js?v=workspace-v14");
     const offline=state.layout.elemente[0];
     Object.assign(offline,{module:"OFFLINE_ESP",relay:5,sensorId:"S1",x:-10,y:20});
     state.hardware.modules={other:{id:"other",name:"Testmodul",kind:"RELAY_SENSOR",capabilities:["relay"],relays:[false],sensors:[],leds:[]}};
@@ -162,6 +233,19 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     assert.equal(document.querySelector('.module-settings-card').open,true,"Live-Updates erhalten aufgeklappte Module");
     document.querySelector('.module-channel-links [data-settings-view="relays"]').click();
     assert.equal(state.settingsView,"relays");assert.equal(state.settingsRelayModule,"other");
+    state.lightButtons=[{id:1,moduleId:"other",relayIndex:1,name:"Bahnsteiglicht",icon:"light"}];
+    const {renderSettingsTab}=await import("../public/app/ui/events.js?v=workspace-v27");
+    renderSettingsTab();
+    assert.match(document.querySelector(".relay-light-assignment")?.textContent || "", /Bahnsteiglicht/, "Relay shows the assigned light button name");
+    document.querySelector('[data-settings-view="lights"]').click();
+    const lightIcon=document.querySelector('[data-light-index="0"] [data-field="icon"]');
+    lightIcon.value="home";lightIcon.dispatchEvent(new Event("change",{bubbles:true}));
+    assert.equal(state.lightButtons[0].icon,"home");
+    assert.match(document.querySelector("#trackLightGrid .light-toggle-main")?.innerHTML || "", /icon-home/, "Selected icon updates the operating button immediately");
+    document.querySelector('[data-save-section="lights"]').click();
+    await new Promise(resolve=>originalTimeout(resolve,30));
+    assert.equal(savedSettings?.lightButtons?.[0]?.icon,"home", "Selected icon is included in the settings request");
+    assert.equal(state.lightButtons[0].icon,"home", "Saved icon remains selected after the server response");
     const relayName=document.querySelector('[data-field="relayName"]');
     relayName.value="Bahnhof";relayName.dispatchEvent(new Event("input",{bubbles:true}));
     assert.equal(state.settingsDirty.relays,true);

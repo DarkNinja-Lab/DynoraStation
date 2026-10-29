@@ -112,7 +112,9 @@ Ein Heartbeat enthält je nach Modultyp unter anderem:
 
 Die Antwort kann zusätzlich bereits den nächsten ausstehenden Befehl enthalten. So kann ein Befehl auch über den Heartbeat zugestellt werden, falls separates Polling ausfällt.
 
-Ein ACK benötigt mindestens die Befehls-ID. Wenn eine Modul-ID mitgesendet wird, prüft der Server, ob der Befehl tatsächlich diesem Modul gehört.
+Ein ACK benötigt Befehls-ID und Modul-ID. Der Server prüft die Zuordnung auch bei bereits erledigten Befehlen; ein anderes Modul kann keinen fremden Befehl bestätigen.
+
+Der Server liefert Steuerbefehle nur an online gemeldete Module mit kompatibler Protokollversion aus. Bei inkompatibler Firmware bleibt ein wartender Befehl in der Queue und kann nach einem erfolgreichen Firmware-Update erneut abgeholt werden. Ein Sensorzustand, der wegen eines verlorenen HTTP-ACKs identisch erneut gemeldet wird, löst keine zweite Automation aus.
 
 ## Debug-Endpunkte
 

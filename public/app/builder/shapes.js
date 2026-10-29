@@ -112,16 +112,21 @@ export function drawTrackMarker(g, x, y, angleDeg, activeColor = "#111") {
 export function drawCurveDual(g, radius, angleDeg, color = "#c5c5c5") {
   const r = Math.max(35, Number(radius) || 180);
   const angle = Math.max(2, Math.min(90, Number(angleDeg) || 30));
-  const chord = 2 * r * Math.sin((angle * Math.PI / 180) / 2);
-  const x1 = -chord / 2;
-  const x2 = chord / 2;
-  const centerPath = `M ${x1} 0 A ${r} ${r} 0 0 1 ${x2} 0`;
+  const halfAngle = (angle * Math.PI / 180) / 2;
+  const centerY = r * Math.cos(halfAngle);
+  const arcPath = (arcRadius) => {
+    const x = arcRadius * Math.sin(halfAngle);
+    const y = centerY - arcRadius * Math.cos(halfAngle);
+    return `M ${-x} ${y} A ${arcRadius} ${arcRadius} 0 0 1 ${x} ${y}`;
+  };
+  const centerPath = arcPath(r);
   const bed = svg("path");
   attrs(bed, { d: centerPath, fill: "none", stroke: "#3c4650", "stroke-width": 17, "stroke-linecap": "round" });
   const outer = svg("path");
-  attrs(outer, { d: `M ${x1} -4.5 A ${r + 4.5} ${r + 4.5} 0 0 1 ${x2} -4.5`, fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
+  attrs(outer, { d: arcPath(r + 4.5), fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
   const inner = svg("path");
-  attrs(inner, { d: `M ${x1} 4.5 A ${Math.max(12, r - 4.5)} ${Math.max(12, r - 4.5)} 0 0 1 ${x2} 4.5`, fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
+  const innerRadius = Math.max(12, r - 4.5);
+  attrs(inner, { d: arcPath(innerRadius), fill: "none", stroke: color, "stroke-width": 2.7, "stroke-linecap": "round" });
   const contacts = svg("path");
   attrs(contacts, { d: centerPath, fill: "none", stroke: "#d8dde1", "stroke-width": 1.4, "stroke-dasharray": "1 9", "stroke-linecap": "round" });
   g.append(bed, outer, inner, contacts);
@@ -130,8 +135,9 @@ export function drawCurveDual(g, radius, angleDeg, color = "#c5c5c5") {
 export function drawPowerCurve(g, radius, angleDeg, color = "#32f29a") {
   const r = Math.max(35, Number(radius) || 180);
   const angle = Math.max(2, Math.min(90, Number(angleDeg) || 30));
-  const chord = 2 * r * Math.sin((angle * Math.PI / 180) / 2);
-  const pathData = `M ${-chord / 2} 0 A ${r} ${r} 0 0 1 ${chord / 2} 0`;
+  const halfAngle = (angle * Math.PI / 180) / 2;
+  const x = r * Math.sin(halfAngle);
+  const pathData = `M ${-x} 0 A ${r} ${r} 0 0 1 ${x} 0`;
   const glow = svg("path");
   attrs(glow, { d: pathData, fill: "none", stroke: color, "stroke-width": 13, "stroke-linecap": "round", opacity: .22 });
   const core = svg("path");
@@ -182,37 +188,40 @@ function drawCurvedTurnoutRoute(g, startX, radius, angle, sign, railColor) {
 
 export function turnout5141Geometry(geometry, sign) {
   const scale = .5;
-  const innerRadius = Math.max(250, Number(geometry.radius) || 360) * scale;
-  const outerRadius = Math.max(innerRadius + 1, Math.max(250, Number(geometry.branchRadius) || 437.4) * scale);
+  const radius = Math.max(250, Number(geometry.radius) || 360) * scale;
+  const straightLead = Math.max(0, Number(geometry.straightLeadMm) || 77.4) * scale;
   const angleDeg = Math.max(10, Math.min(40, Number(geometry.angleDeg) || 30));
   const angle = angleDeg * Math.PI / 180;
-  const innerSpan = innerRadius * Math.sin(angle);
-  const outerSpan = outerRadius * Math.sin(angle);
-  const startX = -outerSpan / 2;
-  const innerPath = curvedRoutePath(startX, innerRadius, angle, sign);
-  const outerPath = curvedRoutePath(startX, outerRadius, angle, sign);
+  const curveSpan = radius * Math.sin(angle);
+  const fullSpan = straightLead + curveSpan;
+  const startX = -fullSpan / 2;
+  const mainCurveStartX = startX + straightLead;
+  const branchPath = curvedRoutePath(startX, radius, angle, sign);
+  const mainCurvePath = curvedRoutePath(mainCurveStartX, radius, angle, sign);
+  const mainPath = `M ${startX} 0 L ${mainCurveStartX} 0 ${mainCurvePath.slice(mainCurvePath.indexOf(" A"))}`;
   return {
-    startX, innerRadius, outerRadius, angle, angleDeg,
-    innerPath,
-    outerPath,
-    innerEnd: { x: startX + innerSpan, y: sign * innerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg },
-    outerEnd: { x: startX + outerSpan, y: sign * outerRadius * (1 - Math.cos(angle)), angle: sign * angleDeg }
+    startX, mainCurveStartX, radius, straightLead, angle, angleDeg,
+    branchPath,
+    mainPath,
+    branchEnd: { x: startX + curveSpan, y: sign * radius * (1 - Math.cos(angle)), angle: sign * angleDeg },
+    mainEnd: { x: mainCurveStartX + curveSpan, y: sign * radius * (1 - Math.cos(angle)), angle: sign * angleDeg }
   };
 }
 
 function draw5141Turnout(g, sign, isGerade, railColor, activeRoute, passiveRoute, geometry) {
   const layout = turnout5141Geometry(geometry, sign);
-  drawCurvedTurnoutRoute(g, layout.startX, layout.innerRadius, layout.angle, sign, railColor);
-  drawCurvedTurnoutRoute(g, layout.startX, layout.outerRadius, layout.angle, sign, railColor);
+  drawCurvedTurnoutRoute(g, layout.startX, layout.radius, layout.angle, sign, railColor);
+  drawDoubleRailLine(g, layout.startX, 0, layout.mainCurveStartX, 0, railColor, 9);
+  drawCurvedTurnoutRoute(g, layout.mainCurveStartX, layout.radius, layout.angle, sign, railColor);
 
-  [{ path: layout.innerPath, active: !isGerade }, { path: layout.outerPath, active: isGerade }].forEach((route) => {
+  [{ path: layout.branchPath, active: !isGerade }, { path: layout.mainPath, active: isGerade }].forEach((route) => {
     const stateRoute = svg("path");
     attrs(stateRoute, { d: route.path, fill: "none", stroke: route.active ? activeRoute : passiveRoute, "stroke-width": route.active ? 4.6 : 2.6, "stroke-linecap": "round", opacity: route.active ? .96 : .65 });
     g.appendChild(stateRoute);
   });
 
-  const splitX = layout.startX + layout.innerRadius * Math.sin(layout.angle * .42);
-  const splitY = sign * layout.innerRadius * (1 - Math.cos(layout.angle * .42));
+  const splitX = layout.startX + layout.radius * Math.sin(layout.angle * .42);
+  const splitY = sign * layout.radius * (1 - Math.cos(layout.angle * .42));
   const blade = svg("path");
   attrs(blade, { d: `M ${layout.startX + 12} ${sign * 1.8} Q ${layout.startX + 31} ${sign * 3.5} ${splitX} ${splitY}`, fill: "none", stroke: "#eef1f2", "stroke-width": 2.2, "stroke-linecap": "round" });
   const frog = svg("path");
@@ -268,23 +277,11 @@ export function drawSwitchShape(g, handed = "left", isGerade = true, geometry = 
 
   drawDoubleRailLine(g, -half, 0, half, 0, railColor, 7);
 
-  const branchBed = svg("path");
-  attrs(branchBed, {
-    d: `M ${-half} 0 Q ${-half + length * .58} 0 ${branchX} ${branchY}`,
-    fill: "none", stroke: "#3c4650", "stroke-width": 16, "stroke-linecap": "round"
-  });
-  const branchRail1 = svg("path");
-  const branchRail2 = svg("path");
-  attrs(branchRail1, { d: `M ${-half} -4.5 Q ${-half + length * .58} -4.5 ${branchX} ${branchY - 4.5}`, fill: "none", stroke: railColor, "stroke-width": 2.7, "stroke-linecap": "round" });
-  attrs(branchRail2, { d: `M ${-half} 4.5 Q ${-half + length * .58} 4.5 ${branchX} ${branchY + 4.5}`, fill: "none", stroke: railColor, "stroke-width": 2.7, "stroke-linecap": "round" });
-  g.append(branchBed, branchRail1, branchRail2);
+  const branchPath = drawCurvedTurnoutRoute(g, -half, radius, a, sign, railColor);
 
   drawStateSegmentLine(g, -10, 0, Math.min(half - 4, 22), 0, straightCol);
   const branchState = svg("path");
-  attrs(branchState, {
-    d: `M -10 0 Q ${length * .12} 0 ${Math.min(branchX - 5, length * .28)} ${branchY * .65}`,
-    fill: "none", stroke: branchCol, "stroke-width": 7, "stroke-linecap": "round"
-  });
+  attrs(branchState, { d: branchPath, fill: "none", stroke: branchCol, "stroke-width": 7, "stroke-linecap": "round" });
   g.appendChild(branchState);
 
   const positionMarker = svg("path");
@@ -414,12 +411,12 @@ export function appendElementHitTarget(g, element, catalogItem = {}, hitWidth = 
     return;
   }
   if (type === "signal") {
-    addArea({ x: -22, y: -36, width: 44, height: 106, rx: 10 });
+    addArea({ x: -27, y: -31, width: 54, height: 78, rx: 10 });
     return;
   }
   if (type === "espSignal") {
     const threeAspect = element.signalAspectMode === "rgy";
-    addArea({ x: -23, y: threeAspect ? -44 : -36, width: 46, height: threeAspect ? 118 : 106, rx: 10 });
+    addArea({ x: -27, y: threeAspect ? -38 : -31, width: 54, height: threeAspect ? 91 : 78, rx: 10 });
     return;
   }
   if (type === "transformer") {
@@ -451,8 +448,8 @@ export function localConnectionPorts(element, catalogItem = {}) {
         const layout = turnout5141Geometry(catalogItem, sign);
         return [
           { x: layout.startX, y: 0, angle: 180 },
-          layout.outerEnd,
-          layout.innerEnd
+          layout.mainEnd,
+          layout.branchEnd
         ];
       }
       const outerRadius = Math.max(radius, Math.max(250, Number(catalogItem.branchRadius) || 437.4) * .5);
@@ -504,22 +501,24 @@ export function worldConnectionPort(element, port) {
 
 export function drawSignalShape(g, state = "halt") {
   const halt = state !== "fahrt";
-  const mast = svg("path"); attrs(mast, { d: "M -2 22 L -2 58 L -14 58 L -14 63 L 14 63 L 14 58 L 2 58 L 2 22", fill: "#8b9096", stroke: "#202327", "stroke-width": 1.5 });
-  const head = svg("rect"); attrs(head, { x: -15, y: -29, width: 30, height: 53, rx: 11, fill: "#16191d", stroke: "#aeb4bb", "stroke-width": 2 });
-  const red = svg("circle"); attrs(red, { cx: 0, cy: -13, r: 7, fill: halt ? "#ff2b32" : "#3d1517", stroke: "#080808", "stroke-width": 2, filter: halt ? "url(#builderGlow)" : "" });
-  const green = svg("circle"); attrs(green, { cx: 0, cy: 11, r: 7, fill: halt ? "#12341d" : "#28dc60", stroke: "#080808", "stroke-width": 2, filter: halt ? "" : "url(#builderGlow)" });
+  const mast = svg("path"); attrs(mast, { d: "M -1.5 14 L -1.5 37 L -8 37 L -8 41 L 8 41 L 8 37 L 1.5 37 L 1.5 14", fill: "#8b9096", stroke: "#202327", "stroke-width": 1.3 });
+  const head = svg("rect"); attrs(head, { x: -10, y: -21, width: 20, height: 36, rx: 7, fill: "#16191d", stroke: "#aeb4bb", "stroke-width": 1.5 });
+  const red = svg("circle"); attrs(red, { cx: 0, cy: -11, r: 4.5, fill: halt ? "#ff2b32" : "#3d1517", stroke: "#080808", "stroke-width": 1.2, filter: halt ? "url(#builderGlow)" : "" });
+  const green = svg("circle"); attrs(green, { cx: 0, cy: 5, r: 4.5, fill: halt ? "#12341d" : "#28dc60", stroke: "#080808", "stroke-width": 1.2, filter: halt ? "" : "url(#builderGlow)" });
   g.append(mast, head, red, green);
 }
 
 export function drawEspSignalShape(g, state = "halt", aspectMode = "rg") {
   const active = ["halt", "warnung", "fahrt"].includes(state) ? state : "halt";
   const threeAspect = aspectMode === "rgy";
-  const mast = svg("path"); attrs(mast, { d: `M -2 ${threeAspect ? 31 : 22} L -2 61 L -13 61 L -13 66 L 13 66 L 13 61 L 2 61 L 2 ${threeAspect ? 31 : 22}`, fill: "#67717a", stroke: "#15181b", "stroke-width": 1.5 });
-  const head = svg("rect"); attrs(head, { x: -16, y: threeAspect ? -37 : -29, width: 32, height: threeAspect ? 70 : 53, rx: 12, fill: "#10151a", stroke: "#a86f32", "stroke-width": 2 });
+  const headTop = threeAspect ? -28 : -21;
+  const mastStart = threeAspect ? 24 : 14;
+  const mast = svg("path"); attrs(mast, { d: `M -1.5 ${mastStart} L -1.5 37 L -8 37 L -8 41 L 8 41 L 8 37 L 1.5 37 L 1.5 ${mastStart}`, fill: "#67717a", stroke: "#15181b", "stroke-width": 1.3 });
+  const head = svg("rect"); attrs(head, { x: -10, y: headTop, width: 20, height: threeAspect ? 56 : 36, rx: 7, fill: "#10151a", stroke: "#a86f32", "stroke-width": 1.5 });
   const colors = threeAspect
-    ? { halt: ["#ff2e38", "#371216", -22], warnung: ["#ffd42a", "#3a3210", 0], fahrt: ["#28df62", "#10351b", 22] }
-    : { halt: ["#ff2e38", "#371216", -13], fahrt: ["#28df62", "#10351b", 11] };
-  const lamps = Object.entries(colors).map(([aspect, values]) => { const lamp = svg("circle"); attrs(lamp, { cx: 0, cy: values[2], r: 7, fill: active === aspect ? values[0] : values[1], stroke: "#050607", "stroke-width": 2, filter: active === aspect ? "url(#builderGlow)" : "" }); return lamp; });
+    ? { halt: ["#ff2e38", "#371216", -18], warnung: ["#ffd42a", "#3a3210", -1], fahrt: ["#28df62", "#10351b", 16] }
+    : { halt: ["#ff2e38", "#371216", -11], fahrt: ["#28df62", "#10351b", 5] };
+  const lamps = Object.entries(colors).map(([aspect, values]) => { const lamp = svg("circle"); attrs(lamp, { cx: 0, cy: values[2], r: 4.5, fill: active === aspect ? values[0] : values[1], stroke: "#050607", "stroke-width": 1.2, filter: active === aspect ? "url(#builderGlow)" : "" }); return lamp; });
   g.append(mast, head, ...lamps);
 }
 
@@ -543,7 +542,7 @@ export function drawLabel(g, element, rotationDeg) {
   const t = svg("text");
   t.textContent = name;
   const type = element.typ === "ledSignal" || element.typ === "espSignal" ? "espSignal" : element.typ;
-  const labelY = type === "signal" ? 82 : type === "espSignal" ? 88 : type === "transformer" ? 52 : type === "bumper" ? 34 : 28;
+  const labelY = type === "signal" ? 50 : type === "espSignal" ? 50 : type === "transformer" ? 52 : type === "bumper" ? 34 : 28;
   attrs(t, {
     x: 0,
     y: labelY,

@@ -56,6 +56,16 @@ function createControlRoutes({
     return module;
   }
 
+  function requireModuleChannel(module, capability, channel) {
+    if (!Array.isArray(module.capabilities) || !module.capabilities.includes(capability)) {
+      throw apiError(409, "MODULE_CAPABILITY_MISSING", `${module.name || module.id} stellt keine ${capability === "relay" ? "Relais" : "LED-Kanäle"} bereit`);
+    }
+    const available = capability === "relay" ? module.relays : module.leds;
+    if (!Number.isInteger(channel) || channel < 1 || !Array.isArray(available) || channel > available.length) {
+      throw apiError(400, capability === "relay" ? "BAD_RELAY_CHANNEL" : "BAD_LED_CHANNEL", `Kanal ${channel} ist auf ${module.name || module.id} nicht vorhanden`);
+    }
+  }
+
   function ensureNoPending(moduleId, matcher, label = "Element") {
     const pending = runtimeState.commandQueue.find((command) => command.module === moduleId && matcher(command));
     if (pending) throw apiError(409, "COMMAND_PENDING", `${label} wird bereits geschaltet`);
@@ -95,7 +105,8 @@ function createControlRoutes({
       runtimeState.hardware.defaults = body.defaults.slice(0, 100).map((x) => ({
         targetType: cleanText(x?.targetType || "", 32),
         targetId: cleanText(x?.targetId || "", 80),
-        action: cleanText(x?.action || "", 32)
+        action: cleanText(x?.action || "", 32),
+        groupName: cleanText(x?.groupName || "", 48)
       }));
     }
 
@@ -164,11 +175,9 @@ function createControlRoutes({
         const moduleId = cleanText(match[1], 48) || "GLEIS_01";
         const channel = validRelay(match[2]);
         if (!channel) continue;
-        requireControllableModule(moduleId);
+        requireModuleChannel(requireControllableModule(moduleId), "relay", channel);
         const on = ["on", "ein", "1", "true"].includes(action);
-        commands.push(commandQueueApi.createCommand("RELAY_SET", {
-          channel, state: on, operationId: makeOperationId("DEFAULT_RELAY")
-        }, moduleId));
+        commands.push({ type: "RELAY_SET", data: { channel, state: on, operationId: makeOperationId("DEFAULT_RELAY") }, module: moduleId });
         applied.push(item);
         continue;
       }
@@ -179,36 +188,30 @@ function createControlRoutes({
         const channel = validRelay(state === "gerade" ? element.relayStraight : element.relayBranch);
         const moduleId = elementModule(element);
         if (!channel || !moduleId) continue;
-        requireControllableModule(moduleId);
-        commands.push(commandQueueApi.createCommand("RELAY_PULSE", {
-          channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_SWITCH")
-        }, moduleId));
+        requireModuleChannel(requireControllableModule(moduleId), "relay", channel);
+        commands.push({ type: "RELAY_PULSE", data: { channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_SWITCH") }, module: moduleId });
         applied.push(item);
       } else if (type === "signal" && element?.typ === "signal") {
         const state = action === "fahrt" || action === "green" ? "fahrt" : "halt";
         const channel = validRelay(state === "halt" ? element.relayHp0 : element.relayHp1);
         const moduleId = elementModule(element);
         if (!channel || !moduleId) continue;
-        requireControllableModule(moduleId);
-        commands.push(commandQueueApi.createCommand("RELAY_PULSE", {
-          channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_SIGNAL")
-        }, moduleId));
+        requireModuleChannel(requireControllableModule(moduleId), "relay", channel);
+        commands.push({ type: "RELAY_PULSE", data: { channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_SIGNAL") }, module: moduleId });
         applied.push(item);
       } else if ((type === "crossing" || type === "xtrack") && element?.typ === "xtrack") {
         const state = action === "gerade" || action === "straight" ? "gerade" : "abzweig";
         const channel = validRelay(state === "gerade" ? element.relayA : element.relayB);
         const moduleId = elementModule(element);
         if (!channel || !moduleId) continue;
-        requireControllableModule(moduleId);
-        commands.push(commandQueueApi.createCommand("RELAY_PULSE", {
-          channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_XTRACK")
-        }, moduleId));
+        requireModuleChannel(requireControllableModule(moduleId), "relay", channel);
+        commands.push({ type: "RELAY_PULSE", data: { channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("DEFAULT_XTRACK") }, module: moduleId });
         applied.push(item);
       } else if ((type === "espsignal" || type === "ledsignal") && element?.typ === "ledSignal") {
         const state = ["halt", "warnung", "fahrt"].includes(action) ? action : "halt";
         const moduleId = elementModule(element);
         if (!moduleId) continue;
-        requireControllableModule(moduleId);
+        const module = requireControllableModule(moduleId);
         const channels = {
           halt: validLedChannel(element.ledChannelRed),
           warnung: validLedChannel(element.ledChannelYellow),
@@ -218,17 +221,17 @@ function createControlRoutes({
         const opId = makeOperationId("DEFAULT_LED_SIGNAL");
         for (const [aspect, channel] of Object.entries(channels)) {
           if (!channel) continue;
+          requireModuleChannel(module, "led", channel);
           const brightness = aspect === state ? configuredLedBrightness(moduleId, channel) : 0;
-          commands.push(commandQueueApi.createCommand("LED_PWM", {
-            channel, brightness, state, elementId: element.id, operationId: opId
-          }, moduleId));
+          commands.push({ type: "LED_PWM", data: { channel, brightness, state, elementId: element.id, operationId: opId }, module: moduleId });
         }
         applied.push(item);
       }
     }
 
     addEvent("DEFAULTS", "SYSTEM", `${applied.length} Standardzustände zur Ausführung vorgemerkt`);
-    res.json({ ok: true, applied, commands, commandStatus: commands.length ? "pending" : "none" });
+    const queuedCommands = commands.map((command) => commandQueueApi.createCommand(command.type, command.data, command.module));
+    res.json({ ok: true, applied, commands: queuedCommands, commandStatus: queuedCommands.length ? "pending" : "none" });
   }));
 
   const relayControlHandler = wrap(async (req, res) => {
@@ -237,6 +240,7 @@ function createControlRoutes({
     if (!channel) throw apiError(400, "BAD_RELAY_CHANNEL", "Relaiskanal muss zwischen 1 und 256 liegen");
     if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "ESP-Modul fehlt");
     const module = requireControllableModule(moduleId);
+    requireModuleChannel(module, "relay", channel);
     ensureNoPending(moduleId, (command) => command.type === "RELAY_SET" && Number(command.data?.channel) === channel, `Relais ${channel}`);
 
     const confirmedState = currentRelayState(moduleId, channel, module);
@@ -256,7 +260,8 @@ function createControlRoutes({
     const moduleId = cleanText(req.body?.module || "", 48);
     if (!channel) throw apiError(400, "BAD_LED_CHANNEL", "LED-Kanal muss zwischen 1 und 256 liegen");
     if (!moduleId) throw apiError(400, "MODULE_REQUIRED", "ESP-Modul fehlt");
-    requireControllableModule(moduleId);
+    const module = requireControllableModule(moduleId);
+    requireModuleChannel(module, "led", channel);
     ensureNoPending(moduleId, (command) => ["LED_SET", "LED_PWM", "LED_BLINK"].includes(command.type) && Number(command.data?.channel) === channel, `LED ${channel}`);
 
     const mode = cleanText(req.body?.mode || "set", 20).toLowerCase();
@@ -291,7 +296,8 @@ function createControlRoutes({
     if (!channel) throw apiError(400, "SWITCH_NO_RELAY", "Für diese Weichenstellung ist kein Relay zugewiesen");
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "SWITCH_NO_MODULE", "Der Weiche ist kein ESP-Modul zugewiesen");
-    requireControllableModule(moduleId);
+    const module = requireControllableModule(moduleId);
+    requireModuleChannel(module, "relay", channel);
     ensureNoPending(
       moduleId,
       (command) => command.type === "RELAY_PULSE" && Number(command.data?.channel) === channel,
@@ -312,7 +318,8 @@ function createControlRoutes({
     if (!channel) throw apiError(400, "SIGNAL_NO_RELAY", `Für Signalzustand ${state} ist kein Relay zugewiesen`);
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "SIGNAL_NO_MODULE", "Dem Signal ist kein ESP-Modul zugewiesen");
-    requireControllableModule(moduleId);
+    const module = requireControllableModule(moduleId);
+    requireModuleChannel(module, "relay", channel);
     ensureNoPending(moduleId, (command) => command.data?.elementId === element.id, element.name || "Signal");
     const cmd = commandQueueApi.createCommand("RELAY_PULSE", {
       channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("SIGNAL"), triggerOnConfirm: true, triggerKind: "signal"
@@ -329,7 +336,8 @@ function createControlRoutes({
     if (!channel) throw apiError(400, "XTRACK_NO_RELAY", "Für diese Stellung ist kein Relay zugewiesen");
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "XTRACK_NO_MODULE", "Der Kreuzungsweiche ist kein ESP-Modul zugewiesen");
-    requireControllableModule(moduleId);
+    const module = requireControllableModule(moduleId);
+    requireModuleChannel(module, "relay", channel);
     ensureNoPending(moduleId, (command) => command.data?.elementId === element.id, element.name || "Kreuzungsweiche");
     const cmd = commandQueueApi.createCommand("RELAY_PULSE", {
       channel, duration: 220, state, elementId: element.id, operationId: makeOperationId("XTRACK"), triggerOnConfirm: true, triggerKind: "xtrack"
@@ -347,7 +355,7 @@ function createControlRoutes({
     if (!allowedStates.includes(state)) throw apiError(400, "ESP_SIGNAL_BAD_STATE", `Zustand ${state || "unbekannt"} ist nicht verfügbar`);
     const moduleId = elementModule(element);
     if (!moduleId) throw apiError(400, "ESP_SIGNAL_NO_MODULE", "Dem ESP-Signal ist kein ESP-Modul zugewiesen");
-    requireControllableModule(moduleId);
+    const module = requireControllableModule(moduleId);
     ensureNoPending(moduleId, (command) => command.data?.elementId === element.id, element.name || "ESP-Signal");
     const channels = {
       halt: validLedChannel(element.ledChannelRed),
@@ -355,6 +363,7 @@ function createControlRoutes({
       fahrt: validLedChannel(element.ledChannelGreen)
     };
     if (!channels[state]) throw apiError(400, "ESP_SIGNAL_NO_LED", `Für ${state} ist kein LED-Kanal zugewiesen`);
+    Object.values(channels).filter(Boolean).forEach((channel) => requireModuleChannel(module, "led", channel));
     const opId = makeOperationId("LED_SIGNAL");
     const entries = Object.entries(channels).filter(([, channel]) => Boolean(channel));
     const commands = entries.map(([aspect, channel], index) => commandQueueApi.createCommand("LED_PWM", {
@@ -378,6 +387,7 @@ function createControlRoutes({
     const module = requireControllableModule(moduleId);
     const channel = validRelay(element.relay);
     if (!channel) throw apiError(400, "TRACK_NO_RELAY", "Diesem Element ist kein Relay zugewiesen");
+    requireModuleChannel(module, "relay", channel);
     const isUncoupler = String(element.trackCode || element.catalogCode || "") === "5112";
     if (isUncoupler) {
       const duration = Math.max(100, Math.min(3000, toInt(element.uncouplerDurationMs, 450)));
@@ -411,16 +421,22 @@ function createControlRoutes({
     ].filter(Boolean));
     const commands = [];
     const skippedOffline = [];
+    const skippedIncompatible = [];
     moduleIds.forEach((moduleId) => {
       const module = runtimeState.modules?.[moduleId] || moduleRegistry.getOrCreateModule(moduleId);
       if (!moduleRegistry.moduleIsOnline(module)) {
         skippedOffline.push(moduleId);
         return;
       }
+      const compatibility = moduleRegistry.moduleCompatibility(module);
+      if (!compatibility.compatible) {
+        skippedIncompatible.push({ module: moduleId, reason: compatibility.reason });
+        return;
+      }
       commands.push(commandQueueApi.createCommand("NOT_AUS", { operationId: makeOperationId("EMERGENCY") }, moduleId));
     });
-    addEvent("NOT-AUS", "SYSTEM", `Not-Aus an ${commands.length} Online-Modul(e) gesendet${skippedOffline.length ? ` · ${skippedOffline.length} offline` : ""}`);
-    res.json({ ok: true, commandStatus: commands.length ? "pending" : "none", commands, skippedOffline });
+    addEvent("NOT-AUS", "SYSTEM", `Not-Aus an ${commands.length} kompatible Online-Modul(e) gesendet${skippedOffline.length ? ` · ${skippedOffline.length} offline` : ""}${skippedIncompatible.length ? ` · ${skippedIncompatible.length} inkompatibel` : ""}`);
+    res.json({ ok: true, commandStatus: commands.length ? "pending" : "none", commands, skippedOffline, skippedIncompatible });
   }));
 
   return router;

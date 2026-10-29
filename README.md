@@ -12,6 +12,8 @@ DynoraStation verbindet Gleisplan, ESP8266-Module, Relais, Rückmelder, Signale 
 - Anlagenplan validieren, importieren, exportieren und als PDF drucken
 - Bedienung auf Desktop, Tablet und Smartphone
 
+Die Sprache lässt sich rechts oben zwischen Deutsch, Englisch, Französisch, Spanisch, Italienisch, Niederländisch, Portugiesisch und Polnisch auswählen. Die Navigation und wichtigsten Status- und Seitenüberschriften sind übersetzt. Noch nicht einzeln übersetzte Oberflächentexte werden auf Englisch angezeigt.
+
 ## Installation
 
 DynoraStation lässt sich auf vier Wegen installieren – vom einfachsten bis zum aufwendigsten. Alle Methoden funktionieren unter Windows und Linux (Details und Besonderheiten: [docs/INSTALLATION.md](docs/INSTALLATION.md)).
@@ -66,7 +68,7 @@ docker compose up -d --build
 
 Die Weboberfläche ist danach unter `http://<server-ip>:8181` erreichbar. Daten liegen im Volume `DYNORA_APPDATA` (Standard: `/mnt/user/appdata/dynora_station/data`); den Pfad per `.env` oder Umgebungsvariable anpassen.
 
-Hinweis: Die Compose-Datei nutzt `network_mode: host` für die UDP-Discovery der ESPs. Unter Windows (Docker Desktop) ist Host-Netzwerk nur eingeschränkt verfügbar – dort ggf. Ports `8181`/`8182/udp` veröffentlichen und die ESPs manuell auf die Server-IP einstellen.
+Hinweis: Die Compose-Datei nutzt `network_mode: host` für die UDP-Discovery der ESPs. Falls Docker Desktop Host-Netzwerk nicht unterstützt, `network_mode: host` entfernen und TCP `8181` sowie UDP `8182` veröffentlichen. UDP-Broadcast kann blockiert sein; dann die Server-IP in der ESP-Firmware als `SERVER_HOST` eintragen.
 
 ### 4. npm (manuell)
 

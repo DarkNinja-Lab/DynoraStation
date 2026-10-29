@@ -1,11 +1,11 @@
-"use strict";
+﻿"use strict";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { commandFeedbackForElement, commandStatusText, moduleControlInfo } from "../core/commands.js?v=workspace-v11";
-import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v12";
+import { svg, drawDoubleRailLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve, drawSwitchShape, drawCrossingShape, drawSignalShape, drawEspSignalShape, drawTransformerShape } from "../builder/shapes.js?v=workspace-v19";
 import { icon } from "./icons.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
-import { getLocale, t } from "../core/i18n.js?v=workspace-v21";
+import { getLocale, t } from "../core/i18n.js?v=workspace-v23";
 
 function dashboardCatalogItem(element, group) {
   const code = element.trackCode || element.curveCode || element.switchCode || element.xTrackCode || element.catalogCode;

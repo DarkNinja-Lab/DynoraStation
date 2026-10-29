@@ -1,16 +1,16 @@
-"use strict";
+﻿"use strict";
 
-import { drawSchematicShape } from "./schematic.js?v=workspace-v11";
+import { drawSchematicShape } from "./schematic.js?v=workspace-v13";
 import { state } from "../core/state.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v13";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v14";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "./shapes.js?v=workspace-v13";
+} from "./shapes.js?v=workspace-v20";
 import { persistDraft } from "../layout/layout.js?v=workspace-v11";
 import { recordHistory } from "./history.js?v=workspace-v11";
-import { refreshPlanValidation } from "./validation.js?v=workspace-v11";
+import { refreshPlanValidation } from "./validation.js?v=workspace-v12";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 
 export function canvasSize() {
@@ -45,8 +45,8 @@ function snap(value) {
 export function snapCanvasPoint(point) {
   const size = canvasSize();
   return {
-    x: clamp(snap(point.x), 40, size.width - 40),
-    y: clamp(snap(point.y), 40, size.height - 40)
+    x: clamp(snap(point.x), 0, size.width),
+    y: clamp(snap(point.y), 0, size.height)
   };
 }
 
@@ -142,6 +142,12 @@ export function renderCanvas() {
   root.classList.toggle("is-placing", Boolean(state.placement));
   document.getElementById("selectToolButton")?.classList.toggle("active", state.selectedTool === "select");
   document.getElementById("connectToolButton")?.classList.toggle("active", state.selectedTool === "connect");
+  const interactionHint = document.querySelector("#page-builder .pan-hint");
+  if (interactionHint) interactionHint.textContent = state.selectedTool === "connect"
+    ? (state.connectFrom ? "Anschluss wählen: jetzt das nächste Gleis anklicken." : "Verbinden: zuerst ein Gleis anklicken.")
+    : state.selectedTool === "place"
+      ? "Linksklick platziert das Bauteil · Escape beendet die Platzierung."
+      : "Bauteil ziehen zum Verschieben · freie Fläche verschiebt den Plan · Mausrad zoomt.";
   const { width, height } = canvasSize();
   const background = document.getElementById("builderBackground");
   if (background) attrs(background, { width, height });
@@ -204,73 +210,89 @@ function connectElement(element) {
 
   const source = state.layout.elemente?.find((item) => item.id === state.connectFrom);
   const target = element;
-  if (source && source.id !== target.id) {
-    const links = Array.isArray(state.layout.verbindungen) ? state.layout.verbindungen : [];
-    const sourceHasOtherLinks = links.some((link) =>
-      (link.von === source.id || link.nach === source.id) &&
-      !((link.von === source.id && link.nach === target.id) || (link.von === target.id && link.nach === source.id))
-    );
-    if (sourceHasOtherLinks) {
-      showToast("Quellgleis ist bereits mit anderen Bauteilen verbunden. Bitte zuerst trennen.", "warning");
-      state.connectFrom = null;
-      state.selectedElement = target.id;
-      renderCanvas();
-      return;
-    }
-    const sourcePorts = localConnectionPorts(source, elementCatalogItem(source));
-    const targetPorts = localConnectionPorts(target, elementCatalogItem(target));
-    let best = null;
-    const occupied = new Set((state.layout.verbindungen || []).flatMap(link => [`${link.von}:${link.vonPort || 0}`, `${link.nach}:${link.nachPort || 0}`]));
+  if (!source || source.id === target.id) {
+    state.connectFrom = null;
+    renderCanvas();
+    return;
+  }
 
-    sourcePorts.forEach((sourcePort, sourceIndex) => {
-      targetPorts.forEach((targetPort, targetIndex) => {
-        if (occupied.has(`${source.id}:${sourceIndex}`) || occupied.has(`${target.id}:${targetIndex}`)) return;
-        const targetWorld = worldConnectionPort(target, targetPort);
-        const desiredRotation = ((targetWorld.angle + 180 - sourcePort.angle) % 360 + 360) % 360;
-        const oldRotation = Number(source.rotation ?? source.winkel ?? 0);
-        const rotationPenalty = angleDistance(desiredRotation, oldRotation) * .65;
-        const sourceWorldNow = worldConnectionPort(source, sourcePort);
-        const distance = Math.hypot(sourceWorldNow.x - targetWorld.x, sourceWorldNow.y - targetWorld.y);
-        const score = distance + rotationPenalty;
-        if (!best || score < best.score) best = { sourceIndex, targetIndex, sourcePort, targetWorld, desiredRotation, score };
-      });
-    });
+  const links = Array.isArray(state.layout.verbindungen) ? state.layout.verbindungen : [];
+  const existing = links.find((link) =>
+    (link.von === source.id && link.nach === target.id) ||
+    (link.von === target.id && link.nach === source.id)
+  );
+  if (existing) {
+    showToast("Diese Bauteile sind bereits verbunden", "warning");
+    state.connectFrom = null;
+    state.selectedElement = target.id;
+    renderCanvas();
+    return;
+  }
 
-    if (best) {
-      recordHistory();
-      source.rotation = best.desiredRotation;
-      source.winkel = best.desiredRotation;
-      const rotatedSourcePort = worldConnectionPort({ ...source, x: 0, y: 0 }, best.sourcePort);
-      source.x = best.targetWorld.x - rotatedSourcePort.x;
-      source.y = best.targetWorld.y - rotatedSourcePort.y;
+  const sourcePorts = localConnectionPorts(source, elementCatalogItem(source));
+  const targetPorts = localConnectionPorts(target, elementCatalogItem(target));
+  const occupied = new Set(links.flatMap((link) => [
+    `${link.von}:${Number(link.vonPort) || 0}`,
+    `${link.nach}:${Number(link.nachPort) || 0}`
+  ]));
+  const sourceAnchored = links.some((link) => link.von === source.id || link.nach === source.id);
+  const targetAnchored = links.some((link) => link.von === target.id || link.nach === target.id);
+  const keepSource = sourceAnchored || !targetAnchored;
+  const keepTarget = targetAnchored;
+  let best = null;
 
-      if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
-      const existing = state.layout.verbindungen.find((item) =>
-        (item.von === source.id && item.nach === target.id) ||
-        (item.von === target.id && item.nach === source.id)
-      );
-      if (existing) {
-        if (existing.von === source.id) {
-          existing.vonPort = best.sourceIndex;
-          existing.nachPort = best.targetIndex;
-        } else {
-          existing.vonPort = best.targetIndex;
-          existing.nachPort = best.sourceIndex;
-        }
+  sourcePorts.forEach((sourcePort, sourceIndex) => {
+    if (occupied.has(`${source.id}:${sourceIndex}`)) return;
+    const sourceWorld = worldConnectionPort(source, sourcePort);
+    targetPorts.forEach((targetPort, targetIndex) => {
+      if (occupied.has(`${target.id}:${targetIndex}`)) return;
+      const targetWorld = worldConnectionPort(target, targetPort);
+      let moving, movingPort, anchorWorld, desiredRotation;
+      if (keepSource && keepTarget) {
+        if (Math.hypot(sourceWorld.x - targetWorld.x, sourceWorld.y - targetWorld.y) > 2) return;
+      } else if (keepSource) {
+        moving = target;
+        movingPort = targetPort;
+        anchorWorld = sourceWorld;
+        desiredRotation = ((sourceWorld.angle + 180 - targetPort.angle) % 360 + 360) % 360;
       } else {
-        state.layout.verbindungen.push({
-          id: `connection_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-          von: source.id,
-          vonPort: best.sourceIndex,
-          nach: target.id,
-          nachPort: best.targetIndex
-        });
+        moving = source;
+        movingPort = sourcePort;
+        anchorWorld = targetWorld;
+        desiredRotation = ((targetWorld.angle + 180 - sourcePort.angle) % 360 + 360) % 360;
       }
-      state.layoutDirty = true;
+      const currentRotation = Number(moving?.rotation ?? moving?.winkel ?? 0);
+      const rotationPenalty = moving ? angleDistance(desiredRotation, currentRotation) * .65 : 0;
+      const distance = Math.hypot(sourceWorld.x - targetWorld.x, sourceWorld.y - targetWorld.y);
+      const score = distance + rotationPenalty;
+      if (!best || score < best.score) best = { sourceIndex, targetIndex, moving, movingPort, anchorWorld, desiredRotation, score };
+    });
+  });
+
+  if (!best) {
+    showToast("Keine freien Anschlüsse gefunden. Trenne zuerst ein Gleis.", "warning");
+  } else {
+    recordHistory();
+    if (best.moving) {
+      best.moving.rotation = best.desiredRotation;
+      best.moving.winkel = best.desiredRotation;
+      const rotatedPort = worldConnectionPort({ ...best.moving, x: 0, y: 0 }, best.movingPort);
+      best.moving.x = best.anchorWorld.x - rotatedPort.x;
+      best.moving.y = best.anchorWorld.y - rotatedPort.y;
     }
+    if (!Array.isArray(state.layout.verbindungen)) state.layout.verbindungen = [];
+    state.layout.verbindungen.push({
+      id: `connection_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      von: source.id,
+      vonPort: best.sourceIndex,
+      nach: target.id,
+      nachPort: best.targetIndex
+    });
+    state.layoutDirty = true;
+    showToast("Gleisanschluss hergestellt");
   }
   state.connectFrom = null;
-  state.selectedElement = element.id;
+  state.selectedElement = target.id;
   renderCanvas();
 }
 function drawElement(root, element, layer) {
@@ -309,8 +331,8 @@ function drawElement(root, element, layer) {
   group.addEventListener("pointermove", (event) => {
     if (!drag || drag.id !== event.pointerId) return;
     const point = canvasPointFromEvent(root, event);
-    const x = clamp(point.x - drag.dx, 40, size.width - 40);
-    const y = clamp(point.y - drag.dy, 40, size.height - 40);
+    const x = clamp(point.x - drag.dx, 0, size.width);
+    const y = clamp(point.y - drag.dy, 0, size.height);
     if (!drag.moved && Math.hypot(x - drag.startX, y - drag.startY) < 5) return;
     if (!drag.moved) {
       recordHistory();
@@ -328,8 +350,8 @@ function drawElement(root, element, layer) {
     drag = null;
     group.classList.remove("dragging");
     if (!moved) return;
-    element.x = clamp(snap(element.x), 40, size.width - 40);
-    element.y = clamp(snap(element.y), 40, size.height - 40);
+    element.x = clamp(snap(element.x), 0, size.width);
+    element.y = clamp(snap(element.y), 0, size.height);
     state.layoutDirty = true;
     renderCanvas();
     showInspector(element);

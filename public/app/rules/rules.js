@@ -171,6 +171,7 @@ let uiAutomations = [];
 let bound = false;
 let rulesDirty = false;
 const selectedAutomations = new Set();
+const collapsedAutomations = new Set();
 
 export async function rulesLaden() {
   try {
@@ -179,6 +180,11 @@ export async function rulesLaden() {
   } catch { state.rules = []; }
   uiAutomations = groupApiRules(state.rules);
   selectedAutomations.clear();
+  collapseAllAutomations();
+}
+export function collapseAllAutomations() {
+  collapsedAutomations.clear();
+  uiAutomations.forEach((automation) => collapsedAutomations.add(automation.id));
 }
 export async function rulesSpeichern() {
   const hint = document.getElementById("rulesHint");
@@ -263,7 +269,7 @@ export function renderRulesGrid() {
   if (deleteSelected) deleteSelected.disabled = selectedAutomations.size === 0;
   root.innerHTML = `<div class="automation-overview">
     <div class="automation-stats"><div><strong>${uiAutomations.length}</strong><span>Automationen</span></div><div><strong>${ruleCount}</strong><span>Regeln</span></div><div><strong>${active}</strong><span>Aktiv</span></div></div>
-    <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-automation">${icon("plus")}<span>Automation anlegen</span></button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">Änderungen speichern</button></div>
+    <div class="rules-actions"><button type="button" class="secondary-button" data-action="add-automation">${icon("plus")}<span>Automation anlegen</span></button><button type="button" class="primary-button ${rulesDirty ? "needs-save" : ""}" data-action="save-rules">${icon("check")}<span>Änderungen speichern</span></button></div>
   </div>
   <div id="rulesHint" class="automation-message ${incomplete ? "warning" : ""}">${rulesDirty ? "Änderungen noch nicht gespeichert" : incomplete ? "Unvollständige Regeln sind markiert." : uiAutomations.length ? "Alle Regeln sind vollständig konfiguriert." : "Noch keine Automation angelegt."}</div>
   <div class="automation-list">${uiAutomations.length ? visibleAutomations.map(({ automation, index: automationIndex }) => `<section class="automation-group ${selectedAutomations.has(automation.id) ? "selected" : ""}" data-automation-index="${automationIndex}">
@@ -276,6 +282,25 @@ export function renderRulesGrid() {
     <button type="button" class="secondary-button automation-add-rule" data-action="add-rule" data-automation-index="${automationIndex}">${icon("plus")} Regel hinzufügen</button>
   </section>`).join("") : `<div class="automation-empty"><span>${icon("events", "ui-icon automation-empty-icon")}</span><strong>${search ? "Keine passende Automation" : "Noch keine Automation"}</strong><p>${search ? "Passe den Suchbegriff an." : "Lege eine Automation an und ergänze darunter beliebig mehrere WENN-DANN-Regeln."}</p></div>`}</div>`;
 
+  root.querySelectorAll(".automation-group").forEach((group) => {
+    const automation = uiAutomations[Number(group.dataset.automationIndex)];
+    if (!automation) return;
+    const collapsed = collapsedAutomations.has(automation.id);
+    const actions = group.querySelector(".automation-head-actions");
+    if (actions) {
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "secondary-button automation-collapse-button";
+      toggle.dataset.action = "toggle-automation";
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+      toggle.setAttribute("aria-label", collapsed ? "Automation ausklappen" : "Automation einklappen");
+      toggle.title = collapsed ? "Automation ausklappen" : "Automation einklappen";
+      toggle.innerHTML = `${icon("chevron-down")}<span>${collapsed ? "Aufklappen" : "Einklappen"}</span>`;
+      actions.insertBefore(toggle, actions.lastElementChild);
+    }
+    group.classList.toggle("is-collapsed", collapsed);
+    group.querySelectorAll(".automation-subrules, .automation-add-rule").forEach((element) => { element.hidden = collapsed; });
+  });
   if (bound) return;
   bound = true;
   root.addEventListener("change", (event) => {
@@ -325,7 +350,20 @@ export function renderRulesGrid() {
     const ruleIndex = Number(button.dataset.ruleIndex ?? button.closest("[data-rule-index]")?.dataset.ruleIndex);
     const rule = automation?.rules[ruleIndex];
     switch (button.dataset.action) {
-      case "add-automation": uiAutomations.push(defaultAutomation()); rulesDirty = true; break;
+      case "toggle-automation":
+        if (automation) {
+          if (collapsedAutomations.has(automation.id)) collapsedAutomations.delete(automation.id);
+          else collapsedAutomations.add(automation.id);
+          renderRulesGrid();
+        }
+        return;
+      case "add-automation": {
+        const created = defaultAutomation();
+        uiAutomations.push(created);
+        collapsedAutomations.delete(created.id);
+        rulesDirty = true;
+        break;
+      }
       case "delete-automation": if (automation) { uiAutomations.splice(automationIndex, 1); selectedAutomations.delete(automation.id); } rulesDirty = true; break;
       case "add-rule": if (automation) automation.rules.push(defaultRule()); rulesDirty = true; break;
       case "delete-rule": if (automation) { automation.rules.splice(ruleIndex, 1); if (!automation.rules.length) uiAutomations.splice(automationIndex, 1); } rulesDirty = true; break;

@@ -4,6 +4,7 @@ import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { commandFeedbackForRelay, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
+import { icon } from "../ui/icons.js?v=workspace-v11";
 
 export async function lightButtonsLaden() {
   try {
@@ -12,6 +13,7 @@ export async function lightButtonsLaden() {
       state.lightButtons = data.lightButtons.slice(0, 4).map((b, i) => ({
         id: b.id ?? i + 1,
         name: b.name || `Licht ${i + 1}`,
+        icon: b.icon || "light",
         moduleId: b.moduleId || b.module || "",
         relayIndex: Number(b.relayIndex ?? b.relay ?? 0),
         active: !!b.active
@@ -75,14 +77,14 @@ export function renderTrackLightButtons() {
     const disabled = !control.enabled || feedback?.status === "pending";
     return `
     <button class="light-toggle-btn ${btn?.active ? "active" : ""} ${!configured ? "unconfigured" : ""} ${!control.enabled ? "control-disabled" : ""} ${feedback?.status ? `command-${feedback.status}` : ""}" data-light-index="${idx}" type="button" ${disabled ? "disabled" : ""} title="${esc(statusText || "Schalten")}">
-      <span>${esc(btn?.name || `Licht ${idx + 1}`)}</span>${statusText ? `<small>${esc(statusText)}</small>` : ""}
+      <span class="light-toggle-main">${icon(btn?.icon || "light")}<span>${esc(btn?.name || `Licht ${idx + 1}`)}</span></span>${statusText ? `<small>${esc(statusText)}</small>` : ""}
     </button>`;
   }).join("");
 
   grid.innerHTML = html || `
-    <button class="light-toggle-btn" data-light-index="0" type="button">Licht 1</button>
-    <button class="light-toggle-btn" data-light-index="1" type="button">Licht 2</button>
-    <button class="light-toggle-btn" data-light-index="2" type="button">Licht 3</button>
-    <button class="light-toggle-btn" data-light-index="3" type="button">Licht 4</button>
+    <button class="light-toggle-btn" data-light-index="0" type="button">${icon("light")}Licht 1</button>
+    <button class="light-toggle-btn" data-light-index="1" type="button">${icon("light")}Licht 2</button>
+    <button class="light-toggle-btn" data-light-index="2" type="button">${icon("light")}Licht 3</button>
+    <button class="light-toggle-btn" data-light-index="3" type="button">${icon("light")}Licht 4</button>
   `;
 }

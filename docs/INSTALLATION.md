@@ -52,7 +52,7 @@ DYNORA_APPDATA=/pfad/zu/den/daten
 OTA_SHARED_SECRET=<mindestens 24 Zeichen>
 ```
 
-`docker-compose.yaml` verwendet `network_mode: host`, damit die UDP-Discovery der ESPs funktioniert. Unter Windows mit Docker Desktop ist Host-Netzwerk eingeschränkt; dort Ports `8181` und `8182/udp` veröffentlichen und ESPs auf die Server-IP einstellen.
+`docker-compose.yaml` verwendet `network_mode: host`, damit die UDP-Discovery der ESPs funktioniert. Wenn Docker Desktop das Host-Netzwerk in deiner Version nicht unterstützt, entferne `network_mode: host` und veröffentliche TCP `8181` sowie UDP `8182`. UDP-Broadcast-Discovery kann durch Docker Desktop blockiert werden; trage in diesem Fall die Server-IP als `SERVER_HOST` in die ESP-Firmware ein.
 
 Update: `git pull && docker compose up -d --build`. Stoppen: `docker compose down`.
 
@@ -170,6 +170,7 @@ DynoraStation-Windows.cmd update
 DynoraStation-Windows.cmd update --check
 DynoraStation-Windows.cmd uninstall
 DynoraStation-Windows.cmd uninstall --purge
+DynoraStation-Windows.cmd --help
 ```
 
 Der Installer enthält seine PowerShell-Logik direkt in der `.cmd`-Datei. Er legt für den Betrieb keine separate Installer-`.ps1` im Projekt ab.

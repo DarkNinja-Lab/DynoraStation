@@ -28,11 +28,14 @@ function executeRulesForTrigger({
     return String(rule?.name || rule?.id || "Regel");
   }
 
-  function controllable(moduleId, rule) {
+  function controllable(moduleId, rule, capability, channel) {
     const module = runtimeState.modules?.[moduleId] || moduleRegistry.getOrCreateModule(moduleId);
-    if (moduleRegistry.moduleCanControl(module)) return true;
-    const compatibility = moduleRegistry.moduleCompatibility(module);
-    const reason = !moduleRegistry.moduleIsOnline(module) ? "offline" : compatibility.reason;
+    let reason = "";
+    if (!moduleRegistry.moduleIsOnline(module)) reason = "offline";
+    else if (!moduleRegistry.moduleCompatibility(module).compatible) reason = moduleRegistry.moduleCompatibility(module).reason;
+    else if (capability && !module.capabilities?.includes(capability)) reason = capability === "relay" ? "keine Relais" : "keine LED-Kanäle";
+    else if (capability && (!Array.isArray(capability === "relay" ? module.relays : module.leds) || channel < 1 || channel > (capability === "relay" ? module.relays : module.leds).length)) reason = `Kanal ${channel} nicht vorhanden`;
+    if (!reason) return true;
     emit("REGEL-WARNUNG", moduleId, `${getRuleName(rule)}: Aktion übersprungen (${reason})`);
     return false;
   }
@@ -43,7 +46,7 @@ function executeRulesForTrigger({
     if (kind === "relay") {
       const channel = validRelay(action?.channel);
       const moduleId = cleanText(action?.module || "", 48);
-      if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
+      if (!channel || !moduleId || !controllable(moduleId, rule, "relay", channel)) return false;
       const state = parseState(action?.state);
       commandQueueApi.createCommand("RELAY_SET", {
         channel, state, ruleId: rule.id, operationId: makeOperationId("RULE_RELAY")
@@ -55,7 +58,7 @@ function executeRulesForTrigger({
     if (kind === "led") {
       const channel = validLedChannel(action?.channel);
       const moduleId = cleanText(action?.module || "", 48);
-      if (!channel || !moduleId || !controllable(moduleId, rule)) return false;
+      if (!channel || !moduleId || !controllable(moduleId, rule, "led", channel)) return false;
       const state = parseState(action?.state);
       commandQueueApi.createCommand("LED_SET", {
         channel, state, ruleId: rule.id, operationId: makeOperationId("RULE_LED")
@@ -70,7 +73,7 @@ function executeRulesForTrigger({
       const element = runtimeState.layout.elemente.find((e) => e.id === elementId && e.typ === expectedType);
       if (!element) return false;
       const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId || !controllable(moduleId, rule)) return false;
+      if (!moduleId) return false;
 
       let state;
       let channel;
@@ -84,7 +87,7 @@ function executeRulesForTrigger({
         state = action?.state === "gerade" ? "gerade" : "abzweig";
         channel = validRelay(state === "gerade" ? element.relayA : element.relayB);
       }
-      if (!channel) return false;
+      if (!channel || !controllable(moduleId, rule, "relay", channel)) return false;
       commandQueueApi.createCommand("RELAY_PULSE", {
         channel, duration: 220, state, elementId: element.id, ruleId: rule.id,
         operationId: makeOperationId(`RULE_${kind.toUpperCase()}`)
@@ -99,13 +102,13 @@ function executeRulesForTrigger({
       if (!element) return false;
       const state = ["halt", "warnung", "fahrt"].includes(action?.state) ? action.state : "halt";
       const moduleId = cleanText(element.module || "", 48);
-      if (!moduleId || !controllable(moduleId, rule)) return false;
+      if (!moduleId) return false;
       const channels = {
         halt: validLedChannel(element.ledChannelRed),
         warnung: validLedChannel(element.ledChannelYellow),
         fahrt: validLedChannel(element.ledChannelGreen)
       };
-      if (!channels[state]) return false;
+      if (!channels[state] || Object.values(channels).filter(Boolean).some((channel) => !controllable(moduleId, rule, "led", channel))) return false;
       const opId = makeOperationId("RULE_LED_SIGNAL");
       for (const [aspect, channel] of Object.entries(channels)) {
         if (!channel) continue;

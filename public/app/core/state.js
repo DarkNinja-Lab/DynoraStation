@@ -13,6 +13,7 @@ export const state = {
   relayConflicts: [],
   connection: null,
   serverVersion: "",
+  stationReleaseVersion: "",
   serverUptimeSec: 0,
   stationStatus: { state: "unknown", managedBy: "unknown", pid: 0 },
 

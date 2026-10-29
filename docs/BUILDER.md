@@ -1,15 +1,15 @@
-# Builder 3.4 – Bedienung
+﻿# Gleisplan-Builder – Bedienung
 
 ## Einen Plan erstellen
 
 1. **Builder** direkt in der linken Navigation öffnen. Auf kleinen Displays steht der Eintrag in der unteren Navigation.
 2. In der bereits geöffneten **Artikelleiste** eine Kategorie wählen oder eine Artikelnummer suchen. Die Suche berücksichtigt alle Kategorien. Die Gleisfotos helfen bei der Auswahl.
 3. Artikel anklicken und anschließend im Plan klicken oder tippen. Die Artikelleiste bleibt geöffnet. Freie Enden rasten automatisch ein. Alternativ einen Artikel mit der Maus direkt in den Plan ziehen.
-4. Mit **Fertig** oder Escape die wiederholte Platzierung beenden. Danach ein Element anklicken: Seine Eigenschaften öffnen sich am rechten Rand.
+4. Ein Element anklicken oder antippen, um es auszuwaehlen: Die Eigenschaften erscheinen rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusaetzlich in der Werkzeugleiste verfuegbar.
 5. Name, Position und Drehung direkt bearbeiten. Modul, Kanäle und weitere Funktionen liegen unter **Hardware & Funktionen**.
 6. **Speichern** sichert den Plan auf der Station. Planprüfung, Import, Export, Druck und **Plan & Raster** liegen unter **Planoptionen**.
 
-**Stellpult** zeigt helle Rasterflächen und einfache farbige Symbole. **Gleisplan** zeigt die detaillierten Gleise. Positionen und Anschlussgeometrie bleiben beim Wechsel gleich. „Artikel“ blendet die Artikelleiste ein oder aus. Drehen, Kopieren und Löschen erscheinen mit einer Auswahl. **Betrieb** wechselt zur Steuerung. Escape beendet die Platzierung und schließt offene Editor-Panels und Menüs.
+**Stellpult** zeigt klare Symbole, **Gleisplan** die detaillierten M-Gleis-Schienen. Beide Ansichten verwenden dieselben Positionen und Anschlussgeometrien. Mit **Verbinden** wählst du erst ein Gleis und dann ein zweites. Ein bereits angeschlossenes Gleis bleibt liegen; weitere freie Anschlüsse, etwa an einer Weiche, kannst du nacheinander verbinden. „Artikel“ blendet die Artikelleiste ein oder aus. Drehen, Kopieren und Löschen erscheinen mit einer Auswahl. **Betrieb** wechselt zur Steuerung. Escape beendet die Platzierung und schließt offene Editor-Panels und Menüs.
 
 **Speichern** schreibt auf die Station. Ein lokaler Entwurf ist eine zusätzliche Wiederherstellungshilfe im selben Browser und kein Stations-Backup. Nach einem Reload wird ein vorhandener Entwurf wiederhergestellt und als ungespeichert markiert. Änderungen während einer laufenden Speicheranfrage bleiben ebenfalls ungespeichert. Bei Speicherfehlern wird kein erfolgreicher Speicherstatus angezeigt.
 
@@ -18,6 +18,7 @@
 - Bildkarten starten die Platzierung direkt; Maus-Drag-and-drop platziert einen einzelnen Artikel.
 - **Einpassen** passt Ausschnitt und Zoom an die Elemente an. **100 %** setzt die Ansicht auf die gesamte Platte zurück.
 - Mausrad: Zoom am Mauszeiger. Freie Fläche ziehen: Ansicht verschieben.
+- Ausgewählte Elemente lassen sich bis an alle vier Plattenränder ziehen. Wenn der Rasterfang den letzten Schritt zu grob macht, **Am Raster einrasten** unter **Plan & Raster** deaktivieren.
 - **Duplizieren** kopiert die Geometrie, setzt aber Modul, Kanäle, Sensor, Stromkreis und Signalverknüpfung zurück. Dadurch erzeugt eine Kopie keine unbeabsichtigte Hardware-Doppelbelegung.
 - **Trennen** entfernt die Verbindungen des ausgewählten Elements.
 - Löschen über die Werkzeugleiste ist unmittelbar und lässt sich rückgängig machen. Das vollständige Leeren des Plans fragt weiterhin nach.
@@ -70,3 +71,9 @@ Das Foto muss nicht in das gebündelte Gleisbildmodul aufgenommen werden. Beim N
 ## Planversionen und Speicherkonflikte
 
 Unter **Planoptionen → Planversionen** lassen sich die letzten 20 vorherigen Stationspläne wiederherstellen. Dabei wird der aktuelle Plan zuerst gesichert. Bei einem Speicherkonflikt bleibt dein Entwurf erhalten: lade ihn herunter und hole anschließend über **Stationsplan laden** den neuen Stand.
+
+## Auswahl, Signale und Artikelgeometrie
+
+Im Auswahlmodus oeffnet ein Klick auf ein Bauteil dessen Eigenschaften rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusaetzlich in der Werkzeugleiste verfuegbar. Signale und ESP-Ampeln sind kompakt gezeichnet. Ihre Fahrtrichtung l?sst sich in den Eigenschaften einstellen.
+
+Die im Katalog gefuehrten M-Gleis-Teile verwenden ihre Artikelmasse und Winkel. Kontrollierte Korrekturen: 5109 = 33,8 mm; 5114 = 192 mm / 30 Grad; 5128 = 180 mm / 30 Grad; 5141/5142 = R1 / 30 Grad mit 77,4 mm geradem Zulauf; 5138/5139 = R1 / 22,5 Grad; einzelne R2-Weichen = 5203 links und 5204 rechts (5202 bezeichnet das Paar). Die Artikelliste enthaelt nicht jede historische M-Gleis-Sonderform; nicht aufgefuehrte Artikel gelten dadurch nicht als geometrisch geprueft.

@@ -13,6 +13,7 @@ function normalizeLightButtons(input) {
     return {
       id: i + 1,
       name: cleanText(src.name || b.name, 64) || b.name,
+      icon: ["light", "signal", "transformer", "power", "home", "device", "events", "track-straight"].includes(src.icon) ? src.icon : "light",
       module: cleanText(src.module ?? src.moduleId ?? b.module, 48),
       relay: validRelay(src.relay ?? src.relayIndex ?? 0)
     };

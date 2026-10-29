@@ -1,5 +1,22 @@
 # Betrieb und Updates
 
+## DynoraStation-Updates in der Weboberflaeche
+
+Die Uebersicht und **Einstellungen -> DynoraStation-Updates** vergleichen `version.txt` mit der Datei im GitHub-Zweig `main`. Ein neuerer Eintrag wird als Update angezeigt. Die Seite zeigt je nach Installationsart den passenden Host-Ablauf; Programmdateien werden nicht direkt durch den Webserver ersetzt.
+
+Linux-Installationen werden mit `sudo dynora-update` aktualisiert. Windows-Installationen werden mit `DynoraStation-Windows.cmd update` aktualisiert. Beide Installer laden den aktuellen Stand aus `main`, sichern die Programmdateien und pruefen den Dienst nach dem Update.
+
+Das Docker-Image enthaelt den Versionsmarker beim Build. Docker muss auf dem Host aktualisiert und der Container neu erstellt werden. Beim Compose-Build im Repository:
+
+```bash
+git pull origin main
+docker compose up -d --build
+```
+
+Bei einer Image-Installation muss das konfigurierte Image auf dem Host aktualisiert und der Container neu erstellt werden. Ein Container kann sein eigenes Image nicht ohne einen eingerichteten Host-Updater ersetzen.
+
+Vor dem Push den Marker `version.txt` auf die neue, hoehere Stationsversion setzen. `package.json` enthaelt zusaetzlich die npm-interne Paketversion.
+
 ## Linux mit systemd
 
 Status:

@@ -10,6 +10,7 @@ const { createControlRoutes } = require("./control.routes");
 const { createModuleRoutes } = require("./module.routes");
 const { createDebugRoutes } = require("./debug.routes");
 const { createStationRoutes } = require("./station.routes");
+const { createUpdateRoutes } = require("./update.routes");
 const { apiNotFound } = require("../app/middleware/notFound");
 
 const { TRACK_CATALOG } = require("../domain/trackCatalog");
@@ -55,6 +56,7 @@ function createRoutes(deps) {
   router.use(createModuleRoutes(deps));
   router.use(createDebugRoutes(deps));
   router.use(createStationRoutes(deps));
+  router.use(createUpdateRoutes(deps));
 
   router.use("/api", apiNotFound);
   return router;

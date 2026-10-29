@@ -55,6 +55,8 @@ Verwendung:
   DynoraStation-Windows.cmd [install|update|uninstall] [Optionen]
 
 Ohne Aktion erscheint ein zustandsabhaengiges Menue.
+  -h, --help             Hilfe anzeigen
+
 
 Install-Optionen:
   --install-dir PFAD     Installationsordner
@@ -70,6 +72,7 @@ Update-Optionen:
 
 Uninstall-Optionen:
   --purge                auch data/, .env und Backups loeschen
+
   --yes                  Rueckfrage ueberspringen
 '@ | Write-Host
 }

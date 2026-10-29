@@ -3,9 +3,9 @@
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
-import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=workspace-v11";
-import { refreshSettingsHardwareStatus } from "../ui/events.js?v=workspace-v15";
-import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v11";
+import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "../ui/render.js?v=workspace-v18";
+import { refreshSettingsHardwareStatus } from "../ui/events.js?v=workspace-v27";
+import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v12";
 import { renderTrackLayout, renderTrackPowerSections } from "../track/track.js?v=workspace-v15";
 import { layoutNormalisieren } from "../layout/layout.js?v=workspace-v11";
 import { showToast } from "../ui/toast.js?v=workspace-v15";

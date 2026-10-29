@@ -32,6 +32,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <string.h>
 
 /* ============================ Konfiguration ============================= */
 
@@ -127,6 +128,7 @@ String activeServerHost = SERVER_HOST;
 WiFiUDP discoveryUdp;
 unsigned long lastDiscoveryAttempt = 0;
 String moduleId;
+String bootSessionId;
 uint16_t mcpOutputLatch = 0x0000;
 uint16_t mcpDirectionMask = 0xFFFF; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
 unsigned long lastMcpAttempt = 0;
@@ -151,6 +153,17 @@ struct PulseState {
   unsigned long durationMs;
 };
 PulseState pulses[RELAY_COUNT];
+
+// A lost ACK must not execute a physical pulse again when the server retries
+// the same queue item. Remember recent outcomes and only resend the ACK.
+struct CommandReceipt {
+  int id;
+  bool ok;
+  char error[80];
+};
+const uint8_t COMMAND_RECEIPT_COUNT = 16;
+CommandReceipt commandReceipts[COMMAND_RECEIPT_COUNT];
+uint8_t nextCommandReceipt = 0;
 
 // Heartbeat und Polling verwenden denselben Befehls-Handler.
 void executeCommand(const JsonObject& cmd);
@@ -464,6 +477,7 @@ bool sendHeartbeat() {
   doc["firmwareVersion"] = FIRMWARE_VERSION;
   doc["protocolVersion"] = PROTOCOL_VERSION;
   doc["hardwareType"] = HARDWARE_TYPE;
+  doc["bootId"] = bootSessionId;
   doc["mcp23017"] = relayHardwareReady;
   doc["bme280"] = bme280Ready;
   doc["relayActiveLow"] = RELAY_ACTIVE_LOW;
@@ -515,8 +529,11 @@ bool sendHeartbeat() {
         Serial.print(SENSOR_COUNT);
         Serial.println(" Sensoren");
       }
+      const bool compatible = reply["compatibility"]["compatible"] | false;
       JsonVariant heartbeatCommand = reply["command"];
-      if (!heartbeatCommand.isNull()) executeCommand(heartbeatCommand.as<JsonObject>());
+      if (compatible && !heartbeatCommand.isNull() && heartbeatCommand.is<JsonObject>()) {
+        executeCommand(heartbeatCommand.as<JsonObject>());
+      }
     }
   }
   return ok;
@@ -555,6 +572,27 @@ bool ackCommand(int id, bool ok = true, const char* error = "") {
   return sent;
 }
 
+void finishCommand(int id, bool ok, const char* error = "") {
+  if (id <= 0) return;
+  CommandReceipt& receipt = commandReceipts[nextCommandReceipt];
+  receipt.id = id;
+  receipt.ok = ok;
+  strncpy(receipt.error, error ? error : "", sizeof(receipt.error) - 1);
+  receipt.error[sizeof(receipt.error) - 1] = '\0';
+  nextCommandReceipt = (nextCommandReceipt + 1) % COMMAND_RECEIPT_COUNT;
+  ackCommand(id, ok, error);
+}
+
+bool resendCommandAck(int id) {
+  if (id <= 0) return false;
+  for (uint8_t i = 0; i < COMMAND_RECEIPT_COUNT; i++) {
+    if (commandReceipts[i].id != id) continue;
+    ackCommand(id, commandReceipts[i].ok, commandReceipts[i].error);
+    return true;
+  }
+  return false;
+}
+
 bool startPulse(uint8_t relayIndex, unsigned long durationMs) {
   if (relayIndex >= RELAY_COUNT) return false;
 
@@ -582,6 +620,8 @@ void executeCommand(const JsonObject& cmd) {
   int channel = cmd["channel"] | 0;
   bool state = cmd["state"] | false;
 
+  if (resendCommandAck(id)) return;
+
   Serial.print("[BEFEHL] #");
   Serial.print(id);
   Serial.print(" ");
@@ -594,35 +634,35 @@ void executeCommand(const JsonObject& cmd) {
 
   if (strcmp(type, "RELAY_SET") == 0) {
     if (channel < 1 || channel > RELAY_COUNT) {
-      if (id > 0) ackCommand(id, false, "Ungueltiger Relaiskanal");
+      finishCommand(id, false, "Ungueltiger Relaiskanal");
       return;
     }
     pulses[channel - 1].active = false;
     bool executed = setRelayHw((uint8_t)(channel - 1), state);
-    if (id > 0) ackCommand(id, executed, executed ? "" : "MCP23017 nicht bereit oder Schreibfehler");
+    finishCommand(id, executed, executed ? "" : "MCP23017 nicht bereit oder Schreibfehler");
     return;
   }
 
   if (strcmp(type, "RELAY_PULSE") == 0) {
     if (channel < 1 || channel > RELAY_COUNT) {
-      if (id > 0) ackCommand(id, false, "Ungueltiger Relaiskanal");
+      finishCommand(id, false, "Ungueltiger Relaiskanal");
       return;
     }
     long durationRaw = cmd["duration"] | 220;
     unsigned long durationMs = (unsigned long)constrain(durationRaw, 50L, 5000L);
     bool executed = startPulse((uint8_t)(channel - 1), durationMs);
-    if (id > 0) ackCommand(id, executed, executed ? "" : "Relaispuls konnte nicht gestartet werden");
+    finishCommand(id, executed, executed ? "" : "Relaispuls konnte nicht gestartet werden");
     return;
   }
 
   if (strcmp(type, "NOT_AUS") == 0) {
     for (uint8_t i = 0; i < RELAY_COUNT; i++) pulses[i].active = false;
     bool executed = allRelaysOff();
-    if (id > 0) ackCommand(id, executed, executed ? "" : "Not-Aus konnte nicht auf Hardware geschrieben werden");
+    finishCommand(id, executed, executed ? "" : "Not-Aus konnte nicht auf Hardware geschrieben werden");
     return;
   }
 
-  if (id > 0) ackCommand(id, false, "Unbekannter Befehl");
+  finishCommand(id, false, "Unbekannter Befehl");
 }
 
 void pollNextCommand() {
@@ -775,6 +815,8 @@ void setup() {
 
   moduleId = "ESP8266-" + String(ESP.getChipId(), HEX);
   moduleId.toUpperCase();
+  randomSeed(ESP.getCycleCount());
+  bootSessionId = String(ESP.getChipId(), HEX) + "-" + String(random(0x7FFFFFFF), HEX);
   WiFi.hostname(moduleId);
   Serial.print("[MODUL] Stabile ID: ");
   Serial.println(moduleId);

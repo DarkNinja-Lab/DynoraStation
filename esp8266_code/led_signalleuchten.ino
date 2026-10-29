@@ -16,6 +16,7 @@
 #include <Updater.h>
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
+#include <string.h>
 
 /* ============================ Konfiguration ============================= */
 
@@ -92,6 +93,7 @@ uint8_t connectChaseStep = 0;
 unsigned long connectChaseChangedAt = 0;
 String activeServerHost = SERVER_HOST;
 String moduleId;
+String bootSessionId;
 WiFiUDP discoveryUdp;
 
 // Blink pro Kanal (non-blocking)
@@ -105,6 +107,16 @@ struct BlinkState {
 };
 
 BlinkState blinkers[LED_COUNT];
+
+// Redeliveries after a lost ACK resend only the ACK, never the LED action.
+struct CommandReceipt {
+  int id;
+  bool ok;
+  char error[80];
+};
+const uint8_t COMMAND_RECEIPT_COUNT = 16;
+CommandReceipt commandReceipts[COMMAND_RECEIPT_COUNT];
+uint8_t nextCommandReceipt = 0;
 
 // Heartbeat und Polling verwenden denselben Befehls-Handler.
 void executeCommand(const JsonObject& cmd);
@@ -373,6 +385,7 @@ bool sendHeartbeat() {
   doc["firmwareVersion"] = FIRMWARE_VERSION;
   doc["protocolVersion"] = PROTOCOL_VERSION;
   doc["hardwareType"] = HARDWARE_TYPE;
+  doc["bootId"] = bootSessionId;
 
   JsonArray leds = doc.createNestedArray("leds");
   for (uint8_t i = 0; i < LED_COUNT; i++) {
@@ -403,8 +416,9 @@ bool sendHeartbeat() {
     startConnectChase();
   }
 
+  const bool compatible = reply["compatibility"]["compatible"] | false;
   JsonVariant heartbeatCommand = reply["command"];
-  if (!heartbeatCommand.isNull() && heartbeatCommand.is<JsonObject>()) {
+  if (compatible && !heartbeatCommand.isNull() && heartbeatCommand.is<JsonObject>()) {
     executeCommand(heartbeatCommand.as<JsonObject>());
   }
   return true;
@@ -422,6 +436,27 @@ void ackCommand(int id, bool ok = true, const char* error = "") {
 
   String response;
   httpPostJson("/api/module/ack", payload, response);
+}
+
+void finishCommand(int id, bool ok, const char* error = "") {
+  if (id <= 0) return;
+  CommandReceipt& receipt = commandReceipts[nextCommandReceipt];
+  receipt.id = id;
+  receipt.ok = ok;
+  strncpy(receipt.error, error ? error : "", sizeof(receipt.error) - 1);
+  receipt.error[sizeof(receipt.error) - 1] = '\0';
+  nextCommandReceipt = (nextCommandReceipt + 1) % COMMAND_RECEIPT_COUNT;
+  ackCommand(id, ok, error);
+}
+
+bool resendCommandAck(int id) {
+  if (id <= 0) return false;
+  for (uint8_t i = 0; i < COMMAND_RECEIPT_COUNT; i++) {
+    if (commandReceipts[i].id != id) continue;
+    ackCommand(id, commandReceipts[i].ok, commandReceipts[i].error);
+    return true;
+  }
+  return false;
 }
 
 void startBlink(uint8_t idx, unsigned long onMs, unsigned long offMs, unsigned long durationMs) {
@@ -474,28 +509,30 @@ void executeCommand(const JsonObject& cmd) {
   int id = cmd["id"] | 0;
   int channel = cmd["channel"] | 0;
 
+  if (resendCommandAck(id)) return;
+
   Serial.printf("[BEFEHL] #%d %s · Kanal %d · Heap frei: %u Byte\n", id, type, channel, ESP.getFreeHeap());
 
   if (strcmp(type, "LED_SET") == 0) {
-    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
+    if (!validChannel(channel)) { finishCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     bool state = cmd["state"] | false;
     setLedDigital(channelToIdx(channel), state);
-    if (id > 0) ackCommand(id, true);
+    finishCommand(id, true);
     return;
   }
 
   if (strcmp(type, "LED_PWM") == 0) {
-    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
+    if (!validChannel(channel)) { finishCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     int b = cmd["brightness"] | 0;
     if (b < 0) b = 0;
     if (b > 255) b = 255;
     setLedPwm(channelToIdx(channel), (uint8_t)b);
-    if (id > 0) ackCommand(id, true);
+    finishCommand(id, true);
     return;
   }
 
   if (strcmp(type, "LED_BLINK") == 0) {
-    if (!validChannel(channel)) { if (id > 0) ackCommand(id, false, "Ungueltiger LED-Kanal"); return; }
+    if (!validChannel(channel)) { finishCommand(id, false, "Ungueltiger LED-Kanal"); return; }
     long onMsRaw = cmd["onMs"] | 300;
     long offMsRaw = cmd["offMs"] | 300;
     long durationMsRaw = cmd["durationMs"] | 0;
@@ -503,17 +540,17 @@ void executeCommand(const JsonObject& cmd) {
     unsigned long offMs = (unsigned long)constrain(offMsRaw, 20L, 60000L);
     unsigned long durationMs = durationMsRaw <= 0 ? 0UL : (unsigned long)constrain(durationMsRaw, 1L, 3600000L);
     startBlink(channelToIdx(channel), onMs, offMs, durationMs);
-    if (id > 0) ackCommand(id, true);
+    finishCommand(id, true);
     return;
   }
 
   if (strcmp(type, "NOT_AUS") == 0) {
     allLedsOff();
-    if (id > 0) ackCommand(id, true);
+    finishCommand(id, true);
     return;
   }
 
-  if (id > 0) ackCommand(id, false, "Unbekannter Befehl");
+  finishCommand(id, false, "Unbekannter Befehl");
 }
 
 void pollNextCommand() {
@@ -675,6 +712,8 @@ void setup() {
     moduleId = "ESP8266-LED-" + String(ESP.getChipId(), HEX);
     moduleId.toUpperCase();
   }
+  randomSeed(ESP.getCycleCount());
+  bootSessionId = String(ESP.getChipId(), HEX) + "-" + String(random(0x7FFFFFFF), HEX);
 
   WiFi.mode(WIFI_STA);
   WiFi.setAutoReconnect(true);

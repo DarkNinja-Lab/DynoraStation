@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
@@ -8,7 +8,7 @@ import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,
   localConnectionPorts, worldConnectionPort, appendElementHitTarget
-} from "../builder/shapes.js?v=workspace-v13";
+} from "../builder/shapes.js?v=workspace-v19";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
 function uiType(type) {
@@ -113,7 +113,7 @@ export function renderTrackPowerSections() {
     const pending = pendingPowerSections.has(section.key) || section.feedback?.status === "pending";
     const disabled = !section.control.enabled || pending;
     const status = pending ? "SCHALTET" : section.on ? "EIN" : "AUS";
-    const detail = `${section.elements.length} ${section.elements.length === 1 ? "Gleiselement" : "Gleiselemente"} · ${section.moduleName} · R${section.channel}`;
+    const detail = `${section.elements.length} ${section.elements.length === 1 ? "Gleiselement" : "Gleiselemente"} \u00b7 ${section.moduleName} \u00b7 R${section.channel}`;
     const feedbackText = section.feedback && section.feedback.status !== "confirmed" ? commandStatusText(section.feedback) : "";
     return `<button class="track-power-section ${section.on ? "on" : "off"} ${pending ? "pending" : ""}" type="button" data-power-section="${esc(section.key)}" ${disabled ? "disabled" : ""} aria-pressed="${section.on ? "true" : "false"}">
       <span class="track-power-icon"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=3#icon-power"></use></svg></span>
@@ -237,7 +237,7 @@ function drawTransformerTemperature(group, element, rotation) {
   attrs(background, { x: -31, y: -12, width: 62, height: 24, rx: 4 });
   const label = svg("text");
   attrs(label, { x: 0, y: 4, "text-anchor": "middle", "font-size": 11, "font-weight": 800 });
-  label.textContent = `${value.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} °C`;
+  label.textContent = `${value.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} \u00b0C`;
   badge.append(background, label);
   group.appendChild(badge);
 }
@@ -301,7 +301,7 @@ async function controlElement(element, group) {
     return;
   }
   if (feedback?.status === "pending") {
-    showToast("Schaltvorgang läuft bereits", "warning");
+    showToast("Schaltvorgang l\u00e4uft bereits", "warning");
     return;
   }
   const type = uiType(element.typ);
@@ -405,7 +405,7 @@ export function renderTrackLayout() {
     if (controlAssigned && !interactive) group.setAttribute("aria-disabled", "true");
     const feedbackText = commandStatusText(visibleFeedback);
     const disabledText = controlAssigned && !control.enabled ? control.reason : "";
-    const unconfiguredText = hardwareInteractive && !controlAssigned ? ", keine Schaltkanäle zugewiesen" : "";
+    const unconfiguredText = hardwareInteractive && !controlAssigned ? ", keine Schaltkan\u00e4le zugewiesen" : "";
     group.setAttribute("aria-label", hardwareInteractive
       ? `${element.name || uiType(element.typ)}${occupied ? ", Sensor belegt" : ""}${unconfiguredText}${disabledText ? `, ${disabledText}` : ""}${feedbackText ? `, ${feedbackText}` : ""}`
       : `${element.name || "Prellbock"} 7190`);
@@ -414,8 +414,8 @@ export function renderTrackLayout() {
     if (controlAssigned) appendElementHitTarget(group, element, elementCatalogItem(element), 18);
     if (occupied) drawOccupancyBadge(group, rotation);
     drawTransformerTemperature(group, element, rotation);
-    // Verbindungsprobleme werden einmal zentral über dem Gleisbild angezeigt.
-    // Direkt am Element erscheinen nur laufende bzw. bestätigte Schaltvorgänge.
+    // Verbindungsprobleme werden einmal zentral \u00fcber dem Gleisbild angezeigt.
+    // Direkt am Element erscheinen nur laufende bzw. best\u00e4tigte Schaltvorg\u00e4nge.
     if (hardwareInteractive && visibleFeedback) {
       drawCommandBadge(group, visibleFeedback, rotation);
       scheduleTrackFeedbackExpiry(visibleFeedback);
