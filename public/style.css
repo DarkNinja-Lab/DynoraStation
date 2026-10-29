@@ -13645,7 +13645,11 @@ button:focus-visible {
 .relay-light-assignment .ui-icon { width: 13px; height: 13px; flex: 0 0 13px; }
 
 /* DynoraStation software update status */
-.station-update-card { width: 100%; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.station-update-card { display: flex; flex: 0 1 auto; align-items: center; gap: 10px; min-width: 190px; min-height: 42px; padding: 7px 12px; border: 1px solid var(--border, #343b47); border-radius: 10px; background: var(--surface-raised, #191e27); text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.station-update-card > i { display: grid; width: 25px; height: 25px; flex: 0 0 25px; place-items: center; border-radius: 8px; background: color-mix(in srgb, #91a4d9 14%, transparent); color: #bac8f3; font-style: normal; }
+.station-update-card > span { display: grid; gap: 2px; min-width: 0; }
+.station-update-card strong { font-size: 12px; line-height: 1.2; }
+.station-update-card small { color: var(--text-muted, #aab3c0); font-size: 10px; line-height: 1.25; }
 .station-update-card:focus-visible { outline: 2px solid var(--focus, #a9bdf5); outline-offset: 2px; }
 .station-update-card.update-available { border-color: #d6a55f; }
 .station-update-card.update-current { border-color: #398c62; }
