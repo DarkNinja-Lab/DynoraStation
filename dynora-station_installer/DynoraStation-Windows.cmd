@@ -504,14 +504,19 @@ try {
         Write-Step 'Installiere Node-Abhaengigkeiten'
         Push-Location $InstallDir
         try {
-            if (Test-Path (Join-Path $InstallDir 'package-lock.json')) { & $npmPath ci --omit=dev --no-audit --no-fund }
-            else { & $npmPath install --omit=dev --no-audit --no-fund }
+            $dependencyMode = '--omit=dev'
+            if ($Action -eq 'Update') { $dependencyMode = '--include=dev' }
+            if (Test-Path (Join-Path $InstallDir 'package-lock.json')) { & $npmPath ci $dependencyMode --no-audit --no-fund }
+            else { & $npmPath install $dependencyMode --no-audit --no-fund }
             if ($LASTEXITCODE -ne 0) { throw "npm ist mit Exitcode $LASTEXITCODE fehlgeschlagen." }
 
             if ($Action -eq 'Update') {
                 Write-Step 'Fuehre Tests vor dem Neustart aus'
                 & $npmPath test
                 if ($LASTEXITCODE -ne 0) { throw "Tests sind mit Exitcode $LASTEXITCODE fehlgeschlagen." }
+                Write-Step 'Entferne Entwicklungsabhaengigkeiten'
+                & $npmPath prune --omit=dev --no-audit --no-fund
+                if ($LASTEXITCODE -ne 0) { throw "npm prune ist mit Exitcode $LASTEXITCODE fehlgeschlagen." }
             }
         } finally { Pop-Location }
 

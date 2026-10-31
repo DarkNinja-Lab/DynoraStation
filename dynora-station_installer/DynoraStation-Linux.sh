@@ -351,10 +351,13 @@ ensure_node() {
 install_dependencies() {
   dir=$1
   user=$2
+  include_dev=${3:-0}
+  dependency_mode="--omit=dev"
+  [ "$include_dev" = "1" ] && dependency_mode="--include=dev"
   if [ -f "$dir/package-lock.json" ]; then
-    runuser -u "$user" -- sh -c "cd \"$dir\" && npm ci --omit=dev --no-audit --no-fund"
+    runuser -u "$user" -- sh -c "cd \"$dir\" && npm ci $dependency_mode --no-audit --no-fund"
   else
-    runuser -u "$user" -- sh -c "cd \"$dir\" && npm install --omit=dev --no-audit --no-fund"
+    runuser -u "$user" -- sh -c "cd \"$dir\" && npm install $dependency_mode --no-audit --no-fund"
   fi
 }
 
@@ -675,9 +678,10 @@ update_action() {
   chmod 750 "$INSTALL_DIR"
   chmod 640 "$INSTALL_DIR/.env"
 
-  if ! install_dependencies "$INSTALL_DIR" "$SERVICE_USER"; then restore_backup || true; die "Update fehlgeschlagen; vorherige Version wurde wiederhergestellt."; fi
+  if ! install_dependencies "$INSTALL_DIR" "$SERVICE_USER" 1; then restore_backup || true; die "Update fehlgeschlagen; vorherige Version wurde wiederhergestellt."; fi
   log "Führe Tests aus"
   if ! runuser -u "$SERVICE_USER" -- sh -c "cd \"$INSTALL_DIR\" && npm test"; then restore_backup || true; die "Update verworfen; vorherige Version wurde wiederhergestellt."; fi
+  if ! runuser -u "$SERVICE_USER" -- sh -c "cd \"$INSTALL_DIR\" && npm prune --omit=dev --no-audit --no-fund"; then restore_backup || true; die "Entwicklungsabhängigkeiten konnten nach den Tests nicht entfernt werden; vorherige Version wurde wiederhergestellt."; fi
 
   configure_service
   configure_nginx
