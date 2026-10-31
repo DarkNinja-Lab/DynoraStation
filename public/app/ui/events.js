@@ -11,7 +11,8 @@ import { renderTrackLayout } from "../track/track.js?v=workspace-v15";
 import { showToast } from "./toast.js?v=workspace-v15";
 import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForElement, commandStatusText, moduleControlInfo, rememberPendingCommands } from "../core/commands.js?v=workspace-v11";
 import { esc } from "../core/utils.js?v=workspace-v11";
-import { getLanguage, initLanguage, LANGUAGES, setLanguage, t } from "../core/i18n.js?v=workspace-v23";
+import { getLanguage, getLocale, initLanguage, LANGUAGES, setLanguage, t } from "../core/i18n.js?v=workspace-v23";
+import { clearFirmwareConnectionSettings, FIRMWARE_CONNECTION_SETTINGS_KEY, loadFirmwareConnectionSettings, saveFirmwareConnectionSettings } from "../ota/connectionSettings.js?v=workspace-v1";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -27,6 +28,7 @@ function hasCapability(module, capability) {
 const PAGE_META = {
   dashboard: { title: "page.dashboard.title", subtitle: "page.dashboard.subtitle", section: "page.dashboard.section" },
   track: { title: "page.track.title", subtitle: "page.track.subtitle", section: "page.track.section" },
+  lightsystem: { title: "page.lightsystem.title", subtitle: "page.lightsystem.subtitle", section: "page.lightsystem.section" },
   settings: { title: "page.settings.title", subtitle: "page.settings.subtitle", section: "page.settings.section" },
   events: { title: "page.events.title", subtitle: "page.events.subtitle", section: "page.events.section" }
 };
@@ -48,12 +50,14 @@ function applyCoreTranslations() {
   const navMap = [
     [".nav-button[data-page='dashboard'] .nav-copy b", "nav.dashboard"],
     [".nav-button[data-page='track'] .nav-copy b", "nav.track"],
+    [".nav-button[data-page='lightsystem'] .nav-copy b", "nav.lightsystem"],
     [".nav-button[data-page='builder'] .nav-copy b", "nav.builder"],
     [".nav-button[data-page='settings'] .nav-copy b", "nav.settings"],
     [".nav-button[data-page='events'] .nav-copy b", "nav.events"],
     ["#openHelpDialog .nav-copy b", "nav.help"],
     [".mobile-nav-button[data-page-link='dashboard'] small", "nav.dashboard"],
     [".mobile-nav-button[data-page-link='track'] small", "nav.track"],
+    [".mobile-nav-button[data-page-link='lightsystem'] small", "nav.lightsystem"],
     [".mobile-nav-button[data-page-link='builder'] small", "nav.builder"],
     [".mobile-nav-button[data-page-link='settings'] small", "nav.settings"],
     [".mobile-nav-button[data-page-link='events'] small", "nav.events"]
@@ -63,6 +67,7 @@ function applyCoreTranslations() {
   const mobileAriaMap = [
     [".mobile-nav-button[data-page-link='dashboard']", "mobile.dashboard.open"],
     [".mobile-nav-button[data-page-link='track']", "mobile.track.open"],
+    [".mobile-nav-button[data-page-link='lightsystem']", "mobile.lightsystem.open"],
     [".mobile-nav-button[data-page-link='builder']", "mobile.builder.open"],
     [".mobile-nav-button[data-page-link='settings']", "mobile.settings.open"],
     [".mobile-nav-button[data-page-link='events']", "mobile.events.open"]
@@ -784,6 +789,48 @@ function collectFirmwareConnectionSettings() {
   return { wifiSsid, wifiPassword, serverHost, serverPort };
 }
 
+const firmwareConnectionFields = {
+  wifiSsid: "wifiSsidInput",
+  wifiPassword: "wifiPasswordInput",
+  serverHost: "stationHostInput",
+  serverPort: "stationPortInput",
+  otaSecret: "otaKeyInput"
+};
+
+function restoreFirmwareConnectionForm() {
+  const saved = loadFirmwareConnectionSettings();
+  for (const [key, id] of Object.entries(firmwareConnectionFields)) {
+    const input = byId(id);
+    if (input) input.value = saved[key];
+  }
+  const status = byId("firmwareConnectionSaveStatus");
+  if (status) {
+    let hasSavedSettings = false;
+    try { hasSavedSettings = Boolean(localStorage.getItem(FIRMWARE_CONNECTION_SETTINGS_KEY)); } catch {}
+    status.textContent = hasSavedSettings ? "Lokal gespeichert" : "Speichert bei Eingabe automatisch";
+  }
+}
+
+function persistFirmwareConnectionForm() {
+  const values = Object.fromEntries(Object.entries(firmwareConnectionFields).map(([key, id]) => [key, byId(id)?.value || ""]));
+  const status = byId("firmwareConnectionSaveStatus");
+  if (status) status.textContent = saveFirmwareConnectionSettings(values) ? "Lokal gespeichert" : "Browser-Speicher nicht verfügbar";
+}
+
+function resetFirmwareConnectionForm() {
+  clearFirmwareConnectionSettings();
+  for (const id of Object.values(firmwareConnectionFields)) {
+    const input = byId(id);
+    if (input) input.value = "";
+  }
+  const settings = loadFirmwareConnectionSettings();
+  if (byId("stationHostInput")) byId("stationHostInput").value = settings.serverHost;
+  if (byId("stationPortInput")) byId("stationPortInput").value = settings.serverPort;
+  const status = byId("firmwareConnectionSaveStatus");
+  if (status) status.textContent = "Lokale Daten gelöscht";
+  renderFirmwareUpdates();
+}
+
 function updateManualFirmwareButton() {
   const button = byId("uploadBinButton");
   if (!button) return;
@@ -883,7 +930,6 @@ async function downloadConfiguredUsbSketch() {
   source = replaceFirmwarePort(source, configuration.serverPort);
   const sketchName = module.hardwareType === "ESP8266_NODEMCU_LED_DIRECT" ? "led_signalleuchten" : "relays_und_sensoren";
   downloadTextFile(`${sketchName}-konfiguriert.ino`, source);
-  byId("otaKeyInput").value = "";
   showToast("Konfigurierte .ino-Datei geladen. Der OTA-Schlüssel blieb im Browser.");
 }
 
@@ -1107,6 +1153,7 @@ function bindSettingsInput() {
   });
 
   document.addEventListener("input", ev => {
+    if (Object.values(firmwareConnectionFields).includes(ev.target?.id)) persistFirmwareConnectionForm();
     if (ev.target?.id === "firmwareBinInput" || ev.target?.id === "firmwareBinVersion") updateManualFirmwareButton();
     if (ev.target?.id === "otaKeyInput") {
       const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
@@ -1116,6 +1163,7 @@ function bindSettingsInput() {
   });
 
   document.addEventListener("change", ev => {
+    if (Object.values(firmwareConnectionFields).includes(ev.target?.id)) { persistFirmwareConnectionForm(); return; }
     if (ev.target?.id === "firmwareBinInput" || ev.target?.id === "firmwareBinVersion") { updateManualFirmwareButton(); return; }
     if (ev.target?.id !== "otaModuleSelect") return;
     state.selectedOtaModule = ev.target.value;
@@ -1127,6 +1175,11 @@ function bindSettingsInput() {
   document.addEventListener("click", async (ev) => {
     const btn = ev.target.closest("button");
     if (!btn) return;
+
+    if (btn.id === "clearFirmwareConnectionSettings") {
+      resetFirmwareConnectionForm();
+      return;
+    }
 
     if (btn.id === "checkStationUpdate") {
       btn.disabled = true;
@@ -1568,6 +1621,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   initLanguage();
   applyCoreTranslations();
+  restoreFirmwareConnectionForm();
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
     if (["overview", "modules", "updates", "station-updates", "lights", "relays", "sensors", "leds", "rules", "defaults", "station"].includes(savedSettingsView)) state.settingsView = savedSettingsView;
@@ -1602,7 +1656,27 @@ export function eventsRegistrieren() {
     }
   });
   const helpDialog = byId("helpDialog");
-  byId("openHelpDialog")?.addEventListener("click", () => helpDialog?.showModal());
+  const helpIndex = helpDialog?.querySelector(".help-index");
+  const openHelp = () => {
+    try { localStorage.setItem("dynora.firstVisitHelp.seen.v1", "1"); } catch {}
+    const content = helpDialog?.querySelector(".help-dialog-content");
+    if (content) content.scrollTop = 0;
+    helpIndex?.querySelectorAll("a").forEach((link, index) => {
+      link.classList.toggle("active", index === 0);
+      if (index === 0) link.setAttribute("aria-current", "location"); else link.removeAttribute("aria-current");
+    });
+    helpDialog?.showModal();
+  };
+  byId("openHelpDialog")?.addEventListener("click", openHelp);
+  helpIndex?.addEventListener("click", (event) => {
+    const link = event.target.closest("a[href^='#help-']");
+    if (!link) return;
+    helpIndex.querySelectorAll("a").forEach((item) => {
+      const active = item === link;
+      item.classList.toggle("active", active);
+      if (active) item.setAttribute("aria-current", "location"); else item.removeAttribute("aria-current");
+    });
+  });
   byId("closeHelpDialog")?.addEventListener("click", () => helpDialog?.close());
   helpDialog?.addEventListener("click", (event) => {
     const link = event.target.closest("[data-help-page]");
@@ -1626,6 +1700,23 @@ export function eventsRegistrieren() {
   bindSettingsInput();
   bindTrackLightsQuickToggle();
   bindTrackElementQuickToggle();
+}
+
+const FIRST_VISIT_HELP_KEY = "dynora.firstVisitHelp.seen.v1";
+export function showFirstVisitGuide() {
+  const dialog = byId("helpDialog");
+  if (!dialog || dialog.open) return;
+  try {
+    if (localStorage.getItem(FIRST_VISIT_HELP_KEY) === "1") return;
+  } catch {}
+  if (typeof dialog.showModal !== "function") return;
+  const content = dialog.querySelector(".help-dialog-content");
+  if (content) content.scrollTop = 0;
+  const firstLink = dialog.querySelector(".help-index a");
+  firstLink?.classList.add("active");
+  firstLink?.setAttribute("aria-current", "location");
+  dialog.showModal();
+  try { localStorage.setItem(FIRST_VISIT_HELP_KEY, "1"); } catch {}
 }
 
 document.addEventListener("dynora:modules-updated", () => {

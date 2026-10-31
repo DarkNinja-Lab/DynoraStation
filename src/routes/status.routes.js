@@ -84,6 +84,8 @@ function createStatusRoutes({ runtimeState, moduleRegistry, commandQueueApi, env
       lightButtons: runtimeState.hardware?.lightButtons || [],
       defaults: runtimeState.hardware?.defaults || [],
       ledConfig: runtimeState.hardware?.ledConfig || {},
+      lightSystem: runtimeState.hardware?.lightSystem || { programs: [], activeProgramId: "" },
+      lightSystemRuntime: runtimeState.lightSystemRuntime || { groups: {}, updatedAt: 0 },
       rules: runtimeState.rulesData?.rules || [],
       events: eventsChanged && Array.isArray(runtimeState.events) ? runtimeState.events.slice(0, Number(env.MAX_EVENTS) || 800) : null
     });

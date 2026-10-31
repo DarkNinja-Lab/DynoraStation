@@ -105,11 +105,19 @@ test("Plan check and status messages contain no mojibake", () => {
   }
 });
 
-test("USB first install guide contains WiFi and station settings", () => {
+test("ESP firmware connection settings stay in the side panel while first install keeps its actions", () => {
   const dom = new JSDOM(read("public/index.html"));
-  const guide = [...dom.window.document.querySelectorAll("#page-settings [data-settings-section='updates'] details")].find(item => item.querySelector("summary")?.textContent.includes("Erstinstallation per USB"));
+  const panel = dom.window.document.querySelector("#page-settings [data-settings-section='updates'] .firmware-update-layout");
+  const settings = panel?.querySelector(".firmware-connection-settings");
+  const guide = [...panel.querySelectorAll("details")].find(item => item.querySelector("summary")?.textContent.includes("Erstinstallation per USB"));
+  assert.ok(settings);
   assert.ok(guide);
-  for (const id of ["wifiSsidInput", "wifiPasswordInput", "stationHostInput", "stationPortInput", "otaKeyInput", "downloadUsbSketchButton"]) assert.ok(guide.querySelector("[id='" + id + "']"), id);
+  for (const id of ["wifiSsidInput", "wifiPasswordInput", "stationHostInput", "stationPortInput", "otaKeyInput", "clearFirmwareConnectionSettings"]) assert.ok(settings.querySelector("[id='" + id + "']"), id);
+  assert.ok(guide.querySelector("#downloadUsbSketchButton"));
+  assert.equal(guide.querySelector("#otaKeyInput"), null);
+  const events = read("public/app/ui/events.js");
+  assert.match(events, /saveFirmwareConnectionSettings/);
+  assert.doesNotMatch(events, /byId\("otaKeyInput"\)\.value\s*=\s*""/);
   dom.window.close();
 });
 

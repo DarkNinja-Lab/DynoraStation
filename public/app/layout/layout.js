@@ -17,6 +17,13 @@ function normalizeElementForUi(element) {
   return e;
 }
 
+export function layoutDraftFingerprint(draft) {
+  const value = JSON.stringify(draft || null);
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i += 1) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(36);
+}
+
 export async function layoutLaden() {
   let stationLoaded = false;
   state.recoverableDraft = null;
@@ -41,7 +48,9 @@ export async function layoutLaden() {
       if (draft?.layout && Array.isArray(draft.layout.elemente)) {
         validateImport(draft.layout);
         if (stationLoaded) {
-          state.recoverableDraft = draft;
+          let dismissed = "";
+          try { dismissed = localStorage.getItem("dynora.layoutDraft.dismissed") || ""; } catch {}
+          if (dismissed !== layoutDraftFingerprint(draft)) state.recoverableDraft = draft;
         } else {
           state.layout = { ...draft.layout, elemente: draft.layout.elemente.map(normalizeElementForUi), verbindungen: Array.isArray(draft.layout.verbindungen) ? draft.layout.verbindungen : [] };
           state.layoutDirty = true;

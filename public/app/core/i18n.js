@@ -18,12 +18,14 @@ const base = {
   "language.toggle": "Change language",
   "nav.dashboard": "Overview",
   "nav.track": "Operations",
+  "nav.lightsystem": "Light system",
   "nav.builder": "Builder",
   "nav.settings": "Settings",
   "nav.events": "Logbook",
   "nav.help": "Help & Guide",
   "mobile.dashboard.open": "Open overview",
   "mobile.track.open": "Open operations",
+  "mobile.lightsystem.open": "Open light system",
   "mobile.builder.open": "Open builder",
   "mobile.settings.open": "Open system",
   "mobile.events.open": "Open logbook",
@@ -33,6 +35,9 @@ const base = {
   "page.track.title": "Operations",
   "page.track.subtitle": "Control routes, signals and layout functions",
   "page.track.section": "Workspace",
+  "page.lightsystem.title": "Light system",
+  "page.lightsystem.subtitle": "Run a preset or create timed lighting scenes",
+  "page.lightsystem.section": "Lighting",
   "page.settings.title": "Settings",
   "page.settings.subtitle": "Devices, I/O and events",
   "page.settings.section": "Administration",
@@ -66,11 +71,12 @@ const base = {
 
 const de = {
   "language.toggle": "Sprache ändern", "nav.dashboard": "Übersicht", "nav.track": "Betrieb", "nav.builder": "Builder",
-  "nav.settings": "Einstellungen", "nav.events": "Logbuch", "nav.help": "Hilfe & Anleitung",
+  "nav.settings": "Einstellungen", "nav.events": "Logbuch", "nav.lightsystem": "Lichtsystem", "nav.help": "Hilfe & Anleitung",
   "mobile.dashboard.open": "Übersicht öffnen", "mobile.track.open": "Betrieb öffnen", "mobile.builder.open": "Builder öffnen",
-  "mobile.settings.open": "System öffnen", "mobile.events.open": "Logbuch öffnen",
+  "mobile.settings.open": "System öffnen", "mobile.events.open": "Logbuch öffnen", "mobile.lightsystem.open": "Lichtsystem öffnen",
   "page.dashboard.title": "Übersicht", "page.dashboard.subtitle": "Betriebsbild, Systemzustand und letzte Aktivitäten", "page.dashboard.section": "Zentrale",
   "page.track.title": "Betrieb", "page.track.subtitle": "Fahrwege, Signale und Anlagenfunktionen steuern", "page.track.section": "Workspace",
+  "page.lightsystem.title": "Lichtsystem", "page.lightsystem.subtitle": "Fertige Modi starten oder zeitgesteuerte Lichtszenen erstellen", "page.lightsystem.section": "Beleuchtung",
   "page.settings.title": "Einstellungen", "page.settings.subtitle": "Geräte, Ein-/Ausgänge und Ereignisse", "page.settings.section": "Administration",
   "page.events.title": "Logbuch", "page.events.subtitle": "System-, Schalt- und Sensorereignisse", "page.events.section": "Administration",
   "page.builder.title": "Stellwerk bearbeiten", "page.builder.subtitle": "Gleisbild bearbeiten, Elemente platzieren und Hardware zuweisen", "page.builder.section": "Bearbeitung",
@@ -217,6 +223,18 @@ function normalizeLanguage(value) {
   return LANGUAGES.some((language) => language.code === code) ? code : DEFAULT_LANGUAGE;
 }
 
+function browserLanguage() {
+  const preferences = [
+    ...(Array.isArray(navigator.languages) ? navigator.languages : []),
+    navigator.language
+  ].filter(Boolean);
+  for (const preference of preferences) {
+    const code = String(preference).trim().toLowerCase().split(/[-_]/)[0];
+    if (LANGUAGES.some((language) => language.code === code)) return code;
+  }
+  return DEFAULT_LANGUAGE;
+}
+
 export function getLanguage() { return currentLanguage; }
 export function getLocale() { return LANGUAGES.find(({ code }) => code === currentLanguage)?.locale || "de-DE"; }
 export function t(key, fallback = "") {
@@ -239,7 +257,7 @@ export function setLanguage(nextLanguage) {
 export function initLanguage() {
   let saved = "";
   try { saved = localStorage.getItem(STORAGE_KEY) || ""; } catch {}
-  currentLanguage = normalizeLanguage(saved || navigator.language);
+  currentLanguage = saved ? normalizeLanguage(saved) : browserLanguage();
   document.documentElement.lang = currentLanguage;
   return currentLanguage;
 }

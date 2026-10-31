@@ -5,7 +5,7 @@
   - Befehle vom Server pollen und ausführen (RELAY_SET, RELAY_PULSE, NOT_AUS)
   - NON-BLOCKING Pulse (kein delay im Loop)
   - HTTP Timeout + Retry + kleines Reconnect/Backoff
-  - 16 Relais ausschließlich über MCP23017
+  - 24 Relais über MCP23017 0x20 (16) und 0x21 (8)
   - BME280 für Temperatur, Luftfeuchte und Luftdruck im Trafo-Gehäuse
 
   Verdrahtung MCP23017 -> NodeMCU:
@@ -14,10 +14,9 @@
   - SDA   -> D2 / GPIO4
   - SCL   -> D1 / GPIO5
   - RESET -> 3V3 (empfohlen über 10 kOhm Pull-up)
-  - A0/A1/A2 -> GND für Adresse 0x20
+  - MCP 0x20: A0/A1/A2 -> GND; MCP 0x21: A0 -> 3V3, A1/A2 -> GND
 
-  GPA0..GPA7 -> Relaisboard IN1..IN8
-  GPB0..GPB7 -> Relaisboard IN9..IN16
+  MCP 0x20 GPA/GPB -> Relais 1..16; MCP 0x21 GPA -> Relais 17..24
 
   WICHTIG:
   Der MCP23017 steuert nur die Logikeingänge eines Relaisboards mit eigener
@@ -72,14 +71,16 @@ const unsigned long STATION_LINK_TIMEOUT_MS = 6500;
 const uint8_t STATUS_LED_PIN = LED_BUILTIN;
 const bool STATUS_LED_ACTIVE_LOW = true;
 
-// MCP23017 / Relaisboard (Pflicht)
-const uint8_t MCP23017_ADDRESS = 0x20;
+// Zwei MCP23017 am selben I2C-Bus: je ein 8-Kanal-Relaisboard an GPA0..7.
+// A0/A1/A2: erster MCP = GND (0x20), zweiter MCP: A0 = 3V3 (0x21).
+const uint8_t MCP23017_ADDRESSES[2] = { 0x20, 0x21 };
+const uint8_t MCP_COUNT = 2;
 const uint8_t MCP_SDA_PIN = D2;  // GPIO4
 const uint8_t MCP_SCL_PIN = D1;  // GPIO5
 const uint32_t MCP_I2C_CLOCK_HZ = 100000;
 const unsigned long MCP_RETRY_INTERVAL_MS = 5000;
 
-const uint8_t RELAY_COUNT = 16;
+const uint8_t RELAY_COUNT = 24;
 // Das vorhandene 16-Kanal-Board hat optogekoppelte, intern auf 5 V gezogene
 // LOW-Trigger-Eingaenge. Der mit 3,3 V versorgte MCP23017 darf diese 5 V
 // deshalb NICHT aktiv auf HIGH treiben.
@@ -129,8 +130,8 @@ WiFiUDP discoveryUdp;
 unsigned long lastDiscoveryAttempt = 0;
 String moduleId;
 String bootSessionId;
-uint16_t mcpOutputLatch = 0x0000;
-uint16_t mcpDirectionMask = 0xFFFF; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
+uint16_t mcpOutputLatch[MCP_COUNT] = { 0x0000, 0x0000 };
+uint16_t mcpDirectionMask[MCP_COUNT] = { 0xFFFF, 0xFFFF }; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
 unsigned long lastMcpAttempt = 0;
 Adafruit_BME280 bme280;
 bool bme280Ready = false;
@@ -260,49 +261,49 @@ void logHttpFailure(const char* method, const String& path, int code, const Stri
   Serial.println();
 }
 
-bool mcpWriteRegister(uint8_t reg, uint8_t value) {
-  Wire.beginTransmission(MCP23017_ADDRESS);
+bool mcpWriteRegister(uint8_t address, uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(address);
   Wire.write(reg);
   Wire.write(value);
   return Wire.endTransmission() == 0;
 }
 
-bool mcpReadRegister(uint8_t reg, uint8_t& value) {
-  Wire.beginTransmission(MCP23017_ADDRESS);
+bool mcpReadRegister(uint8_t address, uint8_t reg, uint8_t& value) {
+  Wire.beginTransmission(address);
   Wire.write(reg);
   if (Wire.endTransmission(false) != 0) return false;
-  if (Wire.requestFrom(MCP23017_ADDRESS, (uint8_t)1) != 1) return false;
+  if (Wire.requestFrom(address, (uint8_t)1) != 1) return false;
   value = Wire.read();
   return true;
 }
 
-bool mcpWriteAndVerify(uint8_t reg, uint8_t value) {
-  if (!mcpWriteRegister(reg, value)) return false;
+bool mcpWriteAndVerify(uint8_t address, uint8_t reg, uint8_t value) {
+  if (!mcpWriteRegister(address, reg, value)) return false;
   uint8_t readback = 0;
-  return mcpReadRegister(reg, readback) && readback == value;
+  return mcpReadRegister(address, reg, readback) && readback == value;
 }
 
-bool mcpWriteDirections(uint16_t directionMask) {
+bool mcpWriteDirections(uint8_t mcpIndex, uint16_t directionMask) {
   // IODIR: 1 = INPUT (hochohmig/AUS), 0 = OUTPUT (OLAT LOW -> EIN)
-  bool portAOk = mcpWriteAndVerify(MCP_IODIRA, (uint8_t)(directionMask & 0xFF));
-  bool portBOk = mcpWriteAndVerify(MCP_IODIRB, (uint8_t)(directionMask >> 8));
+  const uint8_t address = MCP23017_ADDRESSES[mcpIndex];
+  bool portAOk = mcpWriteAndVerify(address, MCP_IODIRA, (uint8_t)(directionMask & 0xFF));
+  bool portBOk = mcpWriteAndVerify(address, MCP_IODIRB, (uint8_t)(directionMask >> 8));
   return portAOk && portBOk;
 }
 
 bool initMcp23017() {
-  Wire.beginTransmission(MCP23017_ADDRESS);
-  if (Wire.endTransmission() != 0) return false;
-
   // Wichtig fuer das 5-V-LOW-Trigger-Board:
   // OLAT bleibt dauerhaft LOW. AUS wird NICHT durch HIGH erzeugt, sondern
   // indem der jeweilige MCP-Pin als INPUT hochohmig geschaltet wird.
-  mcpOutputLatch = 0x0000;
-  if (!mcpWriteAndVerify(MCP_OLATA, 0x00)) return false;
-  if (!mcpWriteAndVerify(MCP_OLATB, 0x00)) return false;
-
-  // Alle Kanaele beim Start hochohmig = alle Relais AUS.
-  mcpDirectionMask = 0xFFFF;
-  if (!mcpWriteDirections(mcpDirectionMask)) return false;
+  for (uint8_t mcp = 0; mcp < MCP_COUNT; mcp++) {
+    Wire.beginTransmission(MCP23017_ADDRESSES[mcp]);
+    if (Wire.endTransmission() != 0) return false;
+    mcpOutputLatch[mcp] = 0x0000;
+    if (!mcpWriteAndVerify(MCP23017_ADDRESSES[mcp], MCP_OLATA, 0x00)) return false;
+    if (!mcpWriteAndVerify(MCP23017_ADDRESSES[mcp], MCP_OLATB, 0x00)) return false;
+    mcpDirectionMask[mcp] = 0xFFFF;
+    if (!mcpWriteDirections(mcp, mcpDirectionMask[mcp])) return false;
+  }
 
   for (uint8_t i = 0; i < RELAY_COUNT; i++) relayStates[i] = false;
   return true;
@@ -311,44 +312,49 @@ bool initMcp23017() {
 bool setRelayHw(uint8_t idx, bool on) {
   if (idx >= RELAY_COUNT || !relayHardwareReady) return false;
 
-  const uint16_t mask = (uint16_t)1U << idx;
+  const uint8_t mcpIndex = idx < 16 ? 0 : 1;
+  const uint8_t localIndex = idx < 16 ? idx : (uint8_t)(idx - 16);
+  const uint16_t mask = (uint16_t)1U << localIndex;
   // EIN = OUTPUT LOW (IODIR-Bit 0), AUS = INPUT/Hi-Z (IODIR-Bit 1).
   const uint16_t nextDirections = on
-    ? (mcpDirectionMask & ~mask)
-    : (mcpDirectionMask | mask);
+    ? (mcpDirectionMask[mcpIndex] & ~mask)
+    : (mcpDirectionMask[mcpIndex] | mask);
 
-  const uint8_t reg = idx < 8 ? MCP_IODIRA : MCP_IODIRB;
-  const uint8_t portValue = idx < 8
+  const uint8_t reg = localIndex < 8 ? MCP_IODIRA : MCP_IODIRB;
+  const uint8_t portValue = localIndex < 8
     ? (uint8_t)(nextDirections & 0xFF)
     : (uint8_t)(nextDirections >> 8);
 
-  if (!mcpWriteAndVerify(reg, portValue)) {
+  if (!mcpWriteAndVerify(MCP23017_ADDRESSES[mcpIndex], reg, portValue)) {
     relayHardwareReady = false;
     heartbeatConfirmed = false;
     Serial.println("[MCP23017] IODIR-Schreibfehler, Neuverbindung wird versucht");
     return false;
   }
 
-  mcpDirectionMask = nextDirections;
+  mcpDirectionMask[mcpIndex] = nextDirections;
   relayStates[idx] = on;
   Serial.print("[MCP] Kanal ");
   Serial.print(idx + 1);
   Serial.print(on ? " EIN" : " AUS");
-  Serial.print(" · IODIR=0x");
-  if (mcpDirectionMask < 0x1000) Serial.print("0");
-  if (mcpDirectionMask < 0x0100) Serial.print("0");
-  if (mcpDirectionMask < 0x0010) Serial.print("0");
-  Serial.println(mcpDirectionMask, HEX);
+  Serial.print(" · MCP 0x"); Serial.print(MCP23017_ADDRESSES[mcpIndex], HEX);
+  Serial.print(" IODIR=0x");
+  if (mcpDirectionMask[mcpIndex] < 0x1000) Serial.print("0");
+  if (mcpDirectionMask[mcpIndex] < 0x0100) Serial.print("0");
+  if (mcpDirectionMask[mcpIndex] < 0x0010) Serial.print("0");
+  Serial.println(mcpDirectionMask[mcpIndex], HEX);
   return true;
 }
 
 bool allRelaysOff() {
   for (uint8_t i = 0; i < RELAY_COUNT; i++) relayStates[i] = false;
-  mcpDirectionMask = 0xFFFF;
-  if (relayHardwareReady && !mcpWriteDirections(mcpDirectionMask)) {
-    relayHardwareReady = false;
-    heartbeatConfirmed = false;
-    return false;
+  for (uint8_t mcp = 0; mcp < MCP_COUNT; mcp++) {
+    mcpDirectionMask[mcp] = 0xFFFF;
+    if (relayHardwareReady && !mcpWriteDirections(mcp, mcpDirectionMask[mcp])) {
+      relayHardwareReady = false;
+      heartbeatConfirmed = false;
+      return false;
+    }
   }
   return relayHardwareReady;
 }
@@ -361,7 +367,7 @@ void ensureMcp23017() {
 
   relayHardwareReady = initMcp23017();
   if (relayHardwareReady) {
-    Serial.println("[RELAIS] MCP23017 online: 16 Kanaele an Adresse 0x20");
+    Serial.println("[RELAIS] Zwei MCP23017 online: 24 Kanaele an 0x20 und 0x21");
   } else {
     Serial.println("[MCP23017] Nicht gefunden - pruefe SDA, SCL, Adresse und 3V3");
   }
@@ -481,8 +487,10 @@ bool sendHeartbeat() {
   doc["mcp23017"] = relayHardwareReady;
   doc["bme280"] = bme280Ready;
   doc["relayActiveLow"] = RELAY_ACTIVE_LOW;
-  doc["relayOutputLatch"] = mcpOutputLatch;
-  doc["relayDirectionMask"] = mcpDirectionMask;
+  doc["relayOutputLatch"] = mcpOutputLatch[0];
+  doc["relayDirectionMask"] = mcpDirectionMask[0];
+  doc["relayOutputLatch2"] = mcpOutputLatch[1];
+  doc["relayDirectionMask2"] = mcpDirectionMask[1];
   doc["relayDriveMode"] = RELAY_DRIVE_MODE;
   doc["relayDriver"] = "MCP23017";
 

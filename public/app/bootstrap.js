@@ -9,17 +9,18 @@ import { state } from "./core/state.js?v=workspace-v11";
 import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v12";
 import { initializeTools } from "./builder/tools.js?v=workspace-v11";
 import { initTranslation } from "./core/translate.js?v=workspace-v26";
-import { eventsRegistrieren, renderSettingsTab } from "./ui/events.js?v=workspace-v27";
+import { eventsRegistrieren, renderSettingsTab, showFirstVisitGuide } from "./ui/events.js?v=workspace-v27";
 import { katalogLaden } from "./catalog/catalog.js?v=workspace-v11";
 import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js?v=workspace-v12";
 import { renderTrackLayout } from "./track/track.js?v=workspace-v15";
-import { layoutLaden, layoutNormalisieren } from "./layout/layout.js?v=workspace-v11";
+import { layoutDraftFingerprint, layoutLaden, layoutNormalisieren } from "./layout/layout.js?v=workspace-v11";
 import { rulesLaden, renderRulesGrid } from "./rules/rules.js?v=workspace-v18";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js?v=workspace-v19";
 import { statusLaden } from "./status/status.js?v=workspace-v11";
 import { renderCanvas, inspectorLeer } from "./builder/render.js?v=workspace-v17";
 import { recordHistory, resetHistory } from "./builder/history.js?v=workspace-v11";
 import { setupPlanValidation } from "./builder/validation.js?v=workspace-v12";
+import { initializeLightSystem } from "./lightSystem.js?v=workspace-v1";
 
 export async function startApp() {
   eventsRegistrieren();
@@ -55,7 +56,9 @@ export async function startApp() {
   if (state.layoutDirty) showToast("Lokaler Entwurf wiederhergestellt · noch nicht auf der Station gespeichert", "warning");
 
   await statusLaden({ ruhig: false });
+  await initializeLightSystem();
   if (document.getElementById("page-settings")?.classList.contains("active")) renderSettingsTab();
+  showFirstVisitGuide();
 
   if (state.statusTimer) clearTimeout(state.statusTimer);
   let refreshEpoch = 0;
@@ -82,7 +85,18 @@ function setupDraftRecovery() {
   if (!host || !state.recoverableDraft) return;
   host.hidden = false;
   const draft = state.recoverableDraft;
-  document.getElementById("dismissLayoutDraft").onclick = () => { host.hidden = true; };
+  document.getElementById("dismissLayoutDraft").onclick = () => {
+    try { localStorage.setItem("dynora.layoutDraft.dismissed", layoutDraftFingerprint(draft)); } catch {}
+    try {
+      const serialized = JSON.stringify(draft);
+      if (localStorage.getItem("dynora.layoutDraft") === serialized) {
+        localStorage.setItem("dynora.layoutDraft.backup", serialized);
+        localStorage.removeItem("dynora.layoutDraft");
+      }
+    } catch {}
+    state.recoverableDraft = null;
+    host.hidden = true;
+  };
   document.getElementById("downloadLayoutDraft").onclick = () => {
     const url = URL.createObjectURL(new Blob([JSON.stringify(draft.layout,null,2)], {type:"application/json"}));
     const link = document.createElement("a");link.href=url;link.download="Dynora-lokaler-Entwurf.json";link.click();
@@ -93,7 +107,10 @@ function setupDraftRecovery() {
     recordHistory();
     state.layout = JSON.parse(JSON.stringify(draft.layout));
     try {
-      if (localStorage.getItem("dynora.layoutDraft.backup") === JSON.stringify(draft)) localStorage.removeItem("dynora.layoutDraft.backup");
+      const serialized = JSON.stringify(draft);
+      if (localStorage.getItem("dynora.layoutDraft") === serialized) localStorage.removeItem("dynora.layoutDraft");
+      if (localStorage.getItem("dynora.layoutDraft.backup") === serialized) localStorage.removeItem("dynora.layoutDraft.backup");
+      localStorage.removeItem("dynora.layoutDraft.dismissed");
     } catch {}
     state.recoverableDraft = null;
     state.layoutDirty = true;

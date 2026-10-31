@@ -4,6 +4,12 @@ const { toNumber } = require("../../utils/parse");
 const { cleanText, validRelay, validLedChannel, validBrightness } = require("../../utils/sanitize");
 const { defaultHardware, defaultLightButtons } = require("../defaults");
 
+function validTimezone(value) {
+  const timezone = cleanText(value || "Europe/Berlin", 64) || "Europe/Berlin";
+  try { new Intl.DateTimeFormat("en", { timeZone: timezone }).format(); return timezone; }
+  catch { return "Europe/Berlin"; }
+}
+
 function normalizeLightButtons(input) {
   const base = defaultLightButtons();
   if (!Array.isArray(input)) return base;
@@ -125,6 +131,61 @@ function normalizeHardware(input) {
   });
 
   out.lightButtons = normalizeLightButtons(src.lightButtons);
+  const lightSystem = src.lightSystem && typeof src.lightSystem === "object" ? src.lightSystem : {};
+  const inputPrograms = Array.isArray(lightSystem.programs) ? lightSystem.programs : (Array.isArray(lightSystem.steps) ? [lightSystem] : []);
+  out.lightSystem = {
+    location: {
+      name: cleanText(lightSystem.location?.name || "Deutschland (Mitte)", 64) || "Deutschland (Mitte)",
+      latitude: Math.max(-90, Math.min(90, toNumber(lightSystem.location?.latitude, 51.1657))),
+      longitude: Math.max(-180, Math.min(180, toNumber(lightSystem.location?.longitude, 10.4515))),
+      timezone: validTimezone(lightSystem.location?.timezone)
+    },
+    groups: (Array.isArray(lightSystem.groups) ? lightSystem.groups : []).slice(0, 32).map((group, groupIndex) => {
+      const settings = group?.settings && typeof group.settings === "object" ? group.settings : {};
+      const time = (value, fallback) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value || "")) ? String(value) : fallback;
+      const numbers = (key, fallback, min, max) => Math.max(min, Math.min(max, Math.round(toNumber(settings[key], fallback))));
+      const relayKeys = new Set();
+      const relays = (Array.isArray(group?.relays) ? group.relays : []).slice(0, 64).map((relay) => ({
+        module: cleanText(relay?.module || "", 48), channel: validRelay(relay?.channel),
+        name: cleanText(relay?.name || "", 48)
+      })).filter((relay) => {
+        if (!relay.module || !relay.channel) return false;
+        const key = `${relay.module}:${relay.channel}`;
+        if (relayKeys.has(key)) return false;
+        relayKeys.add(key);
+        return true;
+      });
+      const behavior = ["presence", "sunset", "daily", "manual"].includes(group?.behavior) ? group.behavior : "daily";
+      return {
+        id: cleanText(group?.id || `light-group-${groupIndex + 1}`, 48) || `light-group-${groupIndex + 1}`,
+        name: cleanText(group?.name || `Lichtgruppe ${groupIndex + 1}`, 64) || `Lichtgruppe ${groupIndex + 1}`,
+        kind: ["house", "street", "custom"].includes(group?.kind) ? group.kind : "custom",
+        behavior, enabled: group?.enabled !== false, relays,
+        settings: {
+          startTime: time(settings.startTime, "18:00"), endTime: time(settings.endTime, "23:30"),
+          onTime: time(settings.onTime, "18:00"), offTime: time(settings.offTime, "23:00"),
+          minOnMin: numbers("minOnMin", 2, 1, 180), maxOnMin: numbers("maxOnMin", 12, 1, 240),
+          minOffMin: numbers("minOffMin", 1, 1, 180), maxOffMin: numbers("maxOffMin", 8, 1, 240),
+          sunsetOffsetMin: numbers("sunsetOffsetMin", 0, -180, 180), sunriseOffsetMin: numbers("sunriseOffsetMin", 15, -180, 180)
+        }
+      };
+    }),
+    activeProgramId: cleanText(lightSystem.activeProgramId || "", 48),
+    outputs: (Array.isArray(lightSystem.outputs) ? lightSystem.outputs : []).slice(0, 8).map((output) => ({
+      name: cleanText(output?.name || "", 48), module: cleanText(output?.module || "", 48), channel: validRelay(output?.channel)
+    })),
+    programs: inputPrograms.slice(0, 20).map((program, programIndex) => ({
+      id: cleanText(program?.id || `program-${programIndex + 1}`, 48) || `program-${programIndex + 1}`,
+      name: cleanText(program?.name || `Lichtmodus ${programIndex + 1}`, 64) || `Lichtmodus ${programIndex + 1}`,
+      loop: program?.loop !== false,
+      steps: (Array.isArray(program?.steps) ? program.steps : []).slice(0, 40).map((step, index) => ({
+      id: cleanText(step?.id || `step-${index + 1}`, 48) || `step-${index + 1}`,
+      name: cleanText(step?.name || `Szene ${index + 1}`, 64) || `Szene ${index + 1}`,
+      durationSec: Math.max(1, Math.min(3600, toNumber(step?.durationSec, 300))),
+      states: (Array.isArray(step?.states) ? step.states : []).slice(0, 8).map((state) => state === true ? true : state === false ? false : null)
+      }))
+    }))
+  };
   out.defaults = Array.isArray(src.defaults) ? src.defaults.slice(0, 100) : [];
   out.ledConfig = {};
   const ledConfig = src.ledConfig && typeof src.ledConfig === "object" ? src.ledConfig : {};

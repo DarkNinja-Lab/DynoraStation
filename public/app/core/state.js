@@ -42,6 +42,7 @@ export const state = {
     { name: "Licht 3", moduleId: "", relayIndex: 0, active: false },
     { name: "Licht 4", moduleId: "", relayIndex: 0, active: false }
   ],
+  lightSystemRuntime: { running: false, stepIndex: -1, startedAt: 0, nextAt: 0, programId: "" },
 
   // Settings
   defaults: [], // { targetType, targetId, action }

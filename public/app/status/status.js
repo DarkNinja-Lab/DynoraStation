@@ -194,6 +194,7 @@ async function loadStatus({ ruhig = true } = {}) {
     const data = await apiCall(`/status?${query}`, { timeoutMs: 8000 });
     if (data?.instanceId) state.stationInstanceId = data.instanceId;
     if (data?.revisions) state.statusRevisions = { ...revisions, ...data.revisions };
+    if (data?.lightSystemRuntime) state.lightSystemRuntime = data.lightSystemRuntime;
     state.statusPollMs = Math.max(200, Number(data?.uiStatusIntervalMs) || 200);
     state.connection = data?.connection && typeof data.connection === "object" ? data.connection : null;
     state.serverVersion = String(data?.serverVersion || "");
@@ -374,6 +375,7 @@ async function loadStatus({ ruhig = true } = {}) {
       renderDashboardOverview();
     }
     refreshSettingsHardwareStatus();
+    document.dispatchEvent(new CustomEvent("dynora:status-updated"));
   } catch (err) {
     state.statusPollMs = Math.min(10000,Math.max(1000,(state.statusPollMs || 400) * 2));
     setServerOnline(false);

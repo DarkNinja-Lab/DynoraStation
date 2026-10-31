@@ -28,6 +28,10 @@ function defaultHardware() {
     sensors: [],
     leds: [],
     lightButtons: defaultLightButtons(),
+    lightSystem: {
+      location: { name: "Deutschland (Mitte)", latitude: 51.1657, longitude: 10.4515, timezone: "Europe/Berlin" },
+      groups: [], outputs: [], programs: [], activeProgramId: ""
+    },
     defaults: [],
     ledConfig: {},
     updatedAt: 0
