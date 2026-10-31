@@ -23,10 +23,10 @@ Die `.env.example` enthält bei `SERVER_IP` absichtlich eine LAN-Beispieladresse
 | Variable | Standard | Bedeutung |
 | --- | ---: | --- |
 | `MODULE_TIMEOUT` | `10000` | Zeit in ms, nach der ein Modul als offline gilt |
-| `MAX_COMMANDS` | `500` | maximale Größe der Command-Historie |
+| `MAX_COMMANDS` | `500` | maximale Zahl ausstehender Befehle und gespeicherter Befehlsresultate |
 | `MAX_EVENTS` | `800` | maximale Größe der Event-Historie |
 | `COMMAND_MAX_AGE_MS` | `15000` | maximale Lebensdauer eines ausstehenden Befehls |
-| `UI_STATUS_INTERVAL_MS` | `400` | Status-Polling der Oberfläche; Minimum im Code: 250 ms |
+| `UI_STATUS_INTERVAL_MS` | `200` | Status-Polling der Oberfläche; Minimum im Code: 200 ms |
 | `HEARTBEAT_PERSIST_INTERVAL_MS` | `30000` | Mindestabstand für reine Heartbeat-Schreibvorgänge nach `hardware.json`; Live-Zustand im RAM bleibt sofort aktuell |
 
 ## Rate Limits
