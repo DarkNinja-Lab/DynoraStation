@@ -7,8 +7,13 @@ const appVersion = require("../../../package.json").version;
 const FIRMWARE_FQBN = "esp8266:esp8266:nodemcuv2:eesz=4M1M";
 
 const SKETCHES = {
-  ESP8266_NODEMCU_LED_DIRECT: "led_signalleuchten",
-  ESP8266_NODEMCU_MCP23017_BME280: "relays_und_sensoren"
+  ESP8266_NODEMCU_LED_DIRECT: { sketchName: "led_signalleuchten" },
+  ESP8266_NODEMCU_MCP23017_BME280: { sketchName: "relays_und_sensoren" },
+  ESP8266_NODEMCU_MCP23017_8R_1MCP: { sketchName: "relays_und_sensoren", relayProfile: [8, 0, 3] },
+  ESP8266_NODEMCU_MCP23017_16R_1MCP: { sketchName: "relays_und_sensoren", relayProfile: [16, 0, 3] },
+  ESP8266_NODEMCU_MCP23017_16R_2MCP: { sketchName: "relays_und_sensoren", relayProfile: [8, 8, 3] },
+  ESP8266_NODEMCU_MCP23017_24R_2MCP: { sketchName: "relays_und_sensoren", relayProfile: [16, 8, 3] },
+  ESP8266_NODEMCU_MCP23017_32R_2MCP: { sketchName: "relays_und_sensoren", relayProfile: [16, 16, 3] }
 };
 
 function cppString(value) {
@@ -25,6 +30,24 @@ function replaceNumericConstant(code, name, value) {
   const pattern = new RegExp(`(const uint16_t\\s+${name}\\s*=\\s*)\\d+;`);
   if (!pattern.test(code)) throw new Error(`Firmware-Vorlage fehlt: ${name}`);
   return code.replace(pattern, (_match, prefix) => `${prefix}${Number(value)};`);
+}
+
+function sketchNameFor(hardwareType) {
+  return SKETCHES[hardwareType]?.sketchName || "";
+}
+
+function configureHardwareProfile(code, hardwareType) {
+  const relayProfile = SKETCHES[hardwareType]?.relayProfile;
+  if (!relayProfile) return code;
+  const [mcp1RelayCount, mcp2RelayCount, sensorCount] = relayProfile;
+  return [
+    `#define DYNORA_MCP1_RELAY_COUNT ${mcp1RelayCount}`,
+    `#define DYNORA_MCP2_RELAY_COUNT ${mcp2RelayCount}`,
+    `#define DYNORA_SENSOR_COUNT ${sensorCount}`,
+    `#define DYNORA_HARDWARE_TYPE "${cppString(hardwareType)}"`,
+    "",
+    code
+  ].join("\n");
 }
 
 function configureSketch(code, { version, secret, wifiSsid, wifiPassword, serverHost, serverPort }) {
@@ -54,7 +77,7 @@ function run(command, args, env, onProgress = () => {}) {
 }
 
 async function buildFirmware(hardwareType, secret, dataDir, onProgress, configuration = {}) {
-  const sketchName = SKETCHES[hardwareType];
+  const sketchName = sketchNameFor(hardwareType);
   if (!sketchName) throw new Error(`Für Hardwaretyp ${hardwareType} gibt es keine Server-Firmware.`);
   if (!secret || secret.length < 24) throw new Error("OTA_SHARED_SECRET muss mindestens 24 Zeichen lang sein.");
   const cli = process.env.ARDUINO_CLI || "arduino-cli";
@@ -65,6 +88,7 @@ async function buildFirmware(hardwareType, secret, dataDir, onProgress, configur
   try { await fs.access(source); } catch { await fs.copyFile(path.join(root, `${sketchName}.ino`), source); }
   const version = `${appVersion}-ota-${Date.now()}`;
   let code = await fs.readFile(source, "utf8");
+  code = configureHardwareProfile(code, hardwareType);
   code = configureSketch(code, { ...configuration, version, secret });
   const workRoot = path.join(dataDir, ".ota-work");
   await fs.mkdir(workRoot, { recursive: true });
@@ -93,4 +117,4 @@ async function buildFirmware(hardwareType, secret, dataDir, onProgress, configur
   }
 }
 
-module.exports = { buildFirmware, SKETCHES, configureSketch, FIRMWARE_FQBN };
+module.exports = { buildFirmware, SKETCHES, sketchNameFor, configureHardwareProfile, configureSketch, FIRMWARE_FQBN };

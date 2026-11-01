@@ -38,15 +38,17 @@ src/utils/        Parsing, Validierung und Fehlerhilfen
 
 ## Runtime State
 
-Der Server hält Layout, Hardwarezustand, Regeln, Module, Command Queue und Events im Speicher. Persistiert werden drei JSON-Dateien:
+Der Server hält Layout, Hardwarezustand, Regeln, Module, Command Queue und Events im Speicher. Persistiert werden die Laufzeitdaten und das Planarchiv:
 
 ```text
 data/layout.json
 data/hardware.json
 data/rules.json
+data/events.json
+data/layout-history/
 ```
 
-Schreibvorgänge laufen über einen queued writer. Pro Datentyp wird in eine temporäre Datei geschrieben und anschließend per Rename ersetzt. Mehrere kurz hintereinander ausgelöste Writes werden zusammengeführt.
+Schreibvorgänge für die JSON-Dateien laufen über einen queued writer. Pro Datentyp wird in eine temporäre Datei geschrieben und anschließend per Rename ersetzt. Mehrere kurz hintereinander ausgelöste Writes werden zusammengeführt. Vor jeder Layout-Änderung legt das Planarchiv einen separaten Snapshot an und bewahrt die letzten 20 Stände auf.
 
 ## Modulkommunikation
 

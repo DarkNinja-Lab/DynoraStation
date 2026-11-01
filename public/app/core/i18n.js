@@ -23,6 +23,7 @@ const base = {
   "nav.settings": "Settings",
   "nav.events": "Logbook",
   "nav.help": "Help & Guide",
+  "nav.more": "More",
   "mobile.dashboard.open": "Open overview",
   "mobile.track.open": "Open operations",
   "mobile.lightsystem.open": "Open light system",
@@ -71,7 +72,7 @@ const base = {
 
 const de = {
   "language.toggle": "Sprache ändern", "nav.dashboard": "Übersicht", "nav.track": "Betrieb", "nav.builder": "Builder",
-  "nav.settings": "Einstellungen", "nav.events": "Logbuch", "nav.lightsystem": "Lichtsystem", "nav.help": "Hilfe & Anleitung",
+  "nav.settings": "Einstellungen", "nav.events": "Logbuch", "nav.lightsystem": "Lichtsystem", "nav.help": "Hilfe & Anleitung", "nav.more": "Mehr",
   "mobile.dashboard.open": "Übersicht öffnen", "mobile.track.open": "Betrieb öffnen", "mobile.builder.open": "Builder öffnen",
   "mobile.settings.open": "System öffnen", "mobile.events.open": "Logbuch öffnen", "mobile.lightsystem.open": "Lichtsystem öffnen",
   "page.dashboard.title": "Übersicht", "page.dashboard.subtitle": "Betriebsbild, Systemzustand und letzte Aktivitäten", "page.dashboard.section": "Zentrale",

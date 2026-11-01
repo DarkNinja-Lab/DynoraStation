@@ -14,3 +14,5 @@ Dieser Ordner enthält die technische Dokumentation von DynoraStation. Die Root-
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnose typischer Fehler |
 | [DEVELOPMENT.md](DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
 | [BUILDER.md](BUILDER.md) | Bedienung und Arbeitsabläufe im Gleisplan-Builder |
+| [ESP_README.md](ESP_README.md) | ESP8266-Firmware, Bibliotheken und Inbetriebnahme |
+| [MCP23017_ANSCHLUSS.md](MCP23017_ANSCHLUSS.md) | Anschluss von zwei MCP23017 und 24 Relaiskanälen |

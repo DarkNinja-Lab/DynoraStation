@@ -6,7 +6,7 @@ Die API besitzt derzeit keine Benutzeranmeldung. Sie ist für ein vertrauenswür
 
 ## Allgemein
 
-JSON wird für Request- und Response-Bodies verwendet. Fehlerantworten werden vom zentralen Error-Handler erzeugt und enthalten einen maschinenlesbaren Fehlercode.
+JSON wird für Request- und Response-Bodies verwendet, sofern ein Endpunkt nicht ausdrücklich Firmware als `application/octet-stream` überträgt. Fehlerantworten werden vom zentralen Error-Handler erzeugt und enthalten einen maschinenlesbaren Fehlercode.
 
 ## Status und Katalog
 
@@ -14,6 +14,7 @@ JSON wird für Request- und Response-Bodies verwendet. Fehlerantworten werden vo
 | --- | --- | --- |
 | `GET` | `/healthz` | einfacher Prozess-/Storage-Healthcheck |
 | `GET` | `/api/status` | Gesamtstatus für die Weboberfläche |
+| `DELETE` | `/api/events` | Ereignislog leeren |
 | `GET` | `/api/track-catalog` | verfügbarer Märklin-M-Gleis-Katalog |
 
 `/api/status` akzeptiert `layoutRevision` und `eventRevision` als Query-Parameter. Unveränderte Bereiche können dadurch als `null` zurückgegeben werden.
@@ -24,6 +25,8 @@ JSON wird für Request- und Response-Bodies verwendet. Fehlerantworten werden vo
 | --- | --- | --- |
 | `GET` | `/api/layout` | gespeichertes Layout lesen |
 | `POST` | `/api/layout` | Layout validieren, normalisieren und speichern |
+| `GET` | `/api/layout/history` | frühere Planstände auflisten |
+| `POST` | `/api/layout/history/:id/restore` | Planstand mit Versionsschutz wiederherstellen |
 | `GET` | `/api/rules` | Regeln lesen |
 | `POST` | `/api/rules` | Regeln ersetzen und speichern |
 
@@ -39,6 +42,9 @@ Beim Speichern des Layouts werden zusätzlich Relaiskonflikte ermittelt und als 
 | `POST` | `/api/hardware/sensor-rename` | Sensor umbenennen |
 | `GET` | `/api/light-buttons` | vier Lichtbuttons lesen |
 | `POST` | `/api/light-buttons` | vier Lichtbuttons speichern |
+| `GET` | `/api/light-system` | Lichtgruppen und Laufzeitstatus lesen |
+| `POST` | `/api/light-system` | Lichtgruppen speichern |
+| `POST` | `/api/light-system/groups/:id/control` | manuelle Lichtgruppe schalten |
 | `POST` | `/api/control/settings` | gebündelte Hardwareeinstellungen speichern |
 | `POST` | `/api/control/defaults/apply` | definierte Grundstellungen ausführen |
 
@@ -116,6 +122,22 @@ Ein ACK benötigt Befehls-ID und Modul-ID. Der Server prüft die Zuordnung auch 
 
 Der Server liefert Steuerbefehle nur an online gemeldete Module mit kompatibler Protokollversion aus. Bei inkompatibler Firmware bleibt ein wartender Befehl in der Queue und kann nach einem erfolgreichen Firmware-Update erneut abgeholt werden. Ein Sensorzustand, der wegen eines verlorenen HTTP-ACKs identisch erneut gemeldet wird, löst keine zweite Automation aus.
 
+## OTA-Firmware
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| `GET` | `/api/ota/config-status` | OTA-Konfiguration und unterstützte Hardwaretypen prüfen |
+| `GET` | `/api/ota/sketch-template` | Firmwarevorlage für einen Hardwaretyp laden |
+| `POST` | `/api/ota/build` | konfigurierte Firmware im Server bauen |
+| `POST` | `/api/ota/manual-firmware` | kompatible BIN-Datei bereitstellen |
+| `GET` | `/api/ota/build-status` | Status eines Firmware-Builds abfragen |
+| `POST` | `/api/ota/:moduleId` | fertige Firmware für ein Modul vormerken |
+| `GET` | `/api/ota/status` | OTA-Status eines Moduls abfragen |
+| `GET` | `/api/module/ota-firmware` | vom ESP abgerufene Firmware ausliefern |
+| `POST` | `/api/module/ota-result` | OTA-Ergebnis des ESP entgegennehmen |
+
+Die letzten beiden Endpunkte sind ausschließlich für die Firmware. Sie erwarten den Header `X-Dynora-OTA-Token` mit `OTA_SHARED_SECRET`; ohne mindestens 24 Zeichen langen Schlüssel bleibt OTA deaktiviert.
+
 ## Debug-Endpunkte
 
 Nur aktiv, wenn `ENABLE_DEBUG_ENDPOINTS=true` gesetzt ist:
@@ -126,6 +148,12 @@ Nur aktiv, wenn `ENABLE_DEBUG_ENDPOINTS=true` gesetzt ist:
 | `GET` | `/api/debug/hardware` |
 
 Im normalen Betrieb sollten diese Endpunkte deaktiviert bleiben.
+
+## Stationsupdates
+
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| `GET` | `/api/update/status` | lokalen `version.txt`-Marker mit `main` auf GitHub vergleichen |
 
 ## DynoraStation-Prozess
 

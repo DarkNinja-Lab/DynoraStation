@@ -1,11 +1,30 @@
 "use strict";
 
-import { state } from "../core/state.js?v=workspace-v11";
-
 const SHELF_HEIGHT_KEY = "dynora.builderShelfHeight";
 const DEFAULT_SHELF_HEIGHT = 210;
 const MIN_SHELF_HEIGHT = 132;
 const MAX_SHELF_HEIGHT = 520;
+
+function desktopWorkspace() {
+  return window.matchMedia("(min-width: 901px)").matches;
+}
+
+function applyPanelState(layout, panel) {
+  const library = document.getElementById("builderLibrary");
+  const inspector = document.getElementById("inspector");
+  const resizeHandle = document.getElementById("builderShelfResize");
+  const desktop = desktopWorkspace();
+
+  layout.classList.toggle("has-inspector", desktop && panel === "inspector");
+  if (library) library.hidden = desktop ? false : panel !== "library";
+  if (inspector) inspector.hidden = panel !== "inspector";
+  if (resizeHandle) resizeHandle.hidden = desktop || panel !== "library";
+  document.querySelectorAll("[data-builder-panel]").forEach((button) => {
+    const active = button.dataset.builderPanel === panel;
+    button.classList.toggle("active", active);
+    if (button.hasAttribute("aria-expanded")) button.setAttribute("aria-expanded", String(active));
+  });
+}
 
 export function setupBuilderPanelControls() {
   const layout = document.querySelector(".builder-layout");
@@ -31,6 +50,11 @@ export function setupBuilderPanelControls() {
   let savedHeight = DEFAULT_SHELF_HEIGHT;
   try { savedHeight = Number(localStorage.getItem(SHELF_HEIGHT_KEY)) || DEFAULT_SHELF_HEIGHT; } catch {}
   applyHeight(savedHeight);
+  if (layout.dataset.panelViewportBound !== "true") {
+    layout.dataset.panelViewportBound = "true";
+    window.addEventListener("resize", () => applyPanelState(layout, layout.dataset.panel || "canvas"));
+  }
+  applyPanelState(layout, layout.dataset.panel || "canvas");
 
   let dragStart = null;
   const move = (event) => {
@@ -73,19 +97,8 @@ export function setBuilderPanel(panel = "canvas") {
   const next = ["library", "inspector"].includes(panel) ? panel : "canvas";
   layout.dataset.panel = next;
   layout.dataset.mobilePanel = next;
-  const library = document.getElementById("builderLibrary");
-  const inspector = document.getElementById("inspector");
-  const resizeHandle = document.getElementById("builderShelfResize");
-  if (library) library.hidden = next !== "library";
-  if (inspector) inspector.hidden = next !== "inspector";
-  if (resizeHandle) resizeHandle.hidden = next !== "library";
-  document.querySelectorAll("[data-builder-panel]").forEach(button => {
-    const active = button.dataset.builderPanel === next;
-    button.classList.toggle("active", active);
-    if (button.hasAttribute("aria-expanded")) button.setAttribute("aria-expanded", String(active));
-  });
+  applyPanelState(layout, next);
   requestAnimationFrame(() => {
-    if (next === "library") document.getElementById("componentSearch")?.focus();
     if (next === "canvas") document.getElementById("builderSvg")?.focus();
   });
 }

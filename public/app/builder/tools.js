@@ -3,11 +3,11 @@
 import { state } from "../core/state.js?v=workspace-v11";
 import { layoutSpeichern } from "../layout/layout.js?v=workspace-v11";
 import { duplicateForPlacement, normalizedRotation } from "./model.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v14";
-import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v17";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v16";
+import { renderCanvas, canvasSize, canvasPointFromEvent } from "./render.js?v=workspace-v19";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { recordHistory } from "./history.js?v=workspace-v11";
-import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v12";
+import { cancelPlacement, rotatePlacement } from "./canvas.js?v=workspace-v14";
 
 
 function isTypingTarget(target) {

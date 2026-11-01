@@ -10,7 +10,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/dynora-logo-32.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/dynora-logo-180.png">
   <link rel="manifest" href="/manifest.webmanifest?v=workspace-v11">
-  <link rel="stylesheet" href="/style.css?v=workspace-v26">
+  <link rel="stylesheet" href="/style.css?v=workspace-v32">
 </head>
 <body>
   <div class="app-shell">
@@ -19,7 +19,7 @@
         <div class="brand-icon"><img src="/assets/brand/dynora-logo.png" alt="Dynora Logo"></div>
         <div class="brand-text">
           <strong>Dynora<span>Station</span></strong>
-          <small>Deine Modellbahn</small>
+          <small>DIGITALES STELLWERK</small>
         </div>
       </div>
 
@@ -35,25 +35,32 @@
       <div class="global-actions">
         <span id="lastSyncStatus" class="last-sync"><i aria-hidden="true"></i> Synchronisierung läuft</span>
         <span id="serverStatus" class="status-pill offline">DYNORASTATION OFFLINE</span>
-        <button id="mobileMenuButton" class="module-center-button" type="button" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span><span class="drawer-mobile-icon" aria-hidden="true">☰</span><span class="drawer-desktop-label">Gerätecenter</span></button>
+        <button id="mobileMenuButton" class="module-center-button" type="button" data-sidebar-toggle="" aria-label="Gerätecenter öffnen" aria-controls="sidebar" aria-expanded="false"><span class="module-center-dot"></span><span class="drawer-mobile-icon" aria-hidden="true">☰</span><span class="drawer-desktop-label">Gerätecenter</span></button>
         <button id="emergencyButton" class="danger-button" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-stop"></use></svg><span>NOT-AUS</span></button>
       </div>
     </header>
 
     <aside class="system-drawer" id="sidebar" aria-label="Gerätecenter" inert="" aria-hidden="true">
-      <div class="system-drawer-head"><div><span>Gerätecenter</span><strong>Verbindungen</strong></div><button class="drawer-close" type="button" data-close-sidebar="" aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-close"></use></svg></button></div>
+      <div class="system-drawer-head"><div><span>DynoraStation</span><strong>Station &amp; System</strong></div><button class="drawer-close" type="button" data-close-sidebar="" aria-label="Gerätecenter schließen"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-close"></use></svg></button></div>
+      <nav class="drawer-nav" aria-label="Weitere Bereiche">
+        <span class="drawer-nav-label">WEITERE BEREICHE</span>
+        <div class="drawer-nav-grid">
+          <button class="drawer-nav-button" data-page-link="lightsystem" data-close-sidebar="" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-light"></use></svg><span class="drawer-nav-copy">Lichtsystem</span></button>
+          <button class="drawer-nav-button" data-page-link="settings" data-close-sidebar="" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-settings"></use></svg><span class="drawer-nav-copy">Einstellungen</span></button>
+          <button class="drawer-nav-button" data-page-link="events" data-close-sidebar="" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-logbook"></use></svg><span class="drawer-nav-copy">Logbuch</span></button>
+          <button id="openHelpDialogDrawer" class="drawer-nav-button" data-open-help="" data-close-sidebar="" type="button"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-info"></use></svg><span class="drawer-nav-copy">Hilfe &amp; Anleitung</span></button>
+        </div>
+      </nav>
       <div class="sidebar-status-box"><span class="status-dot" aria-hidden="true"></span><div><strong id="sidebarServerStatus">DynoraStation wird geladen</strong><small>Systemverbindung</small></div></div>
       <div class="sidebar-esp-box"><div class="sidebar-esp-title"><span>ESP-Module</span><small>Live</small></div><div id="sidebarEspList" class="sidebar-esp-list"><div class="sidebar-esp-empty">Noch kein ESP verbunden.</div></div></div>
-    <button class="secondary-button drawer-settings-link" data-page-link="settings" data-close-sidebar="" type="button">Geräte konfigurieren</button>
       <section class="support-card" aria-labelledby="supportCardTitle"><h2 id="supportCardTitle">Hilfe &amp; Support</h2><a href="https://discord.gg/2dRWwNhGyZ" target="_blank" rel="noopener noreferrer">Discord-Community</a><a href="mailto:hahn.dominic@proton.me">E-Mail schreiben</a></section>
     </aside>
 
     <nav class="mobile-bottom-nav" aria-label="Mobile Navigation">
       <button class="mobile-nav-button active" data-page-link="dashboard" type="button" aria-label="Übersicht öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-dashboard"></use></svg></span><small>Übersicht</small></button>
-      <button class="mobile-nav-button" data-page-link="track" type="button" aria-label="Betrieb öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-stellwerk"></use></svg></span><small>Betrieb</small></button><button class="mobile-nav-button" data-page-link="builder" type="button" aria-label="Builder öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-edit"></use></svg></span><small>Builder</small></button>
-      <button class="mobile-nav-button" data-page-link="lightsystem" type="button" aria-label="Lichtsystem öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-light"></use></svg></span><small>Licht</small></button>
-      <button class="mobile-nav-button" data-page-link="settings" type="button" aria-label="System öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-settings"></use></svg></span><small>Einstellungen</small></button>
-      <button class="mobile-nav-button" data-page-link="events" type="button" aria-label="Logbuch öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-logbook"></use></svg></span><small>Logbuch</small></button>
+      <button class="mobile-nav-button" data-page-link="track" type="button" aria-label="Betrieb öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-stellwerk"></use></svg></span><small>Betrieb</small></button>
+      <button class="mobile-nav-button" data-page-link="builder" type="button" aria-label="Builder öffnen"><span class="mobile-nav-icon" aria-hidden="true"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-edit"></use></svg></span><small>Gleisbild</small></button>
+      <button id="mobileMoreButton" class="mobile-nav-button mobile-more-button" data-sidebar-toggle="" type="button" aria-label="Weitere Bereiche öffnen" aria-controls="sidebar" aria-expanded="false"><span class="mobile-nav-icon mobile-more-icon" aria-hidden="true"><i></i><i></i><i></i></span><small data-mobile-menu-label="">Mehr</small></button>
     </nav>
 
     <main class="main-area"><section id="layoutRecovery" class="layout-recovery" hidden="" role="status"><div><strong>Lokaler Entwurf vorhanden</strong><p id="layoutRecoveryText">Der gespeicherte Stationsplan wird angezeigt. Ein älterer Entwurf liegt noch in diesem Browser.</p></div><div><button id="restoreLayoutDraft" class="secondary-button" type="button">Entwurf wiederherstellen</button><button id="downloadLayoutDraft" class="text-button" type="button">Entwurf sichern</button><button id="dismissLayoutDraft" class="text-button" type="button">Später</button></div></section>
@@ -123,11 +130,11 @@
 
           
 
-          <div class="builder-layout" data-mobile-panel="library" data-panel="library" data-view="schematic">
-            <aside class="builder-sidebar" id="builderLibrary"><div class="article-shelf-head"><div class="builder-sidebar-head"><strong>Artikel</strong><button type="button" class="close-button" data-builder-panel="canvas" aria-label="Bauteilauswahl schließen">×</button></div><label class="library-category"><span>Kategorie</span><select id="libraryCategory"><option value="all">Alle Bauteile</option></select></label><label class="builder-search">
+          <div class="builder-layout" data-mobile-panel="canvas" data-panel="canvas" data-view="schematic">
+            <aside class="builder-sidebar" id="builderLibrary" aria-label="Bauteilkatalog"><div class="article-shelf-head"><div class="builder-sidebar-head"><div class="builder-sidebar-title"><span>BAUTEILKATALOG</span><strong>Gleis &amp; Steuerung</strong><small>Bauteil auswählen oder in den Plan ziehen</small></div><button type="button" class="close-button" data-builder-panel="canvas" aria-label="Bauteilauswahl schließen">×</button></div><div class="library-controls"><label class="builder-search">
                 <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/assets/icons.svg?v=workspace-v11#icon-search"></use></svg>
-                <input id="componentSearch" type="search" placeholder="Artikelnummer oder Bauteil …" aria-label="Bauteile suchen" autocomplete="off">
-              </label><span id="libraryResultCount" class="library-result-count"></span></div>
+                <input id="componentSearch" type="search" placeholder="Art.-Nr. oder Bezeichnung" aria-label="Bauteile suchen" autocomplete="off">
+              </label><label class="library-category"><span>Kategorie</span><select id="libraryCategory"><option value="all">Alle Bauteile</option></select></label></div><div class="library-summary"><span id="libraryResultCount" class="library-result-count" aria-live="polite"></span><span class="library-drag-hint">Ziehen zum Platzieren</span></div></div>
               
 
               
@@ -190,7 +197,7 @@
                   <g id="builderElementLayer"></g>
                   <g id="builderPlacementLayer"></g>
 
-                  <text id="builderEmptyHint" x="800" y="430" text-anchor="middle" font-size="18">Oben einen Artikel wählen und hier platzieren</text>
+                  <text id="builderEmptyHint" x="800" y="430" text-anchor="middle" font-size="18">Links ein Bauteil wählen und im Plan platzieren</text>
                 </svg>
               </div>
             </section>
@@ -366,11 +373,12 @@
           </div></div>
           <aside class="firmware-connection-settings" aria-labelledby="firmwareConnectionHeading">
             <div class="firmware-connection-heading"><div><h3 id="firmwareConnectionHeading">WLAN und DynoraStation</h3><p>Verbindungsdaten f&uuml;r OTA-Build und USB-Erstinstallation.</p></div><span id="firmwareConnectionSaveStatus" role="status" aria-live="polite"></span></div>
+            <p id="firmwareSecurityNotice" class="firmware-security-notice" role="alert" hidden></p>
             <label for="wifiSsidInput">WLAN-Name (SSID)<input id="wifiSsidInput" type="text" maxlength="32" autocomplete="off" required placeholder="Name des 2,4-GHz-WLANs"></label>
-            <label for="wifiPasswordInput">WLAN-Passwort<input id="wifiPasswordInput" type="password" maxlength="63" autocomplete="new-password" placeholder="Bei offenem WLAN leer lassen"></label>
+            <label for="wifiPasswordInput">WLAN-Passwort<input id="wifiPasswordInput" type="text" maxlength="63" autocomplete="new-password" placeholder="Bei offenem WLAN leer lassen" disabled data-firmware-credential aria-describedby="firmwareSecurityNotice"></label>
             <label for="stationHostInput">IP-Adresse oder Hostname der Station<input id="stationHostInput" type="text" maxlength="253" autocomplete="off" required placeholder="z. B. 192.168.1.20"></label>
             <label for="stationPortInput">Stations-Port<input id="stationPortInput" type="number" min="1" max="65535" value="8181" required></label>
-            <label for="otaKeyInput">OTA-Schl&uuml;ssel f&uuml;r die Erstinstallation<input id="otaKeyInput" type="password" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="Mindestens 24 Zeichen"></label>
+            <label for="otaKeyInput">OTA-Schl&uuml;ssel f&uuml;r die Erstinstallation<input id="otaKeyInput" type="text" maxlength="256" autocomplete="new-password" spellcheck="false" placeholder="Mindestens 24 Zeichen" disabled data-firmware-credential aria-describedby="firmwareSecurityNotice"></label>
             <div class="firmware-connection-actions"><small>Bleibt in diesem Browser. Auf gemeinsam genutzten Ger&auml;ten nach der Nutzung l&ouml;schen.</small><button id="clearFirmwareConnectionSettings" class="text-button" type="button">Daten hier l&ouml;schen</button></div>
           </aside>
         </div>
@@ -531,7 +539,7 @@
       </div>
     </div>
   </dialog>
-  <script type="module" src="/app/main.js?v=workspace-v28"></script>
+  <script type="module" src="/app/main.js?v=workspace-v34"></script>
 
 
 

@@ -1,9 +1,9 @@
 ﻿"use strict";
 
-import { setBuilderPanel } from "./panels.js?v=workspace-v12";
+import { setBuilderPanel } from "./panels.js?v=workspace-v14";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
-import { renderCanvas } from "./render.js?v=workspace-v17";
+import { renderCanvas } from "./render.js?v=workspace-v19";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { renderCs3Tiles } from "../ui/render.js?v=workspace-v18";
 import { recordHistory } from "./history.js?v=workspace-v11";

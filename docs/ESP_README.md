@@ -8,12 +8,14 @@ Dieser Ordner enthält die Firmware für die DynoraStation-Hardwaremodule.
 
 Für ein NodeMCU/ESP8266-Modul mit:
 
-- 16 Relais über MCP23017
+- 24 Relais über zwei MCP23017 (`0x20`: Kanäle 1–16; `0x21`: Kanäle 17–24)
 - drei Sensoreingängen an D5, D6 und D7
 - optionalem BME280 für Temperatur, Luftfeuchte und Luftdruck
 - HTTP-Heartbeat, Command Polling und UDP-Discovery
 
-Verdrahtung des MCP23017 und des dokumentierten Relaisboards: [MCP23017_ANSCHLUSS.md](MCP23017_ANSCHLUSS.md)
+Verdrahtung der beiden MCP23017 und der dokumentierten Relaisboards: [MCP23017_ANSCHLUSS.md](MCP23017_ANSCHLUSS.md)
+
+Weitere Varianten für 8, 16, 24 und 32 Relais liegen als eigene `.ino`-Dateien neben der Standardfirmware. Die vollständige Auswahl und die konfigurierbare Variante sind in [HARDWARE.md](HARDWARE.md#relais--und-sensorvarianten) beschrieben.
 
 Benötigte Arduino-Libraries:
 

@@ -2,14 +2,14 @@
 
 import { initializePlanVersions } from "./layout/versions.js?v=workspace-v11";
 
-import { initializeWorkspace } from "./builder/workspace.js?v=workspace-v21";
+import { initializeWorkspace } from "./builder/workspace.js?v=workspace-v25";
 import { showToast } from "./ui/toast.js?v=workspace-v15";
 
 import { state } from "./core/state.js?v=workspace-v11";
-import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v12";
-import { initializeTools } from "./builder/tools.js?v=workspace-v11";
+import { ensureCanvasGeometry, setupBuilderButtons } from "./builder/canvas.js?v=workspace-v14";
+import { initializeTools } from "./builder/tools.js?v=workspace-v13";
 import { initTranslation } from "./core/translate.js?v=workspace-v26";
-import { eventsRegistrieren, renderSettingsTab, showFirstVisitGuide } from "./ui/events.js?v=workspace-v27";
+import { eventsRegistrieren, renderSettingsTab, showFirstVisitGuide } from "./ui/events.js?v=workspace-v31";
 import { katalogLaden } from "./catalog/catalog.js?v=workspace-v11";
 import { lightButtonsLaden, renderTrackLightButtons } from "./track/lights.js?v=workspace-v12";
 import { renderTrackLayout } from "./track/track.js?v=workspace-v15";
@@ -17,7 +17,7 @@ import { layoutDraftFingerprint, layoutLaden, layoutNormalisieren } from "./layo
 import { rulesLaden, renderRulesGrid } from "./rules/rules.js?v=workspace-v18";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./ui/render.js?v=workspace-v19";
 import { statusLaden } from "./status/status.js?v=workspace-v11";
-import { renderCanvas, inspectorLeer } from "./builder/render.js?v=workspace-v17";
+import { renderCanvas, inspectorLeer } from "./builder/render.js?v=workspace-v19";
 import { recordHistory, resetHistory } from "./builder/history.js?v=workspace-v11";
 import { setupPlanValidation } from "./builder/validation.js?v=workspace-v12";
 import { initializeLightSystem } from "./lightSystem.js?v=workspace-v1";

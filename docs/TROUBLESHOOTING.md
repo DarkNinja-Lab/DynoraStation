@@ -40,9 +40,9 @@ Prüfen:
 
 Die Firmware versucht UDP-Discovery und fällt bei Bedarf auf `SERVER_HOST` zurück.
 
-## MCP23017 wird nicht gefunden
+## MCP23017 werden nicht gefunden
 
-Beim Relaismodul erwartet die Firmware den MCP23017 auf `0x20`.
+Beim Relaismodul erwartet die Standardfirmware zwei MCP23017 auf `0x20` und `0x21`. Die Ein-MCP-Varianten benötigen nur `0x20`.
 
 Prüfen:
 
@@ -50,15 +50,16 @@ Prüfen:
 - gemeinsame Masse
 - SDA an D2/GPIO4
 - SCL an D1/GPIO5
-- RESET auf 3,3 V, empfohlen über 10 kΩ
-- A0, A1, A2 auf GND
+- RESET beider MCPs auf 3,3 V, empfohlen über 10 kΩ
+- erster MCP: A0, A1, A2 auf GND (`0x20`)
+- zweiter MCP: A0 auf 3,3 V, A1 und A2 auf GND (`0x21`)
 - Pull-ups auf SDA/SCL vorhanden
 
 Weitere Details: [`../esp8266_code/MCP23017_ANSCHLUSS.md`](../esp8266_code/MCP23017_ANSCHLUSS.md)
 
 ## Relais schaltet nicht
 
-Bei dem dokumentierten 16-Kanal-Board sind die Eingänge LOW-triggered. Der MCP23017 wird deshalb nicht normal HIGH/LOW betrieben, sondern schaltet den jeweiligen Pin für EIN auf `OUTPUT LOW` und für AUS auf `INPUT`.
+Bei den dokumentierten Relaisboards sind die Eingänge LOW-triggered. Der MCP23017 wird deshalb nicht normal HIGH/LOW betrieben, sondern schaltet den jeweiligen Pin für EIN auf `OUTPUT LOW` und für AUS auf `INPUT`.
 
 Wenn das verwendete Relaisboard elektrisch anders aufgebaut ist, darf diese Ansteuerung nicht ungeprüft übernommen werden.
 

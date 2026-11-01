@@ -2,7 +2,7 @@
 
 import { drawSchematicShape } from "./schematic.js?v=workspace-v13";
 import { state } from "../core/state.js?v=workspace-v11";
-import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v14";
+import { showInspector, inspectorLeer } from "./inspect.js?v=workspace-v16";
 import {
   svg, attrs, drawDoubleRailLine, drawStateSegmentLine, drawPowerLine, drawUncouplerShape, drawCurveDual, drawPowerCurve,
   drawSwitchShape, drawCrossingShape, drawBumperShape, drawSignalShape, drawEspSignalShape, drawTransformerShape, drawLabel,

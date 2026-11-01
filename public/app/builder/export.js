@@ -1,7 +1,7 @@
 ﻿"use strict";
 
 import { state } from "../core/state.js?v=workspace-v11";
-import { renderCanvas, canvasSize } from "./render.js?v=workspace-v17";
+import { renderCanvas, canvasSize } from "./render.js?v=workspace-v19";
 import { showToast } from "../ui/toast.js?v=workspace-v14";
 import { esc } from "../core/utils.js?v=workspace-v11";
 
@@ -101,27 +101,27 @@ export function exportBuildPlan() {
   const createdAt = esc(new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date()));
 
   const html = `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${title} – Bauplan</title><style>
-    @page{size:A4 landscape;margin:10mm}
+    @page{size:A4 landscape;margin:12mm}
     *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    :root{--ink:#23182d;--muted:#74687d;--purple:#7e22ce;--purple2:#a855f7;--orange:#f97316;--paper:#fff;--soft:#f7f2fb;--line:#ded4e5}
-    body{margin:0;color:var(--ink);background:#ebe5ef;font:10.5px/1.42 Inter,Segoe UI,Arial,sans-serif}
-    .sheet{max-width:1160px;margin:22px auto;padding:18px;background:var(--paper);box-shadow:0 18px 55px rgba(32,18,43,.18)}
-    header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:12px;padding:0 0 11px;border-bottom:3px solid var(--purple)}
-    .brand{display:flex;align-items:center;gap:11px}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:11px;color:#fff;background:linear-gradient(145deg,var(--purple2),var(--purple));font-size:22px;font-weight:900;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
-    .eyebrow{color:var(--orange);font-size:8px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}
-    h1{margin:1px 0 0;font-size:21px;line-height:1.05}.document-meta{color:var(--muted);text-align:right}.document-meta b{display:block;color:var(--ink)}
-    .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:0 0 10px}.fact{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--soft)}.fact span{display:block;color:var(--muted);font-size:7.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.fact strong{display:block;margin-top:2px;font-size:12px}
-    .plan-card{overflow:hidden;border:1px solid #31243b;border-radius:10px;background:#09070d;page-break-inside:avoid}.plan-head{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;color:#eee5f5;background:linear-gradient(90deg,#24162f,#120d18);font-weight:800}.plan-head span:last-child{color:#fdba74;font-size:8px;text-transform:uppercase;letter-spacing:.1em}.plan{padding:7px}.plan svg{display:block;width:100%;height:auto;max-height:137mm}
-    .section{margin-top:13px}.section-title{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:13px}.section-title::before{content:"";width:4px;height:15px;border-radius:3px;background:var(--orange)}
-    table{width:100%;border-collapse:separate;border-spacing:0;font-size:8.5px;border:1px solid var(--line);border-radius:7px;overflow:hidden}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{padding:4px 6px;text-align:left;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}th:last-child,td:last-child{border-right:0}tbody tr:last-child td{border-bottom:0}th{color:#fff;background:var(--purple);font-size:7.5px;letter-spacing:.04em;text-transform:uppercase}tbody tr:nth-child(even){background:var(--soft)}
-    footer{display:flex;justify-content:space-between;gap:16px;margin-top:10px;padding-top:8px;border-top:1px solid var(--line);color:var(--muted);font-size:8px}.hint{max-width:75%}
-    @media print{body{background:#fff}.sheet{max-width:none;margin:0;padding:0;box-shadow:none}.section{break-before:auto}}
+    :root{--ink:#1b292e;--muted:#627178;--accent:#a87936;--line:#cbd3d4;--soft:#f1f4f3;--paper:#fff}
+    body{margin:0;color:var(--ink);background:#dfe5e4;font:11px/1.45 Bahnschrift,"Segoe UI",Arial,sans-serif}
+    .sheet{max-width:1160px;margin:24px auto;padding:26px;background:var(--paper);box-shadow:0 16px 44px #17242b24}
+    header{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:15px;padding:0 0 15px;border-bottom:2px solid var(--ink)}
+    .brand{display:flex;align-items:center;gap:12px;min-width:0}.brand-mark{display:grid;place-items:center;width:40px;height:40px;flex:0 0 40px;border:1px solid var(--accent);border-radius:4px;color:#f3d6a4;background:var(--ink);font-size:20px;font-weight:800}
+    .eyebrow{color:var(--accent);font-size:8px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+    h1{margin:3px 0 0;font-size:21px;line-height:1.15;overflow-wrap:anywhere}.document-meta{color:var(--muted);text-align:right;white-space:nowrap}.document-meta b{display:block;color:var(--ink);font-size:12px}
+    .facts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 14px}.fact{padding:9px 11px;border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--soft)}.fact span{display:block;color:var(--muted);font-size:8px;font-weight:750;letter-spacing:.06em;text-transform:uppercase}.fact strong{display:block;margin-top:2px;font-size:12px}
+    .plan-card{overflow:hidden;border:1px solid #394950;border-radius:4px;background:#e6e8e7;break-inside:avoid}.plan-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 12px;color:#f0f3f2;background:var(--ink);font-weight:750}.plan-head span:last-child{color:#d7b479;font-size:8px;text-transform:uppercase;letter-spacing:.08em}.plan{padding:8px}.plan svg{display:block;width:100%;height:auto;max-height:122mm}
+    .section{margin-top:17px;break-inside:auto}.section-title{display:flex;align-items:center;gap:9px;margin:0 0 8px;font-size:14px;break-after:avoid}.section-title::before{content:"";width:3px;height:17px;background:var(--accent)}
+    table{width:100%;border-collapse:collapse;font-size:9px}thead{display:table-header-group}tr{break-inside:avoid}th,td{padding:6px 8px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{color:#e9eeee;background:var(--ink);font-size:8px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}tbody tr:nth-child(even){background:var(--soft)}td:first-child{font-family:Consolas,monospace}td:last-child,th:last-child{text-align:right}
+    footer{display:flex;justify-content:space-between;gap:16px;margin-top:17px;padding-top:9px;border-top:1px solid var(--line);color:var(--muted);font-size:8px}.hint{max-width:75%}
+    @media print{body{background:#fff}.sheet{max-width:none;margin:0;padding:0;box-shadow:none}.lists{break-before:page}.plan-card{break-inside:avoid}}
   </style></head><body><main class="sheet">
     <header><div class="brand"><div class="brand-mark">D</div><div><div class="eyebrow">DynoraStation · Technischer Export</div><h1>${title}</h1></div></div><div class="document-meta"><b>Bau- und Montageplan</b>Erstellt am ${createdAt}</div></header>
     <section class="facts"><div class="fact"><span>Anlagenplatte</span><strong>${plateWidth} × ${plateHeight} mm</strong></div><div class="fact"><span>Maßstab</span><strong>${scale}</strong></div><div class="fact"><span>Planungsraster</span><strong>${grid} mm</strong></div><div class="fact"><span>Bauteile</span><strong>${elements.length}</strong></div></section>
     <section class="plan-card"><div class="plan-head"><span>Gleis- und Anlagenplan</span><span>Draufsicht · nicht direkt bemaßen</span></div><div class="plan">${svgMarkup}</div></section>
-    <section class="section"><h2 class="section-title">Stückliste</h2><table><thead><tr><th>Artikelnummer</th><th>Bauteil</th><th>Menge</th></tr></thead><tbody>${partRows || "<tr><td colspan='3'>Keine Teile platziert</td></tr>"}</tbody></table></section>
-    <section class="section"><h2 class="section-title">Montagepositionen</h2><table><thead><tr><th>Pos.</th><th>Artikelnummer</th><th>Name / Bauteil</th><th>X ab links (mm)</th><th>Y ab oben (mm)</th><th>Drehung</th></tr></thead><tbody>${detailRows || "<tr><td colspan='6'>Keine Teile platziert</td></tr>"}</tbody></table></section>
+    <div class="lists"><section class="section"><h2 class="section-title">Stückliste</h2><table><thead><tr><th>Artikelnummer</th><th>Bauteil</th><th>Menge</th></tr></thead><tbody>${partRows || "<tr><td colspan='3'>Keine Teile platziert</td></tr>"}</tbody></table></section>
+    <section class="section"><h2 class="section-title">Montagepositionen</h2><table><thead><tr><th>Pos.</th><th>Artikelnummer</th><th>Name / Bauteil</th><th>X ab links (mm)</th><th>Y ab oben (mm)</th><th>Drehung</th></tr></thead><tbody>${detailRows || "<tr><td colspan='6'>Keine Teile platziert</td></tr>"}</tbody></table></section></div>
     <footer><span class="hint">Die Planansicht ist seitenfüllend skaliert. Für den Aufbau gelten die angegebenen X-/Y-Maße ab der linken oberen Plattenkante.</span><span>DynoraStation · ${title}</span></footer>
   </main></body></html>`;
   showExportPreview(html);

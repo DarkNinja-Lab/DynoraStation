@@ -5,7 +5,7 @@
 1. **Builder** direkt in der linken Navigation öffnen. Auf kleinen Displays steht der Eintrag in der unteren Navigation.
 2. In der bereits geöffneten **Artikelleiste** eine Kategorie wählen oder eine Artikelnummer suchen. Die Suche berücksichtigt alle Kategorien. Die Gleisfotos helfen bei der Auswahl.
 3. Artikel anklicken und anschließend im Plan klicken oder tippen. Die Artikelleiste bleibt geöffnet. Freie Enden rasten automatisch ein. Alternativ einen Artikel mit der Maus direkt in den Plan ziehen.
-4. Ein Element anklicken oder antippen, um es auszuwaehlen: Die Eigenschaften erscheinen rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusaetzlich in der Werkzeugleiste verfuegbar.
+4. Ein Element anklicken oder antippen, um es auszuwählen: Die Eigenschaften erscheinen rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusätzlich in der Werkzeugleiste verfügbar.
 5. Name, Position und Drehung direkt bearbeiten. Modul, Kanäle und weitere Funktionen liegen unter **Hardware & Funktionen**.
 6. **Speichern** sichert den Plan auf der Station. Planprüfung, Import, Export, Druck und **Plan & Raster** liegen unter **Planoptionen**.
 
@@ -65,7 +65,7 @@ Die Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen.
 
 Speichere ein echtes JPEG-Foto als `public/assets/track/7039.jpg` (Dateiname kleingeschrieben). Danach die Seite neu laden. Im Builder unter **Signale & Steuerung** oder über die Suche **7039** erscheint das Bild automatisch. Das Foto wird vollständig eingepasst; Querformat mit etwas Freiraum um das Signal passt gut zu den Artikelkarten.
 
-Das Foto muss nicht in das gebündelte Gleisbildmodul aufgenommen werden. Beim Neuladen erhält die Bildadresse eine neue Cachekennung, damit auch ein später ergänztes oder ersetztes Foto geladen wird. Solange das Foto fehlt oder nicht geladen werden kann, bleibt das Ersatzsymbol sichtbar. Die Darstellung und Schaltfunktion im Anlagenplan bleiben gleich. Das Paket enthält noch kein Foto von 7039.
+Die mitgelieferte Datei kann durch ein eigenes Foto ersetzt werden. Beim Neuladen erhält die Bildadresse eine neue Cachekennung, damit auch ein später ergänztes oder ersetztes Foto geladen wird. Solange das Foto fehlt oder nicht geladen werden kann, bleibt das Ersatzsymbol sichtbar. Die Darstellung und Schaltfunktion im Anlagenplan bleiben gleich.
 
 
 ## Planversionen und Speicherkonflikte
@@ -74,6 +74,6 @@ Unter **Planoptionen → Planversionen** lassen sich die letzten 20 vorherigen S
 
 ## Auswahl, Signale und Artikelgeometrie
 
-Im Auswahlmodus oeffnet ein Klick auf ein Bauteil dessen Eigenschaften rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusaetzlich in der Werkzeugleiste verfuegbar. Signale und ESP-Ampeln sind kompakt gezeichnet. Ihre Fahrtrichtung l?sst sich in den Eigenschaften einstellen.
+Im Auswahlmodus öffnet ein Klick auf ein Bauteil dessen Eigenschaften rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusätzlich in der Werkzeugleiste verfügbar. Signale und ESP-Ampeln sind kompakt gezeichnet. Ihre Fahrtrichtung lässt sich in den Eigenschaften einstellen.
 
 Die im Katalog gefuehrten M-Gleis-Teile verwenden ihre Artikelmasse und Winkel. Kontrollierte Korrekturen: 5109 = 33,8 mm; 5114 = 192 mm / 30 Grad; 5128 = 180 mm / 30 Grad; 5141/5142 = R1 / 30 Grad mit 77,4 mm geradem Zulauf; 5138/5139 = R1 / 22,5 Grad; einzelne R2-Weichen = 5203 links und 5204 rechts (5202 bezeichnet das Paar). Die Artikelliste enthaelt nicht jede historische M-Gleis-Sonderform; nicht aufgefuehrte Artikel gelten dadurch nicht als geometrisch geprueft.

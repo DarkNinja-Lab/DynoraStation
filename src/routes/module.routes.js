@@ -9,7 +9,7 @@ const { ipFromReq } = require("../utils/network");
 const { cleanText, validRelay, validLedChannel, validBrightness, makeOperationId } = require("../utils/sanitize");
 const { parseState } = require("../utils/parse");
 const { executeRulesForTrigger } = require("../domain/rules/executeRulesForTrigger");
-const { buildFirmware, SKETCHES } = require("../services/ota/buildFirmware");
+const { buildFirmware, SKETCHES, sketchNameFor, configureHardwareProfile } = require("../services/ota/buildFirmware");
 
 function createModuleRoutes({
   runtimeState,
@@ -440,9 +440,7 @@ function createModuleRoutes({
       if (startupDefaultsQueued) addEvent("DEFAULTS", moduleId, `${startupDefaultsQueued} Grundstellungs-Befehl(e) nach ESP-Verbindung vorgemerkt`);
     }
 
-    // Der Heartbeat ist ein zweiter, robuster Zustellweg. Falls ein Router oder
-    // Proxy das schnelle GET-Polling stört, erhält der ESP den Befehl spätestens
-    // mit dem nächsten ohnehin funktionierenden Heartbeat.
+    // Der Heartbeat liefert den Befehl auch dann aus, wenn ein GET-Polling-Aufruf scheitert.
     const heartbeatCommand = compatibility.compatible
       ? commandQueueApi.nextCommandForModule(moduleId)
       : null;
@@ -663,10 +661,10 @@ function createModuleRoutes({
 
   router.get("/api/ota/sketch-template", wrap(async (req, res) => {
     const hardwareType = cleanText(req.query?.hardwareType || "", 80);
-    const sketchName = SKETCHES[hardwareType];
+    const sketchName = sketchNameFor(hardwareType);
     if (!sketchName) throw apiError(400, "FIRMWARE_TYPE_UNSUPPORTED", "Für diesen ESP-Hardwaretyp gibt es keine Firmwarevorlage.");
     const sourcePath = path.join(__dirname, "../../esp8266_code", `${sketchName}.ino`);
-    const source = await fs.readFile(sourcePath, "utf8");
+    const source = configureHardwareProfile(await fs.readFile(sourcePath, "utf8"), hardwareType);
     if (!source.includes("HIER_DEN_GLEICHEN_LANGEN_SCHLUESSEL_EINTRAGEN") || !source.includes('WIFI_SSID = "DEIN_WLAN_NAME"')) {
       throw apiError(503, "FIRMWARE_TEMPLATE_UNSAFE", "Die USB-Vorlage enthält keine sicheren Standard-Platzhalter.");
     }

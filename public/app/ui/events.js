@@ -1,6 +1,6 @@
 "use strict";
 
-import { setBuilderPanel } from "../builder/panels.js?v=workspace-v11";
+import { setBuilderPanel } from "../builder/panels.js?v=workspace-v14";
 import { icon } from "./icons.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
@@ -34,8 +34,11 @@ const PAGE_META = {
 };
 
 function setNodeText(selector, text) {
-  const node = typeof selector === "string" ? document.querySelector(selector) : selector;
-  if (node) node.textContent = text;
+  if (typeof selector === "string") {
+    document.querySelectorAll(selector).forEach((node) => { node.textContent = text; });
+    return;
+  }
+  if (selector) selector.textContent = text;
 }
 
 function updateLanguageToggleButton() {
@@ -50,11 +53,11 @@ function applyCoreTranslations() {
   const navMap = [
     [".nav-button[data-page='dashboard'] .nav-copy b", "nav.dashboard"],
     [".nav-button[data-page='track'] .nav-copy b", "nav.track"],
-    [".nav-button[data-page='lightsystem'] .nav-copy b", "nav.lightsystem"],
+    [".nav-button[data-page='lightsystem'] .nav-copy b, .drawer-nav-button[data-page-link='lightsystem'] .drawer-nav-copy", "nav.lightsystem"],
     [".nav-button[data-page='builder'] .nav-copy b", "nav.builder"],
-    [".nav-button[data-page='settings'] .nav-copy b", "nav.settings"],
-    [".nav-button[data-page='events'] .nav-copy b", "nav.events"],
-    ["#openHelpDialog .nav-copy b", "nav.help"],
+    [".nav-button[data-page='settings'] .nav-copy b, .drawer-nav-button[data-page-link='settings'] .drawer-nav-copy", "nav.settings"],
+    [".nav-button[data-page='events'] .nav-copy b, .drawer-nav-button[data-page-link='events'] .drawer-nav-copy", "nav.events"],
+    ["#openHelpDialog .nav-copy b, #openHelpDialogDrawer .drawer-nav-copy", "nav.help"],
     [".mobile-nav-button[data-page-link='dashboard'] small", "nav.dashboard"],
     [".mobile-nav-button[data-page-link='track'] small", "nav.track"],
     [".mobile-nav-button[data-page-link='lightsystem'] small", "nav.lightsystem"],
@@ -63,6 +66,7 @@ function applyCoreTranslations() {
     [".mobile-nav-button[data-page-link='events'] small", "nav.events"]
   ];
   navMap.forEach(([selector, key]) => setNodeText(selector, t(key)));
+  setNodeText("[data-mobile-menu-label]", t("nav.more"));
 
   const mobileAriaMap = [
     [".mobile-nav-button[data-page-link='dashboard']", "mobile.dashboard.open"],
@@ -146,6 +150,11 @@ function setActivePage(page) {
   all(".mobile-nav-button[data-page-link]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.pageLink === (editRequested ? "builder" : targetMeta));
   });
+  all(".drawer-nav-button[data-page-link]").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.pageLink === targetMeta);
+  });
+  const mobileMoreButton = byId("mobileMoreButton");
+  mobileMoreButton?.classList.toggle("active", !["dashboard", "track", "builder"].includes(editRequested ? "builder" : targetMeta));
 
   if (targetMeta === "settings") {
     state.settingsView = "overview";
@@ -182,15 +191,24 @@ function bindNavigation() {
   const mobileBtn = byId("mobileMenuButton");
   const sidebar = byId("sidebar");
   if (mobileBtn && sidebar) {
+    let sidebarTrigger = mobileBtn;
     const setSidebarOpen = (open) => {
       document.body.classList.toggle("sidebar-open", open);
-      mobileBtn.setAttribute("aria-expanded", String(open));
+      all("[data-sidebar-toggle]").forEach((button) => {
+        button.setAttribute("aria-expanded", String(open));
+        button.classList.toggle("is-open", open);
+      });
       sidebar.toggleAttribute("inert", !open);
       sidebar.setAttribute("aria-hidden",String(!open));
       if (open) sidebar.querySelector(".drawer-close")?.focus();
-      else mobileBtn.focus();
+      else sidebarTrigger?.focus();
     };
-    mobileBtn.addEventListener("click", () => setSidebarOpen(!document.body.classList.contains("sidebar-open")));
+    all("[data-sidebar-toggle]").forEach((button) => {
+      button.addEventListener("click", () => {
+        sidebarTrigger = button;
+        setSidebarOpen(!document.body.classList.contains("sidebar-open"));
+      });
+    });
     all("[data-close-sidebar]").forEach((btn) => btn.addEventListener("click", () => setSidebarOpen(false)));
     all(".nav-button[data-page]").forEach((btn) => {
       btn.addEventListener("click", () => setSidebarOpen(false));
@@ -777,7 +795,35 @@ async function refreshOtaServerConfig() {
   return otaServerConfigRequest;
 }
 
+const FIRMWARE_CREDENTIAL_IDS = new Set(["wifiPasswordInput", "otaKeyInput"]);
+const FIRMWARE_HTTPS_MESSAGE = "Firmware-Zugangsdaten sind über diese unverschlüsselte HTTP-Verbindung gesperrt. Öffne DynoraStation über HTTPS, bevor du WLAN-Passwort oder OTA-Schlüssel eingibst.";
+
+function hasSecureFirmwareTransport() {
+  const hostname = String(window.location.hostname || "").toLowerCase().replace(/^\[|\]$/g, "");
+  return window.location.protocol === "https:" || ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function protectFirmwareCredentials() {
+  const secure = hasSecureFirmwareTransport();
+  document.querySelectorAll("[data-firmware-credential]").forEach(input => {
+    input.disabled = !secure;
+    input.type = secure ? "password" : "text";
+    if (!secure) input.value = "";
+  });
+  const notice = byId("firmwareSecurityNotice");
+  if (notice) {
+    notice.hidden = secure;
+    notice.textContent = secure ? "" : FIRMWARE_HTTPS_MESSAGE;
+  }
+  return secure;
+}
+
+function requireSecureFirmwareTransport() {
+  if (!hasSecureFirmwareTransport()) throw new Error(FIRMWARE_HTTPS_MESSAGE);
+}
+
 function collectFirmwareConnectionSettings() {
+  requireSecureFirmwareTransport();
   const wifiSsid = String(byId("wifiSsidInput")?.value || "");
   const wifiPassword = String(byId("wifiPasswordInput")?.value || "");
   const serverHost = String(byId("stationHostInput")?.value || "").trim();
@@ -801,10 +847,19 @@ function restoreFirmwareConnectionForm() {
   const saved = loadFirmwareConnectionSettings();
   for (const [key, id] of Object.entries(firmwareConnectionFields)) {
     const input = byId(id);
-    if (input) input.value = saved[key];
+    if (!input) continue;
+    if (FIRMWARE_CREDENTIAL_IDS.has(id) && !hasSecureFirmwareTransport()) {
+      input.value = "";
+      continue;
+    }
+    input.value = saved[key];
   }
   const status = byId("firmwareConnectionSaveStatus");
   if (status) {
+    if (!hasSecureFirmwareTransport()) {
+      status.textContent = "HTTPS erforderlich";
+      return;
+    }
     let hasSavedSettings = false;
     try { hasSavedSettings = Boolean(localStorage.getItem(FIRMWARE_CONNECTION_SETTINGS_KEY)); } catch {}
     status.textContent = hasSavedSettings ? "Lokal gespeichert" : "Speichert bei Eingabe automatisch";
@@ -812,6 +867,11 @@ function restoreFirmwareConnectionForm() {
 }
 
 function persistFirmwareConnectionForm() {
+  if (!hasSecureFirmwareTransport()) {
+    const status = byId("firmwareConnectionSaveStatus");
+    if (status) status.textContent = "Über HTTP nicht gespeichert";
+    return;
+  }
   const values = Object.fromEntries(Object.entries(firmwareConnectionFields).map(([key, id]) => [key, byId(id)?.value || ""]));
   const status = byId("firmwareConnectionSaveStatus");
   if (status) status.textContent = saveFirmwareConnectionSettings(values) ? "Lokal gespeichert" : "Browser-Speicher nicht verfügbar";
@@ -842,7 +902,7 @@ function updateManualFirmwareButton() {
 function renderFirmwareUpdates() {
   const select = byId("otaModuleSelect");
   if (!select) return;
-  const modules = Object.values(state.hardware?.modules || {}).filter(module => ["ESP8266_NODEMCU_LED_DIRECT", "ESP8266_NODEMCU_MCP23017_BME280"].includes(module.hardwareType));
+  const modules = Object.values(state.hardware?.modules || {}).filter(module => ["ESP8266_NODEMCU_LED_DIRECT", "ESP8266_NODEMCU_MCP23017_BME280", "ESP8266_NODEMCU_MCP23017_8R_1MCP", "ESP8266_NODEMCU_MCP23017_16R_1MCP", "ESP8266_NODEMCU_MCP23017_16R_2MCP", "ESP8266_NODEMCU_MCP23017_24R_2MCP", "ESP8266_NODEMCU_MCP23017_32R_2MCP"].includes(module.hardwareType));
   const selected = select.value || state.selectedOtaModule || "";
   select.innerHTML = modules.map(module => `<option value="${esc(module.id)}">${esc(module.name || module.id)} · ${module.online ? "online" : "offline"}</option>`).join("");
   if (modules.some(module => module.id === selected)) select.value = selected;
@@ -850,9 +910,10 @@ function renderFirmwareUpdates() {
   const current = modules.find(module => module.id === select.value);
   if (current) state.selectedOtaModule = current.id;
   const build = current ? state.firmwareBuilds?.[current.hardwareType] : null;
+  const credentialsAllowed = hasSecureFirmwareTransport();
   const buildButton = byId("buildFirmwareButton");
   const upload = byId("uploadFirmwareButton");
-  if (buildButton) buildButton.disabled = !current || !otaServerConfig?.enabled || build?.status === "building";
+  if (buildButton) buildButton.disabled = !credentialsAllowed || !current || !otaServerConfig?.enabled || build?.status === "building";
   if (upload) upload.disabled = !current?.online || build?.status !== "ready" || !otaServerConfig?.enabled;
   const status = byId("firmwareUpdateStatus");
   if (status && current && build) status.textContent = build.error || build.message || `Firmwarestatus: ${build.status}`;
@@ -867,7 +928,7 @@ function renderFirmwareUpdates() {
   }
   if (keyState) keyState.textContent = otaServerConfig?.enabled ? "auf dem Server eingerichtet" : "auf dem Server nicht eingerichtet";
   const downloadSketch = byId("downloadUsbSketchButton");
-  if (downloadSketch) downloadSketch.disabled = !current || !otaServerConfig?.enabled || String(byId("otaKeyInput")?.value || "").length < 24;
+  if (downloadSketch) downloadSketch.disabled = !credentialsAllowed || !current || !otaServerConfig?.enabled || String(byId("otaKeyInput")?.value || "").length < 24;
   updateManualFirmwareButton();
   if (current && !build) refreshFirmwareBuild(current.hardwareType).catch(() => {});
   const progress = byId("firmwareProgress");
@@ -1158,7 +1219,7 @@ function bindSettingsInput() {
     if (ev.target?.id === "otaKeyInput") {
       const module = state.hardware?.modules?.[byId("otaModuleSelect")?.value || ""];
       const button = byId("downloadUsbSketchButton");
-      if (button) button.disabled = !module || !otaServerConfig?.enabled || String(ev.target.value || "").length < 24;
+      if (button) button.disabled = !hasSecureFirmwareTransport() || !module || !otaServerConfig?.enabled || String(ev.target.value || "").length < 24;
     }
   });
 
@@ -1621,6 +1682,7 @@ function bindTrackElementQuickToggle() {
 export function eventsRegistrieren() {
   initLanguage();
   applyCoreTranslations();
+  protectFirmwareCredentials();
   restoreFirmwareConnectionForm();
   try {
     const savedSettingsView = localStorage.getItem("dynora.settingsView");
@@ -1668,6 +1730,7 @@ export function eventsRegistrieren() {
     helpDialog?.showModal();
   };
   byId("openHelpDialog")?.addEventListener("click", openHelp);
+  all("[data-open-help]").forEach((button) => button.addEventListener("click", openHelp));
   helpIndex?.addEventListener("click", (event) => {
     const link = event.target.closest("a[href^='#help-']");
     if (!link) return;

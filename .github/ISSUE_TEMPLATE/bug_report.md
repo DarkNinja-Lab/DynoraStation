@@ -35,4 +35,4 @@ Wenn du Screenshots hast füge sie gerne mit ein.
  - Webserver [e.g. Ubuntu, Windows ..]
 
 **Zusätzlicher Kontext**
-Wenn du weitere sachen zum Fehler hast einfach hier mit einfügen.
+Wenn du weitere Informationen zum Fehler hast, ergänze sie hier.

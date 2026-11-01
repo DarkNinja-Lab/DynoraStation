@@ -5,7 +5,7 @@
   - Befehle vom Server pollen und ausführen (RELAY_SET, RELAY_PULSE, NOT_AUS)
   - NON-BLOCKING Pulse (kein delay im Loop)
   - HTTP Timeout + Retry + kleines Reconnect/Backoff
-  - 24 Relais über MCP23017 0x20 (16) und 0x21 (8)
+  - Konfigurierbar: 8/16 Relais über einen oder 16/24/32 Relais über zwei MCP23017
   - BME280 für Temperatur, Luftfeuchte und Luftdruck im Trafo-Gehäuse
 
   Verdrahtung MCP23017 -> NodeMCU:
@@ -16,7 +16,8 @@
   - RESET -> 3V3 (empfohlen über 10 kOhm Pull-up)
   - MCP 0x20: A0/A1/A2 -> GND; MCP 0x21: A0 -> 3V3, A1/A2 -> GND
 
-  MCP 0x20 GPA/GPB -> Relais 1..16; MCP 0x21 GPA -> Relais 17..24
+  Die vorkonfigurierte Standardvariante nutzt MCP 0x20 für Relais 1..16
+  und MCP 0x21 GPA für Relais 17..24.
 
   WICHTIG:
   Der MCP23017 steuert nur die Logikeingänge eines Relaisboards mit eigener
@@ -51,7 +52,10 @@ const char* FIRMWARE_VERSION = "2.6.0";
 // in beide Firmwarevarianten eintragen und per USB flashen.
 const char* OTA_SHARED_SECRET = "HIER_DEN_GLEICHEN_LANGEN_SCHLUESSEL_EINTRAGEN";
 const uint16_t PROTOCOL_VERSION = 2;
-const char* HARDWARE_TYPE = "ESP8266_NODEMCU_MCP23017_BME280";
+#ifndef DYNORA_HARDWARE_TYPE
+#define DYNORA_HARDWARE_TYPE "ESP8266_NODEMCU_MCP23017_BME280"
+#endif
+const char* HARDWARE_TYPE = DYNORA_HARDWARE_TYPE;
 
 const unsigned long HEARTBEAT_INTERVAL_MS = 2000;
 const unsigned long COMMAND_POLL_INTERVAL_MS = 100;
@@ -71,16 +75,39 @@ const unsigned long STATION_LINK_TIMEOUT_MS = 6500;
 const uint8_t STATUS_LED_PIN = LED_BUILTIN;
 const bool STATUS_LED_ACTIVE_LOW = true;
 
-// Zwei MCP23017 am selben I2C-Bus: je ein 8-Kanal-Relaisboard an GPA0..7.
+// Vorkonfigurierte Varianten können diese drei Werte vor dem Einbinden dieser
+// Datei setzen. MCP 1 liegt immer auf 0x20, MCP 2 immer auf 0x21.
+#ifndef DYNORA_MCP1_RELAY_COUNT
+#define DYNORA_MCP1_RELAY_COUNT 16
+#endif
+#ifndef DYNORA_MCP2_RELAY_COUNT
+#define DYNORA_MCP2_RELAY_COUNT 8
+#endif
+#ifndef DYNORA_SENSOR_COUNT
+#define DYNORA_SENSOR_COUNT 3
+#endif
+
+#if DYNORA_MCP1_RELAY_COUNT < 1 || DYNORA_MCP1_RELAY_COUNT > 16
+#error "DYNORA_MCP1_RELAY_COUNT muss zwischen 1 und 16 liegen"
+#endif
+#if DYNORA_MCP2_RELAY_COUNT < 0 || DYNORA_MCP2_RELAY_COUNT > 16
+#error "DYNORA_MCP2_RELAY_COUNT muss zwischen 0 und 16 liegen"
+#endif
+#if DYNORA_SENSOR_COUNT < 0 || DYNORA_SENSOR_COUNT > 3
+#error "DYNORA_SENSOR_COUNT muss zwischen 0 und 3 liegen"
+#endif
+
 // A0/A1/A2: erster MCP = GND (0x20), zweiter MCP: A0 = 3V3 (0x21).
 const uint8_t MCP23017_ADDRESSES[2] = { 0x20, 0x21 };
-const uint8_t MCP_COUNT = 2;
+const uint8_t MCP_COUNT = DYNORA_MCP2_RELAY_COUNT > 0 ? 2 : 1;
+const uint8_t MCP1_RELAY_COUNT = DYNORA_MCP1_RELAY_COUNT;
+const uint8_t MCP2_RELAY_COUNT = DYNORA_MCP2_RELAY_COUNT;
 const uint8_t MCP_SDA_PIN = D2;  // GPIO4
 const uint8_t MCP_SCL_PIN = D1;  // GPIO5
 const uint32_t MCP_I2C_CLOCK_HZ = 100000;
 const unsigned long MCP_RETRY_INTERVAL_MS = 5000;
 
-const uint8_t RELAY_COUNT = 24;
+const uint8_t RELAY_COUNT = MCP1_RELAY_COUNT + MCP2_RELAY_COUNT;
 // Das vorhandene 16-Kanal-Board hat optogekoppelte, intern auf 5 V gezogene
 // LOW-Trigger-Eingaenge. Der mit 3,3 V versorgte MCP23017 darf diese 5 V
 // deshalb NICHT aktiv auf HIGH treiben.
@@ -99,20 +126,22 @@ const unsigned long BME280_READ_INTERVAL_MS = 2000;
 // Drei boot-sichere Sensoreingänge mit internem Pull-up.
 // D3/GPIO0, D4/GPIO2 und D8/GPIO15 bleiben wegen der Boot-Straps frei.
 // D1/D2 sind I2C, RX/TX bleiben für Serial frei, D0 ist nur Reserve.
-const uint8_t SENSOR_COUNT = 3;
-const uint8_t sensorPins[SENSOR_COUNT] = {
+const uint8_t SENSOR_COUNT = DYNORA_SENSOR_COUNT;
+const uint8_t SENSOR_CAPACITY = 3;
+const char* MODULE_TYPE = SENSOR_COUNT > 0 ? "RELAY_SENSOR_CONTROLLER" : "RELAY_CONTROLLER";
+const uint8_t sensorPins[SENSOR_CAPACITY] = {
   D5, D6, D7
 };
-const char* sensorIds[SENSOR_COUNT] = {
+const char* sensorIds[SENSOR_CAPACITY] = {
   "S1", "S2", "S3"
 };
 
 /* ============================ Zustand =================================== */
 
 bool relayStates[RELAY_COUNT];
-bool sensorStates[SENSOR_COUNT];
-bool sensorRawStates[SENSOR_COUNT];
-unsigned long sensorChangedAt[SENSOR_COUNT];
+bool sensorStates[SENSOR_CAPACITY];
+bool sensorRawStates[SENSOR_CAPACITY];
+unsigned long sensorChangedAt[SENSOR_CAPACITY];
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastCommandPoll = 0;
@@ -130,8 +159,9 @@ WiFiUDP discoveryUdp;
 unsigned long lastDiscoveryAttempt = 0;
 String moduleId;
 String bootSessionId;
-uint16_t mcpOutputLatch[MCP_COUNT] = { 0x0000, 0x0000 };
-uint16_t mcpDirectionMask[MCP_COUNT] = { 0xFFFF, 0xFFFF }; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
+const uint8_t MCP_CAPACITY = 2;
+uint16_t mcpOutputLatch[MCP_CAPACITY] = { 0x0000, 0x0000 };
+uint16_t mcpDirectionMask[MCP_CAPACITY] = { 0xFFFF, 0xFFFF }; // 1=INPUT/AUS, 0=OUTPUT LOW/EIN
 unsigned long lastMcpAttempt = 0;
 Adafruit_BME280 bme280;
 bool bme280Ready = false;
@@ -309,11 +339,27 @@ bool initMcp23017() {
   return true;
 }
 
+bool relayAddressForIndex(uint8_t relayIndex, uint8_t& mcpIndex, uint8_t& localIndex) {
+  if (relayIndex < MCP1_RELAY_COUNT) {
+    mcpIndex = 0;
+    localIndex = relayIndex;
+    return true;
+  }
+  const uint8_t secondIndex = (uint8_t)(relayIndex - MCP1_RELAY_COUNT);
+  if (MCP_COUNT == 2 && secondIndex < MCP2_RELAY_COUNT) {
+    mcpIndex = 1;
+    localIndex = secondIndex;
+    return true;
+  }
+  return false;
+}
+
 bool setRelayHw(uint8_t idx, bool on) {
   if (idx >= RELAY_COUNT || !relayHardwareReady) return false;
 
-  const uint8_t mcpIndex = idx < 16 ? 0 : 1;
-  const uint8_t localIndex = idx < 16 ? idx : (uint8_t)(idx - 16);
+  uint8_t mcpIndex = 0;
+  uint8_t localIndex = 0;
+  if (!relayAddressForIndex(idx, mcpIndex, localIndex)) return false;
   const uint16_t mask = (uint16_t)1U << localIndex;
   // EIN = OUTPUT LOW (IODIR-Bit 0), AUS = INPUT/Hi-Z (IODIR-Bit 1).
   const uint16_t nextDirections = on
@@ -367,7 +413,11 @@ void ensureMcp23017() {
 
   relayHardwareReady = initMcp23017();
   if (relayHardwareReady) {
-    Serial.println("[RELAIS] Zwei MCP23017 online: 24 Kanaele an 0x20 und 0x21");
+    Serial.print("[RELAIS] ");
+    Serial.print(MCP_COUNT);
+    Serial.print(" MCP23017 online: ");
+    Serial.print(RELAY_COUNT);
+    Serial.println(" Kanaele bereit");
   } else {
     Serial.println("[MCP23017] Nicht gefunden - pruefe SDA, SCL, Adresse und 3V3");
   }
@@ -479,7 +529,7 @@ bool sendHeartbeat() {
   DynamicJsonDocument doc(1536);
   doc["module"] = moduleId;
   doc["moduleName"] = MODULE_NAME;
-  doc["moduleType"] = "RELAY_SENSOR_CONTROLLER";
+  doc["moduleType"] = MODULE_TYPE;
   doc["firmwareVersion"] = FIRMWARE_VERSION;
   doc["protocolVersion"] = PROTOCOL_VERSION;
   doc["hardwareType"] = HARDWARE_TYPE;
@@ -507,16 +557,18 @@ bool sendHeartbeat() {
     relays.add(relayStates[i]);
   }
 
-  JsonArray inv = doc.createNestedArray("sensorInventory");
-  for (uint8_t i = 0; i < SENSOR_COUNT; i++) {
-    inv.add(sensorIds[i]);
-  }
+  if (SENSOR_COUNT > 0) {
+    JsonArray inv = doc.createNestedArray("sensorInventory");
+    for (uint8_t i = 0; i < SENSOR_COUNT; i++) {
+      inv.add(sensorIds[i]);
+    }
 
-  JsonArray sensors = doc.createNestedArray("sensors");
-  for (uint8_t i = 0; i < SENSOR_COUNT; i++) {
-    JsonObject sensor = sensors.createNestedObject();
-    sensor["id"] = sensorIds[i];
-    sensor["triggered"] = sensorStates[i];
+    JsonArray sensors = doc.createNestedArray("sensors");
+    for (uint8_t i = 0; i < SENSOR_COUNT; i++) {
+      JsonObject sensor = sensors.createNestedObject();
+      sensor["id"] = sensorIds[i];
+      sensor["triggered"] = sensorStates[i];
+    }
   }
 
   String payload;

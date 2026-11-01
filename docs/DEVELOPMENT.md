@@ -81,6 +81,6 @@ Die Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen.
 
 ## CSS-Stand
 
-`public/style.css` ist die konsolidierte Anwendungsdarstellung; `public/plan-versions.css` enthält ausschließlich Archivdialog und Konflikthinweis. Keine neuen historischen Theme-Blöcke oder pauschalen End-of-file-Overrides anlegen. Bestehenden Selektor und seine Medienbedingung bearbeiten; Kaskadenreihenfolge und Spezifität erhalten. Desktop, mobile Klappbereiche, Vollbild, Builder und Einstellungen nach Änderungen vergleichen. Die frühere `workspace.css` ist entfernt.
+`public/style.css` ist die konsolidierte Anwendungsdarstellung und enthält auch die Regeln für Archivdialog und Konflikthinweis. Keine neuen historischen Theme-Blöcke oder pauschalen End-of-file-Overrides anlegen. Bestehenden Selektor und seine Medienbedingung bearbeiten; Kaskadenreihenfolge und Spezifität erhalten. Desktop, mobile Klappbereiche, Vollbild, Builder und Einstellungen nach Änderungen vergleichen. Die frühere `workspace.css` ist entfernt.
 
 Speichertransaktionen und Archiv: `src/routes/layout.routes.js` und `src/services/storage/layoutVersions.js`. Die Version beschreibt Planstruktur und Serverinstanz, nicht volatile Schaltzustände. Sie wird serverseitig vor dem Schreiben geprüft; der Client behält die Basis seines lokalen Entwurfs. Schreibfehler dürfen weder als Erfolg bestätigt werden noch den vorherigen aktiven Plan verlieren.

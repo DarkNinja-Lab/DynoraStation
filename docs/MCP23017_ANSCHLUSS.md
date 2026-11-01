@@ -1,6 +1,6 @@
 ﻿# Zwei MCP23017 und Relaisboards
 
-Die Firmware `relays_und_sensoren.ino` steuert 24 Relais ueber zwei MCP23017 am selben I2C-Bus. MCP `0x20` versorgt Kanaele 1 bis 16; MCP `0x21` versorgt Kanaele 17 bis 24 ueber GPA0 bis GPA7. GPB am zweiten MCP bleibt unbelegt.
+Die Standardfirmware `relays_und_sensoren.ino` steuert 24 Relais ueber zwei MCP23017 am selben I2C-Bus. MCP `0x20` versorgt Kanaele 1 bis 16; MCP `0x21` versorgt Kanaele 17 bis 24 ueber GPA0 bis GPA7. GPB am zweiten MCP bleibt unbelegt. Varianten mit einem MCP sowie 8, 16 oder 32 Relais sind in [`HARDWARE.md`](HARDWARE.md#relais--und-sensorvarianten) beschrieben.
 
 ## NodeMCU, MCPs und BME280
 

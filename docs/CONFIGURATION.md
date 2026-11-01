@@ -10,6 +10,7 @@ Nach Änderungen an `.env` muss der Server neu gestartet werden.
 | --- | ---: | --- |
 | `SERVER_IP` | `127.0.0.1` im Code | Adresse für Anzeige/Fallback; der HTTP-Server bindet auf `0.0.0.0` |
 | `SERVER_PORT` | `8181` | HTTP-Port der Weboberfläche und API |
+| `NODE_ENV` | `development` | `production` aktiviert die Produktionsvorgaben für statische Ressourcen |
 | `DISCOVERY_PORT` | `8182` | UDP-Port für ESP-Autofind |
 | `ENABLE_UDP_DISCOVERY` | `true` | UDP-Discovery aktivieren |
 | `PROTOCOL_VERSION` | `2` | erwartete Protokollversion der ESP-Module |
@@ -17,6 +18,14 @@ Nach Änderungen an `.env` muss der Server neu gestartet werden.
 | `TRUST_PROXY` | `false` | Proxy-Header nur hinter einem kontrollierten Reverse Proxy vertrauen |
 
 Die `.env.example` enthält bei `SERVER_IP` absichtlich eine LAN-Beispieladresse. Für eine produktive Installation wird dieser Wert vom Installer auf die erkannte LAN-Adresse gesetzt.
+
+## OTA-Firmware
+
+| Variable | Standard | Bedeutung |
+| --- | --- | --- |
+| `OTA_SHARED_SECRET` | leer | gemeinsamer OTA-Schlüssel für Server und Firmware; mindestens 24 Zeichen aktivieren serverseitige Builds und OTA-Transfers |
+
+Ein leerer Schlüssel deaktiviert die OTA-Endpunkte. Der Schlüssel gehört weder in Screenshots noch in ein Repository und muss in bereits geflashter Firmware mit dem Serverwert übereinstimmen.
 
 ## Module und Command Queue
 
@@ -60,9 +69,11 @@ DynoraStation speichert Laufzeitdaten relativ zum Projekt unter `data/`:
 data/layout.json
 data/hardware.json
 data/rules.json
+data/events.json
+data/layout-history/
 ```
 
-Die Dateien werden beim Laden normalisiert. Beschädigte oder nicht lesbare Dateien führen nicht zum Startabbruch; für den betroffenen Bereich werden Defaultdaten geladen und der Fehler wird geloggt.
+Die JSON-Dateien werden beim Laden normalisiert. Beschädigte oder nicht lesbare Dateien führen nicht zum Startabbruch; für den betroffenen Bereich werden Defaultdaten geladen und der Fehler wird geloggt. Beschädigte Einträge im Planarchiv werden beim Auflisten übersprungen.
 
 ## Eigenes Datenverzeichnis
 

@@ -112,6 +112,8 @@ Die vollständige technische Dokumentation liegt unter [docs/](docs/README.md):
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Diagnose typischer Fehler |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
 | [BUILDER.md](docs/BUILDER.md) | Bedienung des Gleisplan-Builders |
+| [ESP_README.md](docs/ESP_README.md) | ESP8266-Firmware, Bibliotheken und Inbetriebnahme |
+| [MCP23017_ANSCHLUSS.md](docs/MCP23017_ANSCHLUSS.md) | Anschluss von zwei MCP23017 und 24 Relaiskanälen |
 
 ## Hardware
 
