@@ -1,5 +1,7 @@
 "use strict";
 
+import { state } from "../core/state.js?v=workspace-v11";
+
 const SHELF_HEIGHT_KEY = "dynora.builderShelfHeight";
 const DEFAULT_SHELF_HEIGHT = 210;
 const MIN_SHELF_HEIGHT = 132;
@@ -53,6 +55,12 @@ export function setupBuilderPanelControls() {
   if (layout.dataset.panelViewportBound !== "true") {
     layout.dataset.panelViewportBound = "true";
     window.addEventListener("resize", () => applyPanelState(layout, layout.dataset.panel || "canvas"));
+  }
+  // On narrow screens the catalog is the useful first view. On desktop it
+  // remains visible alongside the canvas, independent of the active panel.
+  if (!desktopWorkspace() && layout.dataset.panel === "canvas") {
+    layout.dataset.panel = "library";
+    layout.dataset.mobilePanel = "library";
   }
   applyPanelState(layout, layout.dataset.panel || "canvas");
 

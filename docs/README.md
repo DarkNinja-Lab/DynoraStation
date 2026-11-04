@@ -1,18 +1,31 @@
 # Dokumentation
 
-Dieser Ordner enthält die technische Dokumentation von DynoraStation. Die Root-README bleibt absichtlich kurz und verweist für Details hierher.
+## Einrichten und bedienen
 
-| Datei | Inhalt |
+| Thema | Anleitung |
 | --- | --- |
-| [INSTALLATION.md](INSTALLATION.md) | Die vier Installationsmethoden (One-Liner, Installer, Docker, npm) unter Linux und Windows |
-| [CONFIGURATION.md](CONFIGURATION.md) | `.env`, Ports, Discovery, CORS und Limits |
-| [OPERATIONS.md](OPERATIONS.md) | Start, Stop, Neustart, Update, Backups und Logs |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Aufbau von Backend, Frontend, Persistenz und ESP-Kommunikation |
-| [API.md](API.md) | HTTP-Endpunkte und Modulprotokoll |
-| [HARDWARE.md](HARDWARE.md) | ESP8266-Firmware, Relais, Sensoren und Signale |
-| [SECURITY.md](SECURITY.md) | Sicherheitsmodell und empfohlener Betrieb |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Diagnose typischer Fehler |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Lokales Setup, Tests und Code-Struktur |
-| [BUILDER.md](BUILDER.md) | Bedienung und Arbeitsabläufe im Gleisplan-Builder |
-| [ESP_README.md](ESP_README.md) | ESP8266-Firmware, Bibliotheken und Inbetriebnahme |
-| [MCP23017_ANSCHLUSS.md](MCP23017_ANSCHLUSS.md) | Anschluss von zwei MCP23017 und 24 Relaiskanälen |
+| Installation unter Windows, Linux oder Docker | [Installation](INSTALLATION.md) |
+| Geräte, Automationen und Grundstellungen | [Einstellungen](SETTINGS.md) |
+| Gleisplan zeichnen, zuordnen und sichern | [Gleisplan](BUILDER.md) |
+| Updates, Neustart, Backups und Logs | [Betrieb](OPERATIONS.md) |
+| Verbindungs- und Schaltprobleme | [Fehlersuche](TROUBLESHOOTING.md) |
+
+Die Hilfe in der Weboberfläche ist auf dem Handy unter **Mehr → Hilfe & Anleitung** erreichbar.
+
+## Hardware und Konfiguration
+
+| Thema | Referenz |
+| --- | --- |
+| Umgebungsvariablen, Ports und Discovery | [Konfiguration](CONFIGURATION.md) |
+| Module, Firmwareprofile und Kanäle | [Hardware](HARDWARE.md) |
+| Firmware installieren und Bibliotheken einrichten | [ESP8266-Firmware](ESP_README.md) |
+| Zwei MCP23017 und 24 Relais anschließen | [MCP23017-Anschluss](MCP23017_ANSCHLUSS.md) |
+| Netzwerk, Zugangsdaten und Berechtigungen | [Sicherheit](SECURITY.md) |
+
+## Entwickeln
+
+- [Entwicklung](DEVELOPMENT.md): Setup, Prüfungen und Zuständigkeiten im Code.
+- [Architektur](ARCHITECTURE.md): Datenfluss, Persistenz und Modulkommunikation.
+- [HTTP-API](API.md): Endpunkte, Datenformate und Befehlsbestätigung.
+
+Bedienabläufe werden in den jeweiligen Anleitungen gepflegt. API-Details gehören in die API-Referenz; Installations- und Updatebefehle in die Installations- und Betriebsanleitung.

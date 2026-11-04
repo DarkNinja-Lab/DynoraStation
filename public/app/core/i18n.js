@@ -71,12 +71,12 @@ const base = {
 };
 
 const de = {
-  "language.toggle": "Sprache ändern", "nav.dashboard": "Übersicht", "nav.track": "Betrieb", "nav.builder": "Builder",
+  "language.toggle": "Sprache ändern", "nav.dashboard": "Übersicht", "nav.track": "Betrieb", "nav.builder": "Gleisplan",
   "nav.settings": "Einstellungen", "nav.events": "Logbuch", "nav.lightsystem": "Lichtsystem", "nav.help": "Hilfe & Anleitung", "nav.more": "Mehr",
-  "mobile.dashboard.open": "Übersicht öffnen", "mobile.track.open": "Betrieb öffnen", "mobile.builder.open": "Builder öffnen",
+  "mobile.dashboard.open": "Übersicht öffnen", "mobile.track.open": "Betrieb öffnen", "mobile.builder.open": "Gleisplan öffnen",
   "mobile.settings.open": "System öffnen", "mobile.events.open": "Logbuch öffnen", "mobile.lightsystem.open": "Lichtsystem öffnen",
   "page.dashboard.title": "Übersicht", "page.dashboard.subtitle": "Betriebsbild, Systemzustand und letzte Aktivitäten", "page.dashboard.section": "Zentrale",
-  "page.track.title": "Betrieb", "page.track.subtitle": "Fahrwege, Signale und Anlagenfunktionen steuern", "page.track.section": "Workspace",
+  "page.track.title": "Betrieb", "page.track.subtitle": "Fahrwege, Signale und Anlagenfunktionen steuern", "page.track.section": "Stellwerk",
   "page.lightsystem.title": "Lichtsystem", "page.lightsystem.subtitle": "Fertige Modi starten oder zeitgesteuerte Lichtszenen erstellen", "page.lightsystem.section": "Beleuchtung",
   "page.settings.title": "Einstellungen", "page.settings.subtitle": "Geräte, Ein-/Ausgänge und Ereignisse", "page.settings.section": "Administration",
   "page.events.title": "Logbuch", "page.events.subtitle": "System-, Schalt- und Sensorereignisse", "page.events.section": "Administration",

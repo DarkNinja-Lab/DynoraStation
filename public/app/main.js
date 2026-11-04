@@ -1,5 +1,5 @@
 
-const DYNORA_BUILD = "workspace-v34";
+const DYNORA_BUILD = "workspace-v37";
 
 async function clearLegacyFrontendCaches() {
   try {
@@ -19,7 +19,7 @@ async function clearLegacyFrontendCaches() {
 clearLegacyFrontendCaches();
 console.info(`[DynoraStation] Build ${DYNORA_BUILD}`);
 
-import { startApp } from "./bootstrap.js?v=workspace-v34";
+import { startApp } from "./bootstrap.js?v=workspace-v37";
 
 document.addEventListener("DOMContentLoaded", () => {
   startApp().catch(error => {

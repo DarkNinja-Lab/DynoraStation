@@ -1,8 +1,8 @@
-﻿# Gleisplan-Builder – Bedienung
+# Gleisplan – Bedienung
 
 ## Einen Plan erstellen
 
-1. **Builder** direkt in der linken Navigation öffnen. Auf kleinen Displays steht der Eintrag in der unteren Navigation.
+1. **Gleisplan** direkt in der linken Navigation öffnen. Auf kleinen Displays steht der Eintrag in der unteren Navigation.
 2. In der bereits geöffneten **Artikelleiste** eine Kategorie wählen oder eine Artikelnummer suchen. Die Suche berücksichtigt alle Kategorien. Die Gleisfotos helfen bei der Auswahl.
 3. Artikel anklicken und anschließend im Plan klicken oder tippen. Die Artikelleiste bleibt geöffnet. Freie Enden rasten automatisch ein. Alternativ einen Artikel mit der Maus direkt in den Plan ziehen.
 4. Ein Element anklicken oder antippen, um es auszuwählen: Die Eigenschaften erscheinen rechts neben dem Plan. Der Knopf **Eigenschaften** bleibt zusätzlich in der Werkzeugleiste verfügbar.
@@ -55,18 +55,13 @@ Geprüft werden fehlende Zuweisungen, unabhängige Relais-Doppelbelegungen, dopp
 
 Die Prüfung ist eine Planungshilfe. Sie prüft weder die elektrische Verdrahtung noch sämtliche physischen Kollisionen und ersetzt keinen Test an der Anlage. Beim Verkleinern der Platte bleiben bestehende Positionen erhalten; außerhalb liegende Elemente werden gemeldet und nicht beim Zeichnen still verschoben.
 
+## Gleisfotos und eigene Katalogbilder
 
-## Gleisfotos und Katalogbilder
-
-Die Gleisfotos werden aus einem gemeinsam versionierten Bildmodul geladen.
-
-
-## Eigenes Foto für das Märklin-Hauptsignal 7039 (ab 3.5.1)
+Die Gleisfotos werden aus dem gemeinsamen Modul `public/app/catalog/images.js` geladen. Beispiel für ein eigenes Foto des Märklin-Hauptsignals 7039:
 
 Speichere ein echtes JPEG-Foto als `public/assets/track/7039.jpg` (Dateiname kleingeschrieben). Danach die Seite neu laden. Im Builder unter **Signale & Steuerung** oder über die Suche **7039** erscheint das Bild automatisch. Das Foto wird vollständig eingepasst; Querformat mit etwas Freiraum um das Signal passt gut zu den Artikelkarten.
 
 Die mitgelieferte Datei kann durch ein eigenes Foto ersetzt werden. Beim Neuladen erhält die Bildadresse eine neue Cachekennung, damit auch ein später ergänztes oder ersetztes Foto geladen wird. Solange das Foto fehlt oder nicht geladen werden kann, bleibt das Ersatzsymbol sichtbar. Die Darstellung und Schaltfunktion im Anlagenplan bleiben gleich.
-
 
 ## Planversionen und Speicherkonflikte
 

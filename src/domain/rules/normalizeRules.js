@@ -3,13 +3,11 @@
 const { toInt, toNumber } = require("../../utils/parse");
 const { cleanText, makeId, validRelay, validLedChannel } = require("../../utils/sanitize");
 const { defaultRules } = require("../defaults");
+const { RULE_LIMITS, normalizeRuleKind } = require("./ruleSchema");
 
 function normalizeRuleCondition(input) {
   const c = input && typeof input === "object" ? input : {};
-  let kind = String(c.kind || "sensor").trim().toLowerCase();
-  if (kind === "crossing") kind = "xtrack";
-  if (kind === "espsignal") kind = "ledsignal";
-  if (!["sensor", "switch", "signal", "xtrack", "ledsignal", "relay", "led"].includes(kind)) kind = "sensor";
+  const kind = normalizeRuleKind(c.kind, "sensor", true);
 
   return {
     kind,
@@ -25,10 +23,7 @@ function normalizeRuleCondition(input) {
 function normalizeRuleAction(input) {
   const a = input && typeof input === "object" ? input : {};
 
-  let kind = String(a.kind || "switch").trim().toLowerCase();
-  if (kind === "crossing") kind = "xtrack";
-  if (kind === "espsignal") kind = "ledsignal";
-  if (!["switch", "signal", "relay", "led", "xtrack", "ledsignal"].includes(kind)) kind = "switch";
+  const kind = normalizeRuleKind(a.kind, "switch");
 
   return {
     kind,
@@ -39,24 +34,53 @@ function normalizeRuleAction(input) {
   };
 }
 
+function normalizeRuleSteps(input, legacyActions) {
+  const source = Array.isArray(input)
+    ? input
+    : [{ type: "actions", actions: Array.isArray(legacyActions) ? legacyActions : [] }];
+
+  return source.slice(0, RULE_LIMITS.steps).flatMap((step) => {
+    const type = String(step?.type || step?.kind || "actions").trim().toLowerCase();
+    if (["delay", "wait", "timer"].includes(type)) {
+      return [{
+        type: "delay",
+        durationMs: Math.max(0, Math.min(RULE_LIMITS.durationMs, Math.round(toNumber(step?.durationMs ?? step?.delayMs ?? step?.ms, 0))))
+      }];
+    }
+
+    const actions = (Array.isArray(step?.actions) ? step.actions : [])
+      .map(normalizeRuleAction)
+      .slice(0, RULE_LIMITS.actionsPerStep);
+    return actions.length ? [{ type: "actions", actions }] : [];
+  });
+}
+
 function normalizeRules(input) {
   const src = input && typeof input === "object" ? input : {};
   const out = defaultRules();
-  out.version = 1;
+  out.version = 2;
   out.updatedAt = toNumber(src.updatedAt, 0);
 
   const ruleIds = new Set();
   out.rules = (Array.isArray(src.rules) ? src.rules : [])
-    .map((r, i) => ({
-      id: cleanText(r?.id || makeId("RULE"), 120) || `RULE_${i + 1}`,
-      groupId: cleanText(r?.groupId || r?.id || makeId("AUTO"), 120),
-      name: cleanText(r?.name || `Regel ${i + 1}`, 120) || `Regel ${i + 1}`,
-      enabled: r?.enabled !== false,
-      cooldownMs: Math.max(0, Math.min(86400000, toInt(r?.cooldownMs, 5000))),
-      lastRun: toNumber(r?.lastRun, 0),
-      condition: normalizeRuleCondition(r?.condition),
-      actions: (Array.isArray(r?.actions) ? r.actions : []).map(normalizeRuleAction).slice(0, 10)
-    }))
+    .map((r, i) => {
+      const steps = normalizeRuleSteps(r?.steps, r?.actions);
+      return {
+        id: cleanText(r?.id || makeId("RULE"), 120) || `RULE_${i + 1}`,
+        groupId: cleanText(r?.groupId || r?.id || makeId("AUTO"), 120),
+        // groupName was added after the original rules format. Keeping it empty
+        // for legacy rules lets the UI use their old name as the automation name.
+        groupName: cleanText(r?.groupName || "", 120),
+        name: cleanText(r?.name || `Regel ${i + 1}`, 120) || `Regel ${i + 1}`,
+        enabled: r?.enabled !== false,
+        cooldownMs: Math.max(0, Math.min(RULE_LIMITS.durationMs, toInt(r?.cooldownMs, 5000))),
+        lastRun: toNumber(r?.lastRun, 0),
+        condition: normalizeRuleCondition(r?.condition),
+        steps,
+        // Retain the flat form for older integrations and module cleanup.
+        actions: steps.flatMap((step) => step.type === "actions" ? step.actions : []).slice(0, RULE_LIMITS.legacyActions)
+      };
+    })
     .filter((r) => {
       if (!r.id || !r.actions.length || ruleIds.has(r.id)) return false;
       ruleIds.add(r.id);
@@ -69,5 +93,6 @@ function normalizeRules(input) {
 module.exports = {
   normalizeRules,
   normalizeRuleAction,
-  normalizeRuleCondition
+  normalizeRuleCondition,
+  normalizeRuleSteps
 };

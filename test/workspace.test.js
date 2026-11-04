@@ -27,6 +27,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
   const catalog=require("../src/domain/trackCatalog");
   let persisted=null;
   let savedSettings=null;
+  let savedRules=[];
   global.fetch=async(url,options={})=>{
     let payload={};
     if(url.includes("track-catalog")) payload=Object.fromEntries([["tracks","track"],["curves","curve"],["switches","switch"],["crossings","xtrack"],["bumpers","bumper"]].map(([group,kind])=>[group,Object.entries(catalog.TRACK_CATALOG).filter(([,item])=>item.kind===kind).map(([code,item])=>({code,...item}))]));
@@ -34,7 +35,7 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     else if(url==="/api/control/settings") { savedSettings=JSON.parse(options.body); payload={ok:true,hardware:{lightButtons:(savedSettings.lightButtons||[]).map((button,index)=>({id:index+1,name:button.name,icon:button.icon,module:button.moduleId,relay:button.relayIndex}))}}; }
     else if(url==="/api/layout" && options.method==="POST") {persisted=JSON.parse(options.body);payload={ok:true,layout:persisted,warnings:{relayConflicts:[]}};}
     else if(url.includes("light-buttons")) payload={lightButtons:[]};
-    else if(url.includes("rules")) payload={rules:[]};
+    else if(url.includes("rules")) { if(options.method==="POST") savedRules=JSON.parse(options.body).rules; payload={rules:savedRules}; }
     return new Response(JSON.stringify(payload),{status:200});
   };
   let state;
@@ -44,6 +45,30 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
     // Catalog module exposes its individual lists rather than a response object.
     await startApp();
     clearTimeout(state.statusTimer);
+    const moreButton = document.getElementById("mobileMoreButton");
+    const sidebar = document.getElementById("sidebar");
+    moreButton.querySelector("small").click();
+    assert.equal(moreButton.getAttribute("aria-expanded"), "true", "Mehr bleibt nach dem hochblubbernden Klick geöffnet");
+    assert.equal(sidebar.getAttribute("aria-hidden"), "false");
+    assert.equal(sidebar.hasAttribute("inert"), false);
+    moreButton.click();
+    assert.equal(moreButton.getAttribute("aria-expanded"), "false", "Mehr lässt sich erneut schließen");
+    moreButton.click();
+    document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    assert.equal(sidebar.getAttribute("aria-hidden"), "true");
+    assert.equal(document.activeElement, moreButton, "Fokus kehrt zum Auslöser zurück");
+    moreButton.click();
+    document.getElementById("pageTitle").click();
+    assert.equal(sidebar.getAttribute("aria-hidden"), "true", "Ein Klick außerhalb schließt das Menü");
+    const helpDialog = document.getElementById("helpDialog");
+    helpDialog.showModal = () => { helpDialog.open = true; };
+    helpDialog.close = () => { helpDialog.open = false; };
+    moreButton.click();
+    document.getElementById("openHelpDialogDrawer").click();
+    assert.equal(helpDialog.open, true, "Die Hilfe ist über Mehr erreichbar");
+    assert.equal(sidebar.getAttribute("aria-hidden"), "true", "Das Menü schließt vor der Hilfe");
+    document.getElementById("closeHelpDialog").click();
+    assert.equal(helpDialog.open, false);
     assert.ok(document.querySelectorAll(".component-card").length>4,"Katalog geladen");
     document.querySelector('[data-page-link="builder"]').click();
     assert.ok(document.getElementById("page-builder").classList.contains("active"));
@@ -260,6 +285,58 @@ test("Builder-Arbeitsablauf: Start, Suche, Platzieren, Kopie, Undo, Import und S
       assert.equal(document.querySelectorAll('[data-settings-section]:not([hidden])').length,1);
       document.querySelector('[data-settings-view="overview"]').click();
     }
+    // Settings edits must survive the rendering refactor and round-trip through save.
+    state.hardware.modules.other.relays = [false, false];
+    document.querySelector('[data-settings-view="defaults"]').click();
+    document.querySelector('[data-action="add-default"]').click();
+    const setDefault = (field, value) => {
+      const control = document.querySelector(`[data-default-index="0"] [data-field="${field}"]`);
+      control.value = value;
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setDefault("targetType", "relay");
+    setDefault("targetId", "other:1");
+    setDefault("action", "off");
+    setDefault("groupName", "Bahnhof");
+    assert.equal(document.querySelector(".default-group > summary strong").textContent, "Bahnhof");
+    document.querySelector('[data-save-section="defaults"]').click();
+    await new Promise(resolve=>originalTimeout(resolve,30));
+    assert.equal(savedSettings.defaults[0].targetId, "other:1");
+    assert.equal(savedSettings.defaults[0].action, "off");
+    assert.equal(savedSettings.defaults[0].groupName, "Bahnhof");
+
+    document.querySelector('[data-settings-view="overview"]').click();
+    document.querySelector('[data-settings-view="rules"]').click();
+    document.querySelector('[data-action="add-automation"]').click();
+    const setRule = (field, value) => {
+      const control = document.querySelector(`#rulesGrid [data-field="${field}"]`);
+      control.value = value;
+      control.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setRule("triggerType", "relay");
+    setRule("triggerRef", "other::1");
+    const targets = [...document.querySelectorAll("[data-step-target]")];
+    assert.equal(targets.length, 2);
+    for (const target of targets) { target.checked = true; target.dispatchEvent(new Event("change", { bubbles: true })); }
+    assert.equal(document.querySelector("[data-target-count]").textContent, "2 ausgewählt");
+    assert.equal(state.settingsDirty.rules, true);
+    document.querySelector('[data-action="add-initial-delay"]').click();
+    const duration = document.querySelector('[data-step-field="durationSeconds"]');
+    duration.value = "3.5"; duration.dispatchEvent(new Event("change", { bubbles: true }));
+    document.querySelector('[data-action="save-rules"]').click();
+    await new Promise(resolve=>originalTimeout(resolve,30));
+    assert.equal(savedRules[0].steps[0].durationMs, 3500);
+    assert.deepEqual(savedRules[0].steps[1].actions.map(action=>action.channel), [1, 2]);
+    assert.equal(state.settingsDirty.rules, false);
+    const disclosure = document.querySelector("[data-rule-disclosure]");
+    disclosure.open = false;
+    disclosure.dispatchEvent(new Event("toggle"));
+    const automationSearch = document.getElementById("automationSearch");
+    automationSearch.dispatchEvent(new Event("input", { bubbles: true }));
+    assert.equal(document.querySelector("[data-rule-disclosure]").open, false, "Zugeklappte Regeln bleiben nach dem Rendern zugeklappt");
+    automationSearch.value = "unbekannte-automation";
+    automationSearch.dispatchEvent(new Event("input", { bubbles: true }));
+    assert.match(document.querySelector(".automation-empty").textContent, /Keine passende Automation/);
     assert.deepEqual(errors,[],"Keine Fehler in UI-Eventhandlern");
   } finally {
     if(state) clearTimeout(state.statusTimer);

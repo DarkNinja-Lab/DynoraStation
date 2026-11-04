@@ -84,6 +84,7 @@ public/app/catalog/   Gleiskatalog
 public/app/core/      API, State und Utilities
 public/app/layout/    Layoutlogik
 public/app/rules/     Regel-UI
+public/app/settings/  Grundstellungen und Einstellungsdarstellung
 public/app/status/    Status-Synchronisierung
 public/app/track/     Betriebslogik für Gleis/Licht
 public/app/ui/        Rendering, Events und Toasts
@@ -100,3 +101,7 @@ Beim Laden werden die Daten normalisiert. Ungültige oder doppelte Einträge wer
 ## Regeln
 
 Regeln werden separat in `data/rules.json` gespeichert. Sensor- und bestätigte Hardwareereignisse können Regeln auslösen. Die Regel-Engine erzeugt daraus normale Queue-Befehle; sie umgeht den regulären Hardwarepfad nicht.
+
+Eine Automation fasst Regeln über `groupId` und `groupName` zusammen. Jede Regel besitzt eine Bedingung und geordnete `steps` aus Aktionen und Wartezeiten. Für ältere Integrationen wird zusätzlich die flache `actions`-Liste gepflegt. Gemeinsame Typnamen, Grenzen und der Rückfall auf alte Aktionslisten liegen unter `src/domain/rules/ruleSchema.js`.
+
+Im Browser trennt `public/app/rules/model.js` die Formatumwandlung und Validierung von `render.js` und den Editorereignissen in `rules.js`. Grundstellungen werden in `public/app/settings/defaults.js` dargestellt. Navigation und Speichervorgänge bleiben mit der zentralen Einstellungssteuerung verbunden.

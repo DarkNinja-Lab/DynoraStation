@@ -1,6 +1,6 @@
 # ESP8266-Firmware
 
-Dieser Ordner enthält die Firmware für die DynoraStation-Hardwaremodule.
+Die Firmware für die DynoraStation-Hardwaremodule liegt unter [`esp8266_code/`](../esp8266_code/README.md). Diese Anleitung beschreibt Installation und Inbetriebnahme; Profile und Kanalbelegung stehen unter [Hardware](HARDWARE.md).
 
 ## Dateien
 
@@ -71,7 +71,6 @@ Die Firmware versucht DynoraStation per UDP im lokalen Netz zu finden. `SERVER_H
 Für die Inbetriebnahme den seriellen Monitor geöffnet lassen. Dort werden WLAN-Verbindung, gefundener Server, HTTP-Fehler und Hardwarestatus ausgegeben.
 
 Wenn ein Modul im Webinterface als inkompatibel erscheint, zuerst `PROTOCOL_VERSION` zwischen Firmware und Server vergleichen.
-
 
 ## LED-Modul-ID bei bestehenden Installationen
 

@@ -3,6 +3,7 @@
 const { parseState } = require("../../utils/parse");
 const { cleanText, validRelay, validLedChannel, makeOperationId } = require("../../utils/sanitize");
 const { conditionMatches } = require("./conditionMatches");
+const { executionSteps, hasActions } = require("./ruleSchema");
 
 function executeRulesForTrigger({
   runtimeState,
@@ -123,6 +124,38 @@ function executeRulesForTrigger({
     return false;
   }
 
+  function runRuleSteps(rule, steps) {
+    let stepIndex = 0;
+    let immediateExecutions = 0;
+
+    const continueRun = () => {
+      // A changed, deleted, or paused rule must not execute an already queued
+      // follow-up action after its wait time has elapsed.
+      if (!runtimeState?.rulesData?.rules?.includes(rule) || rule.enabled === false) return;
+
+      while (stepIndex < steps.length) {
+        const step = steps[stepIndex++] || {};
+        if (step.type === "delay") {
+          const delayMs = Math.max(0, Number(step.durationMs) || 0);
+          emit("REGEL-WARTEZEIT", rule.id || "RULE", `${getRuleName(rule)}: wartet ${Math.round(delayMs / 100) / 10} Sekunden`);
+          const timer = setTimeout(continueRun, delayMs);
+          // Timers are work in progress, not a reason to keep a shutting-down
+          // station process alive.
+          if (typeof timer?.unref === "function") timer.unref();
+          return;
+        }
+
+        if (step.type !== "actions") continue;
+        (Array.isArray(step.actions) ? step.actions : []).forEach((action) => {
+          if (applyAction(rule, action)) immediateExecutions += 1;
+        });
+      }
+    };
+
+    continueRun();
+    return immediateExecutions;
+  }
+
   for (const rule of rules) {
     if (!rule || rule.enabled === false) continue;
     if (!conditionMatches(rule, trigger)) continue;
@@ -132,20 +165,15 @@ function executeRulesForTrigger({
     const lastRun = Number(rule.lastRun) || 0;
     if (now - lastRun < cooldownMs) continue;
 
-    let anyActionRan = false;
-    const actions = Array.isArray(rule.actions) ? rule.actions : [];
-    actions.forEach((action) => {
-      if (applyAction(rule, action)) {
-        executed += 1;
-        anyActionRan = true;
-      }
-    });
+    const steps = executionSteps(rule);
+    if (!hasActions(steps)) continue;
 
-    if (anyActionRan) {
-      rule.lastRun = now;
-      rulesChanged = true;
-      emit("REGEL", rule.id || "RULE", `${getRuleName(rule)} ausgelöst`);
-    }
+    // Set the cooldown when the sequence starts, including sequences whose
+    // first step is a delay. This prevents duplicate delayed runs.
+    rule.lastRun = now;
+    rulesChanged = true;
+    executed += runRuleSteps(rule, steps);
+    emit("REGEL", rule.id || "RULE", `${getRuleName(rule)} ausgelöst`);
   }
 
   if (rulesChanged) {

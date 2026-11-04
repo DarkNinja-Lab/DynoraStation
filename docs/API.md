@@ -32,6 +32,16 @@ JSON wird für Request- und Response-Bodies verwendet, sofern ein Endpunkt nicht
 
 Beim Speichern des Layouts werden zusätzlich Relaiskonflikte ermittelt und als Warnungen zurückgegeben.
 
+### Automationen und Abläufe
+
+`POST /api/rules` erwartet `{ "rules": [...] }`. Eine Regel enthält `id`, `name`, `enabled`, `cooldownMs`, `condition` und `steps`. `groupId` und `groupName` fassen mehrere Regeln zu einer Automation zusammen.
+
+Ein Schritt ist entweder `{ "type": "actions", "actions": [...] }` oder `{ "type": "delay", "durationMs": 5000 }`. Wartezeiten können vor der ersten Aktion oder zwischen Aktionen stehen. Mehrere Ziele werden als einzelne Aktionen innerhalb desselben Aktionsschritts übertragen.
+
+Die Normalisierung begrenzt die Liste auf 32 Schritte, 24 Aktionen pro Schritt und 24 Stunden pro Warte- oder Sperrzeit. Die zusätzliche flache `actions`-Liste enthält höchstens 96 Aktionen für ältere Integrationen. Diese Liste enthält keine Wartezeiten; für die Ausführungsreihenfolge ist `steps` maßgeblich. Regeln ohne Aktionen und doppelte Regel-IDs werden verworfen.
+
+Alte Regeln mit ausschließlich `actions` werden weiterhin angenommen. Bei den Typen werden `crossing` zu `xtrack` und `espSignal` zu `ledsignal` normalisiert. Die Sperrzeit beginnt beim Start eines Ablaufs. Nach einer Wartezeit prüft der Server, ob die ursprüngliche Regel noch aktiv und unverändert im Laufzeitzustand vorhanden ist.
+
 ## Hardwarekonfiguration
 
 | Methode | Pfad | Zweck |
@@ -164,8 +174,6 @@ Im normalen Betrieb sollten diese Endpunkte deaktiviert bleiben.
 | `POST` | `/api/station/shutdown` | Nur DynoraStation beenden |
 
 Die beiden schreibenden Endpunkte erwarten den Header `X-Dynora-Action: station-control` sowie im JSON-Body `{"confirm":"restart"}` bzw. `{"confirm":"shutdown"}`. Sie führen keinen Betriebssystem-Neustart und kein Betriebssystem-Herunterfahren aus.
-
-
 
 ## Planspeicherung mit Versionsschutz (ab 3.6)
 

@@ -50,7 +50,7 @@ export const state = {
   sensorConfig: {}, // key: moduleId:idx -> { name }
   ledConfig: {}, // key: moduleId:channel -> { name, color, brightness }
   ledConfigDirty: false,
-  settingsDirty: { lights: false, relays: false, sensors: false, leds: false, defaults: false },
+  settingsDirty: { lights: false, relays: false, sensors: false, leds: false, defaults: false, rules: false },
   settingsPersistedAt: 0,
   settingsLedModule: "",
   settingsView: "overview",

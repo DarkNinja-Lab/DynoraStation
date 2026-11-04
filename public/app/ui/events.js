@@ -5,7 +5,7 @@ import { icon } from "./icons.js?v=workspace-v11";
 import { state } from "../core/state.js?v=workspace-v11";
 import { apiCall } from "../core/api.js?v=workspace-v11";
 import { renderTrackLightButtons } from "../track/lights.js?v=workspace-v12";
-import { collapseAllAutomations, renderRulesGrid } from "../rules/rules.js?v=workspace-v18";
+import { renderRulesGrid } from "../rules/rules.js?v=workspace-v21";
 import { renderSidebarEspStatus, renderCs3Tiles, renderDashboardOverview } from "./render.js?v=workspace-v11";
 import { renderTrackLayout } from "../track/track.js?v=workspace-v15";
 import { showToast } from "./toast.js?v=workspace-v15";
@@ -13,6 +13,8 @@ import { commandFeedbackForRelay, commandFeedbackForLed, commandFeedbackForEleme
 import { esc } from "../core/utils.js?v=workspace-v11";
 import { getLanguage, getLocale, initLanguage, LANGUAGES, setLanguage, t } from "../core/i18n.js?v=workspace-v23";
 import { clearFirmwareConnectionSettings, FIRMWARE_CONNECTION_SETTINGS_KEY, loadFirmwareConnectionSettings, saveFirmwareConnectionSettings } from "../ota/connectionSettings.js?v=workspace-v1";
+
+import { renderDefaultStates, defaultActionOptions, getVisibleDefaults, selectedDefaultIndices, expandedDefaultGroups } from "../settings/defaults.js?v=interface-v1";
 
 function byId(id) { return document.getElementById(id); }
 function all(sel) { return Array.from(document.querySelectorAll(sel)); }
@@ -139,7 +141,10 @@ function setActivePage(page) {
 
   document.body.dataset.page = targetMeta;
   all(".nav-button[data-page]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.page === (editRequested ? "builder" : targetMeta));
+    const active = btn.dataset.page === (editRequested ? "builder" : targetMeta);
+    btn.classList.toggle("active", active);
+    if (active) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
   });
 
   all(".page").forEach((p) => {
@@ -148,7 +153,10 @@ function setActivePage(page) {
 
   setPageHeader(targetMeta);
   all(".mobile-nav-button[data-page-link]").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.pageLink === (editRequested ? "builder" : targetMeta));
+    const active = btn.dataset.pageLink === (editRequested ? "builder" : targetMeta);
+    btn.classList.toggle("active", active);
+    if (active) btn.setAttribute("aria-current", "page");
+    else btn.removeAttribute("aria-current");
   });
   all(".drawer-nav-button[data-page-link]").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.pageLink === targetMeta);
@@ -215,7 +223,7 @@ function bindNavigation() {
     });
     document.addEventListener("click", (event) => {
       if (!document.body.classList.contains("sidebar-open")) return;
-      if (sidebar.contains(event.target) || mobileBtn.contains(event.target)) return;
+      if (sidebar.contains(event.target) || event.target.closest?.("[data-sidebar-toggle]")) return;
       setSidebarOpen(false);
     });
     document.addEventListener("keydown", (event) => {
@@ -272,41 +280,6 @@ function modOptions(selected = "") {
   return [`<option value="">Modul wählen…</option>`]
     .concat(modules().filter((module) => hasCapability(module, "relay")).map((m) => `<option value="${esc(m.id)}" ${m.id === selected ? "selected" : ""}>${esc(m.name || m.id)}</option>`))
     .join("");
-}
-
-function optionList(items, selected, emptyLabel) {
-  const values = items.map(([value]) => String(value));
-  const legacy = selected && !values.includes(String(selected))
-    ? [[selected, `${selected} (nicht mehr verfügbar)`]]
-    : [];
-  return [["", emptyLabel], ...legacy, ...items]
-    .map(([value, label]) => `<option value="${esc(value)}" ${String(value) === String(selected || "") ? "selected" : ""}>${esc(label)}</option>`)
-    .join("");
-}
-
-function defaultTargetOptions(type) {
-  if (type === "relay") {
-    return modules().flatMap((module) => (module.relays || []).map((_, index) => [
-      `${module.id}:${index + 1}`,
-      `${module.name || module.id} · Relay ${index + 1}`
-    ]));
-  }
-  const typeMap = { switch: "switch", signal: "signal", crossing: "xtrack", espSignal: "ledSignal" };
-  const backendType = typeMap[type];
-  return (state.layout?.elemente || [])
-    .filter((element) => element.typ === type || element.typ === backendType)
-    .map((element) => [element.id, element.name || element.id]);
-}
-
-function defaultActionOptions(type) {
-  const map = {
-    relay: [["on", "Einschalten"], ["off", "Ausschalten"]],
-    switch: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
-    crossing: [["gerade", "Gerade"], ["abzweig", "Abzweig"]],
-    signal: [["halt", "Rot / Halt"], ["fahrt", "Grün / Fahrt"]],
-    espSignal: [["halt", "Rot / Halt"], ["warnung", "Gelb / Warnung"], ["fahrt", "Grün / Fahrt"]]
-  };
-  return map[type] || [];
 }
 
 function relayOptions(selected = 0, moduleId = "") {
@@ -382,110 +355,6 @@ function renderModuleManagement() {
       </div></details>`;
   }).join("")}</div>` : '<div class="settings-empty"><strong>Noch kein Modul verbunden</strong><p>Schalte deinen ESP ein und verbinde ihn mit demselben Netzwerk. Erkannte Module erscheinen hier automatisch.</p></div>';
 
-}
-
-const selectedDefaultIndices = new Set();
-const expandedDefaultGroups = new Set();
-function renderDefaultStates() {
-  const host = byId("defaultStateGrid");
-  if (!host) return;
-  if (!Array.isArray(state.defaults)) state.defaults = [];
-  const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
-  const visibleDefaults = state.defaults.map((item, index) => ({ item, index })).filter(({ item }) => !search || `${item.groupName || ""} ${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search));
-  const selectAll = byId("defaultSelectVisible");
-  if (selectAll) { selectAll.checked = visibleDefaults.length > 0 && visibleDefaults.every(({ index }) => selectedDefaultIndices.has(index)); selectAll.indeterminate = visibleDefaults.some(({ index }) => selectedDefaultIndices.has(index)) && !selectAll.checked; }
-  const count = byId("defaultSelectionCount");
-  if (count) count.textContent = `${selectedDefaultIndices.size} ausgewählt`;
-  const deleteSelected = byId("deleteSelectedDefaults");
-  if (deleteSelected) deleteSelected.disabled = selectedDefaultIndices.size === 0;
-
-  host.innerHTML = `
-    <div class="rules-head">
-      <div class="builder-message">Startzustände werden beim Verbinden des passenden ESP gesetzt.</div>
-      <button type="button" class="primary-button" data-action="add-default">+ Zustand</button>
-    </div>
-    <div class="rules-cards">
-      ${visibleDefaults.map(({ item: d, index: i }) => `
-        <div class="rule-card ${selectedDefaultIndices.has(i) ? "selected" : ""}" data-default-index="${i}">
-          <label class="collection-item-select"><input type="checkbox" data-select-default="${i}" ${selectedDefaultIndices.has(i) ? "checked" : ""}> Auswählen</label>
-          <label>Typ</label>
-          <select data-field="targetType">${optionList([
-            ["switch", "Weiche"], ["crossing", "Kreuzungsweiche"], ["signal", "Märklin-Signal"],
-            ["espSignal", "ESP-Signal"], ["relay", "Relay"]
-          ], d.targetType, "Typ wählen…")}</select>
-          <label>Ziel</label>
-          <select data-field="targetId" ${d.targetType ? "" : "disabled"}>${optionList(defaultTargetOptions(d.targetType), d.targetId, "Ziel wählen…")}</select>
-          <label>Aktion</label>
-          <select data-field="action" ${d.targetType ? "" : "disabled"}>${optionList(defaultActionOptions(d.targetType), d.action, "Aktion wählen…")}</select>
-          <button class="secondary-button" data-action="remove-default" type="button">Löschen</button>
-        </div>
-      `).join("") || `<div class="sidebar-esp-empty">${search ? "Keine passende Grundstellung gefunden." : "Keine Standardzustände konfiguriert."}</div>`}
-    </div>
-  `;
-  const cardContainer = host.querySelector(".rules-cards");
-  const stateCards = [...host.querySelectorAll(".rule-card[data-default-index]")];
-  const groupToolbar = host.querySelector(".rules-head");
-  if (groupToolbar) {
-    const addGroup = document.createElement("button");
-    addGroup.type = "button";
-    addGroup.className = "secondary-button";
-    addGroup.dataset.action = "add-default-group";
-    addGroup.innerHTML = `${icon("plus")} Gruppe anlegen`;
-    groupToolbar.append(addGroup);
-  }
-  if (cardContainer && stateCards.length) {
-    cardContainer.className = "default-group-list";
-    const groups = new Map();
-    stateCards.forEach((card) => {
-      const entry = state.defaults[Number(card.dataset.defaultIndex)];
-      const name = String(entry?.groupName || "").trim();
-      const key = name || "__ungrouped__";
-      if (!groups.has(key)) groups.set(key, { name, cards: [] });
-      groups.get(key).cards.push(card);
-      const typeLabel = [...card.querySelectorAll("label")].find((label) => label.textContent.trim() === "Typ");
-      const groupLabel = document.createElement("label");
-      groupLabel.className = "default-state-group-field";
-      const groupCaption = document.createElement("span"); groupCaption.textContent = "Gruppe";
-      const groupInput = document.createElement("input");
-      groupInput.type = "text"; groupInput.maxLength = 48; groupInput.value = name;
-      groupInput.placeholder = "Ohne Gruppe"; groupInput.setAttribute("list", "defaultGroupNames"); groupInput.dataset.field = "groupName";
-      groupLabel.append(groupCaption, groupInput);
-      if (typeLabel) card.insertBefore(groupLabel, typeLabel);
-      [...card.querySelectorAll("label")].filter((label) => ["Typ", "Ziel", "Aktion"].includes(label.textContent.trim())).forEach((label) => {
-        const control = label.nextElementSibling;
-        if (!control || !["SELECT", "INPUT"].includes(control.tagName)) return;
-        const field = document.createElement("label"); field.className = "default-state-field";
-        const caption = document.createElement("span"); caption.textContent = label.textContent.trim();
-        field.append(caption, control); card.insertBefore(field, label); label.remove();
-      });
-    });
-    const groupNames = [...new Set(state.defaults.map((item) => String(item.groupName || "").trim()).filter(Boolean))];
-    const names = document.createElement("datalist"); names.id = "defaultGroupNames";
-    groupNames.forEach((name) => { const option = document.createElement("option"); option.value = name; names.append(option); });
-    host.append(names);
-    for (const [key, group] of groups) {
-      const details = document.createElement("details");
-      details.className = "default-group";
-      details.dataset.defaultGroup = key;
-      details.open = expandedDefaultGroups.has(key);
-      const summary = document.createElement("summary");
-      const title = document.createElement("strong"); title.textContent = group.name || "Ohne Gruppe";
-      const countLabel = document.createElement("span"); countLabel.className = "default-group-count";
-      countLabel.textContent = `${group.cards.length} ${group.cards.length === 1 ? "Zustand" : "Zust\u00e4nde"}`;
-      summary.append(title, countLabel);
-      const chevron = document.createElement("span"); chevron.className = "default-group-chevron"; chevron.innerHTML = icon("chevron-down"); summary.append(chevron);
-      details.append(summary);
-      const actions = document.createElement("div"); actions.className = "default-group-actions";
-      const addState = document.createElement("button"); addState.type = "button"; addState.className = "secondary-button"; addState.dataset.action = "add-default-to-group"; addState.dataset.groupName = group.name; addState.innerHTML = `${icon("plus")} Zustand`;
-      actions.append(addState);
-      if (group.name) {
-        const rename = document.createElement("button"); rename.type = "button"; rename.className = "text-button"; rename.dataset.action = "rename-default-group"; rename.dataset.groupName = group.name; rename.textContent = "Umbenennen"; actions.append(rename);
-      }
-      details.append(actions, ...group.cards);
-      cardContainer.append(details);
-      details.addEventListener("toggle", () => details.open ? expandedDefaultGroups.add(key) : expandedDefaultGroups.delete(key));
-    }
-  }
 }
 
 function renderRelayGrid() {
@@ -1089,8 +958,10 @@ async function saveSettingsSection(section) {
 function bindSettingsInput() {
   byId("defaultSearch")?.addEventListener("input", renderDefaultStates);
   byId("defaultSelectVisible")?.addEventListener("change", (event) => {
-    const search = String(byId("defaultSearch")?.value || "").trim().toLocaleLowerCase("de-DE");
-    state.defaults.forEach((item, index) => { if (!search || `${item.groupName || ""} ${item.targetType} ${item.targetId} ${item.action}`.toLocaleLowerCase("de-DE").includes(search)) event.target.checked ? selectedDefaultIndices.add(index) : selectedDefaultIndices.delete(index); });
+    getVisibleDefaults().forEach(({ index }) => {
+      if (event.target.checked) selectedDefaultIndices.add(index);
+      else selectedDefaultIndices.delete(index);
+    });
     renderDefaultStates();
   });
   byId("deleteSelectedDefaults")?.addEventListener("click", () => {

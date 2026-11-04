@@ -151,6 +151,66 @@ test("Eine Automation speichert mehrere WENN-DANN-Regeln und mehrere DANN-Aktion
   assert.equal(commands.length, 3);
 });
 
+test("Automationsabläufe bewahren Wartezeiten, Reihenfolge und Mehrfachziele", async () => {
+  const data = normalizeRules({ rules: [{
+    id: "R_SEQUENCE", groupId: "AUTO_SEQUENCE", groupName: "Einfahrt", name: "Zug erkannt",
+    cooldownMs: 0,
+    condition: { kind: "sensor", module: "ESP-A", sensorId: "S1", triggered: true },
+    steps: [
+      { type: "actions", actions: [
+        { kind: "relay", module: "ESP-A", channel: 1, state: "on" },
+        { kind: "relay", module: "ESP-A", channel: 2, state: "on" }
+      ] },
+      { type: "delay", durationMs: 20 },
+      { type: "actions", actions: [{ kind: "relay", module: "ESP-A", channel: 3, state: "off" }] }
+    ]
+  }] });
+  assert.equal(data.rules[0].groupName, "Einfahrt");
+  assert.equal(data.rules[0].steps.length, 3);
+  assert.equal(data.rules[0].actions.length, 3, "Mehrfachziele bleiben als einzelne Hardware-Aktionen erhalten");
+
+  const commands = [];
+  const runtimeState = {
+    rulesData: data,
+    modules: { "ESP-A": { capabilities: ["relay"], relays: [false, false, false] } },
+    layout: { elemente: [] }
+  };
+  const result = executeRulesForTrigger({
+    runtimeState,
+    moduleRegistry: { getOrCreateModule: () => null, moduleCompatibility: () => ({ compatible: true, reason: "" }), moduleIsOnline: () => true },
+    commandQueueApi: { createCommand: (...args) => commands.push(args) },
+    addEvent() {}, queueWriteRules() {},
+    trigger: { kind: "sensor", module: "ESP-A", sensorId: "S1", triggered: true }
+  });
+  assert.equal(result.executed, 2);
+  assert.deepEqual(commands.map(([type, payload]) => [type, payload.channel, payload.state]), [["RELAY_SET", 1, true], ["RELAY_SET", 2, true]]);
+  await new Promise((resolve) => setTimeout(resolve, 45));
+  assert.deepEqual(commands.map(([type, payload]) => [type, payload.channel, payload.state]), [["RELAY_SET", 1, true], ["RELAY_SET", 2, true], ["RELAY_SET", 3, false]]);
+});
+
+test("Eine Wartezeit kann direkt nach WENN vor der ersten Aktion stehen", async () => {
+  const data = normalizeRules({ rules: [{
+    id: "R_INITIAL_DELAY", cooldownMs: 0,
+    condition: { kind: "sensor", module: "ESP-A", sensorId: "S1", triggered: true },
+    steps: [
+      { type: "delay", durationMs: 15 },
+      { type: "actions", actions: [{ kind: "relay", module: "ESP-A", channel: 1, state: "on" }] }
+    ]
+  }] });
+  const commands = [];
+  const result = executeRulesForTrigger({
+    runtimeState: { rulesData: data, modules: { "ESP-A": { capabilities: ["relay"], relays: [false] } }, layout: { elemente: [] } },
+    moduleRegistry: { getOrCreateModule: () => null, moduleCompatibility: () => ({ compatible: true, reason: "" }), moduleIsOnline: () => true },
+    commandQueueApi: { createCommand: (...args) => commands.push(args) },
+    addEvent() {}, queueWriteRules() {},
+    trigger: { kind: "sensor", module: "ESP-A", sensorId: "S1", triggered: true }
+  });
+  assert.equal(result.executed, 0);
+  assert.equal(commands.length, 0);
+  await new Promise((resolve) => setTimeout(resolve, 35));
+  assert.equal(commands.length, 1);
+});
+
 test("Regel-Normalisierung entfernt doppelte Regel-IDs", () => {
   const { normalizeRules } = require("../src/domain/rules/normalizeRules");
   const rules = normalizeRules({
